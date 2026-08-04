@@ -5,7 +5,7 @@ from django.core.cache import cache
 
 def login_view(request):
     if request.method == 'POST':
-        sdt = request.POST.get('sdt')
+        sdt = request.POST.get('sdt', '').strip()
         password = request.POST.get('password')
         
         if not sdt or not password:

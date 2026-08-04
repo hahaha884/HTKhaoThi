@@ -41,7 +41,7 @@ def account_create(request):
     
     if request.method == 'POST':
         from django.contrib.auth.models import Group
-        sdt = request.POST.get('sdt')
+        sdt = request.POST.get('sdt', '').strip()
         password = request.POST.get('password', 'TH12345!')
         ngaybatdau = request.POST.get('ngaybatdau')
         phanquyen = request.POST.get('phanquyen')
