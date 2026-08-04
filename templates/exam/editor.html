@@ -1,0 +1,750 @@
+{% extends 'base.html' %}
+{% block page_title %}Soạn thảo Đề thi{% endblock %}
+{% block content %}
+<div class="row g-4 mb-4">
+    <div class="col-md-8">
+        {% if matrix_progress %}
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white py-3">
+                <h5 class="fw-bold mb-0 text-primary"><i class="fas fa-cubes me-2"></i>Cấu trúc Ma trận</h5>
+            </div>
+            <div class="card-body bg-light p-3">
+                <div class="row g-3">
+                    {% for mp in matrix_progress %}
+                    <div class="col-md-6">
+                        <div class="card border-0 shadow-sm h-100 {% if mp.is_completed %}border-start border-success border-4{% else %}border-start border-warning border-4{% endif %}">
+                            <div class="card-body p-3 d-flex flex-column justify-content-between">
+                                <div class="mb-2">
+                                    <h6 class="fw-bold text-dark mb-2" style="font-size: 0.95rem;">{{ mp.ct.NoiDung.TenNoidung }}</h6>
+                                    <div class="d-flex gap-2">
+                                        <span class="badge bg-light text-secondary border">{{ mp.ct.LoaiCauHoi }}</span>
+                                        <span class="badge bg-light text-secondary border">{{ mp.ct.MucDo }}</span>
+                                    </div>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-end mt-2">
+                                    <div>
+                                        <span class="text-muted small">Tiến độ:</span>
+                                        <span class="badge {% if mp.is_completed %}bg-success{% else %}bg-warning text-dark{% endif %} fs-6 ms-1">
+                                            {{ mp.selected }} / {{ mp.required }}
+                                        </span>
+                                    </div>
+                                    {% if not mp.is_completed and de_thi.HinhThucTao == 'Thủ công' and de_thi.TrangThai == 'Nháp' %}
+                                    <button type="button" class="btn btn-sm btn-outline-primary"
+                                            onclick="openQuestionPicker({{ mp.ct.id }}, {{ mp.diem_moi_cau }})">
+                                        <i class="fas fa-plus me-1"></i>Chọn câu
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Main Editor Area -->
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h5 class="fw-bold mb-0 text-primary"><i class="fas fa-file-signature me-2"></i>Chi tiết Đề thi</h5>
+                <div class="d-flex gap-2">
+                    {% if de_thi.TrangThai == 'Nháp' %}
+                    <form method="POST" onsubmit="hasUnsavedChanges = false;" class="m-0 p-0">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="cancel_exam">
+                        <button type="submit" class="btn btn-sm btn-light border" onclick="return confirm('Bạn có chắc muốn hủy tạo đề thi này? Mọi thay đổi sẽ bị xóa.')"><i class="fas fa-times me-1"></i>Hủy</button>
+                    </form>
+                    <form method="POST" onsubmit="hasUnsavedChanges = false;" class="m-0 p-0">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="save_draft">
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save me-1"></i>Lưu đề</button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body p-4 bg-light" id="question-list">
+                {% for item in chi_tiet %}
+                <div class="card mb-3 border-0 shadow-sm question-item" data-id="{{ item.id }}" style="border-left: 4px solid var(--accent-indigo) !important;">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                                Câu 
+                                {% if de_thi.TrangThai == 'Nháp' %}
+                                <form method="POST" class="d-inline m-0 p-0">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="update_order">
+                                    <input type="hidden" name="ct_id" value="{{ item.id }}">
+                                    <input type="number" name="new_order" value="{{ forloop.counter }}" class="form-control form-control-sm text-center d-inline-block fw-bold p-0 border-0 bg-transparent text-dark" style="width: 35px; font-size: inherit; appearance: textfield;" onchange="this.form.submit()" min="1" max="{{ chi_tiet|length }}">
+                                </form>
+                                {% else %}
+                                <span class="fw-bold">{{ forloop.counter }}</span>
+                                {% endif %}
+                                <span class="badge bg-light text-secondary border">{{ item.MaCauHoi.DangCauHoi }}</span>
+                                <span class="badge bg-light text-secondary border">{{ item.MaCauHoi.MucDo }}</span>
+                            </h6>
+                            {% if de_thi.TrangThai == 'Nháp' %}
+                            <div class="d-flex gap-2 align-items-center">
+                                <form method="POST" class="d-flex align-items-center gap-2 m-0 p-0">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="update_score">
+                                    <input type="hidden" name="ct_id" value="{{ item.id }}">
+                                    <input type="number" step="0.25" name="new_score" value="{{ item.DiemSo }}" class="form-control form-control-sm text-center" style="width: 70px;" onchange="this.form.submit()">
+                                    <span class="text-muted small">điểm</span>
+                                </form>
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-light border-0" type="button" data-bs-toggle="dropdown"><i class="fas fa-ellipsis-v text-muted"></i></button>
+                                    <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
+                                        <li><a class="dropdown-item" href="#" onclick="openReplacePicker({{ item.id }})"><i class="fas fa-exchange-alt me-2 text-primary"></i>Thay câu hỏi</a></li>
+                                        <li>
+                                            <form method="POST" onsubmit="return confirm('Bạn có chắc muốn xóa câu này khỏi đề?');">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="action" value="delete_question">
+                                                <input type="hidden" name="ct_id" value="{{ item.id }}">
+                                                <button type="submit" class="dropdown-item text-danger"><i class="fas fa-trash me-2"></i>Xóa khỏi đề</button>
+                                            </form>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="d-flex gap-2 align-items-center">
+                                <span class="fw-bold">{{ item.DiemSo }} điểm</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Nội dung câu hỏi -->
+                        <div class="mt-2 text-dark" style="font-size: 1.05rem;">
+                            {{ item.MaCauHoi.NoiDungCauHoi|safe }}
+                        </div>
+                        
+                        <!-- Đáp án — hiển thị theo từng loại câu hỏi -->
+                        {% with dap_ans=item.MaCauHoi.dap_ans.all dang=item.MaCauHoi.DangCauHoi hinh_thuc=item.MaCauHoi.HinhThuc %}
+
+                        {% if hinh_thuc == 'Tự luận' or dang == 'EssayShort' or dang == 'EssayLong' %}
+                            {# --- TỰ LUẬN (EssayShort, EssayLong, Tự luận) --- #}
+                            <div class="mt-3 p-3 bg-white rounded border">
+                                <p class="text-muted small mb-1"><i class="fas fa-pencil-alt me-1"></i>Câu tự luận — Gợi ý đáp án:</p>
+                                <div class="text-dark">{{ item.MaCauHoi.DapAnMau|safe|default:"(Chưa có đáp án mẫu)" }}</div>
+                            </div>
+
+                        {% elif dang == 'MCQ' %}
+                            {# --- TRẮC NGHIỆM 1 ĐÁP ÁN --- #}
+                            <div class="mt-3 ps-2">
+                                {% for da in dap_ans %}
+                                <div class="d-flex align-items-start mb-2 p-2 rounded {% if da.LaDapAnDung %}bg-success bg-opacity-10 border border-success border-opacity-25{% endif %}">
+                                    <span class="fw-bold me-3 text-primary" style="min-width: 22px;">{{ da.NoiDungTrai|default:forloop.counter }}.</span>
+                                    <span class="flex-grow-1">{{ da.NoiDung|safe }}</span>
+                                    {% if da.LaDapAnDung %}<i class="fas fa-check-circle text-success ms-2 mt-1" title="Đáp án đúng"></i>{% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+
+                        {% elif dang == 'MSQ' %}
+                            {# --- TRẮC NGHIỆM NHIỀU ĐÁP ÁN --- #}
+                            <div class="mt-3 ps-2">
+                                <p class="text-muted small mb-2"><i class="fas fa-check-double me-1"></i>Chọn tất cả đáp án đúng:</p>
+                                {% for da in dap_ans %}
+                                <div class="d-flex align-items-start mb-2 p-2 rounded {% if da.LaDapAnDung %}bg-success bg-opacity-10 border border-success border-opacity-25{% endif %}">
+                                    <span class="fw-bold me-3 text-primary" style="min-width: 22px;">{{ da.NoiDungTrai|default:forloop.counter }}.</span>
+                                    <span class="flex-grow-1">{{ da.NoiDung|safe }}</span>
+                                    {% if da.LaDapAnDung %}<i class="fas fa-check-circle text-success ms-2 mt-1" title="Đáp án đúng"></i>{% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+
+                        {% elif dang == 'TF' %}
+                            {# --- ĐÚNG / SAI --- #}
+                            <div class="mt-3 ps-2">
+                                <p class="text-muted small mb-2"><i class="fas fa-balance-scale me-1"></i>Xác định Đúng / Sai cho từng mệnh đề:</p>
+                                {% for da in dap_ans %}
+                                <div class="d-flex align-items-center mb-2 p-2 rounded bg-light">
+                                    <span class="fw-bold me-2 text-secondary" style="min-width: 24px;">{{ forloop.counter }}.</span>
+                                    <span class="flex-grow-1">{{ da.NoiDung|safe }}</span>
+                                    <span class="ms-3 fw-bold {% if da.NoiDungTrai == 'Đúng' %}text-success{% else %}text-danger{% endif %}">
+                                        <i class="fas {% if da.NoiDungTrai == 'Đúng' %}fa-check{% else %}fa-times{% endif %} me-1"></i>{{ da.NoiDungTrai }}
+                                    </span>
+                                </div>
+                                {% endfor %}
+                            </div>
+
+                        {% elif dang == 'Matching' %}
+                            {# --- GHÉP NỐI --- #}
+                            <div class="mt-3 ps-2">
+                                <p class="text-muted small mb-2"><i class="fas fa-link me-1"></i>Ghép nối:</p>
+                                {% for da in dap_ans %}
+                                <div class="d-flex align-items-center mb-2 p-2 rounded bg-light">
+                                    <span class="fw-bold me-2 text-secondary" style="min-width: 24px;">{{ forloop.counter }}.</span>
+                                    <span class="flex-grow-1 text-primary fw-semibold">{{ da.NoiDungTrai|safe }}</span>
+                                    <i class="fas fa-arrow-right mx-3 text-muted"></i>
+                                    <span class="flex-grow-1 text-success fw-semibold">{{ da.NoiDung|safe }}</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+
+                        {% elif dang == 'FIB' %}
+                            {# --- ĐIỀN KHUYẾT --- #}
+                            <div class="mt-3 ps-2">
+                                <p class="text-muted small mb-2"><i class="fas fa-fill-drip me-1"></i>Đáp án điền vào chỗ trống:</p>
+                                {% for da in dap_ans %}
+                                <div class="d-flex align-items-center mb-1 p-2 rounded bg-success bg-opacity-10 border border-success border-opacity-25">
+                                    {% if dap_ans|length > 1 %}<span class="fw-bold me-2 text-secondary" style="min-width: 24px;">{{ forloop.counter }}.</span>{% endif %}
+                                    <span class="fw-bold text-success">{{ da.NoiDung|safe }}</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+
+                        {% else %}
+                            {# --- LOẠI KHÁC / CHƯA XÁC ĐỊNH --- #}
+                            {% if dap_ans %}
+                            <div class="mt-3 ps-2">
+                                {% for da in dap_ans %}
+                                <div class="d-flex align-items-start mb-2 p-2 rounded {% if da.LaDapAnDung %}bg-success bg-opacity-10{% endif %}">
+                                    <span class="flex-grow-1">{{ da.NoiDung|safe }}</span>
+                                    {% if da.LaDapAnDung %}<i class="fas fa-check-circle text-success ms-2"></i>{% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <div class="mt-2 text-muted small"><i class="fas fa-exclamation-circle me-1 text-warning"></i>Câu hỏi này chưa có đáp án.</div>
+                            {% endif %}
+                        {% endif %}
+
+                        {% endwith %}
+                    </div>
+                </div>
+                {% empty %}
+                <div class="text-center py-5">
+                    <i class="fas fa-box-open fa-3x text-muted opacity-25 mb-3"></i>
+                    <h5 class="text-muted">Đề thi này chưa có câu hỏi nào.</h5>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Bảng đáp án ở cuối -->
+        {% if chi_tiet %}
+        <div class="card shadow-sm border-0 mt-4">
+            <div class="card-header bg-primary text-white py-3">
+                <h6 class="fw-bold mb-0"><i class="fas fa-list-ol me-2"></i>Bảng đáp án (Dành cho giáo viên)</h6>
+            </div>
+            <div class="card-body p-3">
+                <div class="row g-2">
+                    {% for item in chi_tiet %}
+                    <div class="col-md-3 col-6">
+                        <div class="d-flex align-items-center border rounded p-2 bg-light">
+                            <span class="fw-bold text-primary me-2" style="min-width: 50px;">Câu {{ forloop.counter }}:</span>
+                            <span class="fw-bold text-success">
+                                {% with dap_ans=item.MaCauHoi.dap_ans.all dang=item.MaCauHoi.DangCauHoi hinh_thuc=item.MaCauHoi.HinhThuc %}
+                                {% if hinh_thuc == 'Tự luận' %}
+                                    <span class="text-muted small">Tự luận</span>
+                                {% elif dang == 'TF' %}
+                                    {# TF: hien thi "1.Đ 2.S 3.Đ..." #}
+                                    {% for da in dap_ans %}{{ forloop.counter }}.{% if da.NoiDungTrai == 'Đúng' %}Đ{% else %}S{% endif %}{% if not forloop.last %} {% endif %}{% endfor %}
+                                {% elif dang == 'Matching' %}
+                                    <span class="text-muted small">Ghép nối</span>
+                                {% elif dang == 'FIB' %}
+                                    {% for da in dap_ans %}{{ da.NoiDung }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                                {% elif dang == 'MSQ' %}
+                                    {# MSQ: hien thi cac dap an dung #}
+                                    {% for da in dap_ans %}{% if da.LaDapAnDung %}{{ da.NoiDungTrai }}{% if not forloop.last %},{% endif %}{% endif %}{% endfor %}
+                                {% else %}
+                                    {# MCQ: hien thi nhan dap an dung #}
+                                    {% for da in dap_ans %}{% if da.LaDapAnDung %}{{ da.NoiDungTrai }}{% endif %}{% endfor %}
+                                {% endif %}
+                                {% endwith %}
+                            </span>
+                            <span class="text-muted small ms-auto">({{ item.DiemSo }}đ)</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="col-md-4">
+        <!-- Sidebar Information -->
+        <div class="card shadow-sm border-0 mb-4 sticky-top" style="top: 20px;">
+            <div class="card-header bg-white py-3">
+                <h6 class="fw-bold text-dark mb-0">Thông tin Đề thi</h6>
+            </div>
+            <div class="card-body">
+                {# Tên đề: chỉnh sửa được khi Nháp #}
+                {% if de_thi.TrangThai == 'Nháp' %}
+                <form method="POST" class="mb-3" onsubmit="hasUnsavedChanges = false;">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="rename_exam">
+                    <div class="input-group input-group-sm">
+                        <input type="text" name="ten_de" value="{{ de_thi.TenDe }}"
+                               class="form-control fw-bold text-primary"
+                               style="font-size:0.95rem;"
+                               placeholder="Tên đề thi...">
+                        <button type="submit" class="btn btn-outline-primary" title="Lưu tên">
+                            <i class="fas fa-check"></i>
+                        </button>
+                    </div>
+                </form>
+                {% else %}
+                <h5 class="fw-bold text-primary mb-3">{{ de_thi.TenDe }}</h5>
+                {% endif %}
+
+                <ul class="list-unstyled mb-4" style="font-size:0.9rem;">
+                    <li class="mb-2 d-flex justify-content-between">
+                        <span class="text-muted">Trạng thái:</span>
+                        <span>
+                            {% if de_thi.TrangThai == 'Nháp' %}
+                                <span class="badge bg-secondary">Nháp</span>
+                            {% elif de_thi.TrangThai == 'Đã nộp' %}
+                                <span class="badge bg-warning text-dark">Đã nộp</span>
+                            {% elif de_thi.TrangThai == 'Chính thức' %}
+                                <span class="badge bg-success">Chính thức</span>
+                            {% endif %}
+                        </span>
+                    </li>
+                    <li class="mb-2 d-flex justify-content-between">
+                        <span class="text-muted">Năm học:</span>
+                        <span class="fw-bold">{{ de_thi.NamHoc.TenNamHoc|default:"—" }}</span>
+                    </li>
+                    <li class="mb-2 d-flex justify-content-between">
+                        <span class="text-muted">Học kỳ:</span>
+                        <span class="fw-bold">{{ de_thi.HocKy }}</span>
+                    </li>
+                    <li class="mb-2 d-flex justify-content-between">
+                        <span class="text-muted">Kỳ thi:</span>
+                        <span class="fw-bold">{{ de_thi.KyThi }}</span>
+                    </li>
+                    <li class="mb-2 d-flex justify-content-between">
+                        <span class="text-muted">Môn học:</span>
+                        <span class="fw-bold">{{ de_thi.MonHoc.TenMon }}</span>
+                    </li>
+                    <li class="mb-2 d-flex justify-content-between">
+                        <span class="text-muted">Khối:</span>
+                        <span class="fw-bold">{{ de_thi.Khoi.TenKhoi }}</span>
+                    </li>
+                    <li class="mb-2 d-flex justify-content-between">
+                        <span class="text-muted">Người gửi:</span>
+                        <span class="fw-bold text-end" style="max-width:60%">{{ de_thi.NguoiTao.HoTen|default:"—" }}</span>
+                    </li>
+                    {% if de_thi.NguoiDuyet %}
+                    <li class="mb-2 d-flex justify-content-between">
+                        <span class="text-muted">Gửi đến:</span>
+                        <span class="fw-bold text-end" style="max-width:60%">{{ de_thi.NguoiDuyet.HoTen }}</span>
+                    </li>
+                    {% endif %}
+                    {% if de_thi.TrangThai == 'Đã nộp' %}
+                    <li class="mb-2 d-flex justify-content-between">
+                        <span class="text-muted">Đã đọc:</span>
+                        {% if de_thi.TrangThaiDoc == 'Đã đọc' %}
+                            <span class="badge bg-info text-dark"><i class="fas fa-envelope-open me-1"></i>Đã đọc</span>
+                        {% else %}
+                            <span class="badge bg-light text-secondary border"><i class="fas fa-envelope me-1"></i>Chưa đọc</span>
+                        {% endif %}
+                    </li>
+                    {% if de_thi.TrangThaiDoc == 'Đã đọc' and de_thi.NguoiDoc %}
+                    <li class="mb-2 d-flex justify-content-between">
+                        <span class="text-muted">Đọc bởi:</span>
+                        <span class="small fw-bold text-end" style="max-width:60%">{{ de_thi.NguoiDoc.HoTen }}</span>
+                    </li>
+                    {% if lich_su_da_doc %}
+                    <li class="mb-2 d-flex justify-content-between">
+                        <span class="text-muted">Đọc lúc:</span>
+                        <span class="small">{{ lich_su_da_doc.ThoiGian|date:"d/m/Y H:i" }}</span>
+                    </li>
+                    {% endif %}
+                    {% endif %}
+                    {% if de_thi.ThoiGianGiaoDuyet %}
+                    <li class="mb-2 d-flex justify-content-between">
+                        <span class="text-muted">Nộp lúc:</span>
+                        <span class="small">{{ de_thi.ThoiGianGiaoDuyet|date:"d/m/Y H:i" }}</span>
+                    </li>
+                    {% endif %}
+                    {% endif %}
+                    {% if de_thi.TrangThai == 'Chính thức' and de_thi.ThoiGianDuyet %}
+                    <li class="mb-2 d-flex justify-content-between">
+                        <span class="text-muted">Duyệt lúc:</span>
+                        <span class="small">{{ de_thi.ThoiGianDuyet|date:"d/m/Y H:i" }}</span>
+                    </li>
+                    {% endif %}
+                </ul>
+                
+                <hr>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="text-muted">Số lượng câu hỏi:</span>
+                    <h5 class="mb-0 fw-bold">{{ chi_tiet|length }} <small class="text-muted fs-6">câu</small></h5>
+                </div>
+                
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <span class="text-muted">Tổng điểm hiện tại:</span>
+                    <h4 class="mb-0 fw-bold {% if current_score != de_thi.TongDiem %}text-danger{% else %}text-success{% endif %}">
+                        {{ current_score }} / {{ de_thi.TongDiem }}
+                    </h4>
+                </div>
+                {% if current_score != de_thi.TongDiem %}
+                    <div class="alert alert-warning py-2 small mb-4">
+                        <i class="fas fa-exclamation-triangle me-1"></i>Tổng điểm không khớp với Ma trận.
+                    </div>
+                {% endif %}
+
+
+
+                {% if de_thi.TrangThai == 'Nháp' %}
+                    {% if request.user.giaovien.ChucVu in 'Hiệu trưởng,Phó hiệu trưởng' and de_thi.NguoiTao == request.user.giaovien %}
+                    {# BGH tự tạo → Phê duyệt trực tiếp, không cần nộp #}
+                    {% if da_co_chinh_thuc %}
+                    <div class="alert alert-warning py-2 small mb-2">
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        Đã có đề <strong>Chính thức</strong> cho môn <strong>{{ de_thi.MonHoc.TenMon }}</strong> - {{ de_thi.Khoi.TenKhoi }} kỳ này. Không thể phê duyệt thêm.
+                    </div>
+                    {% else %}
+                    <form method="POST" onsubmit="if(confirm('Xác nhận phê duyệt chính thức đề thi này?')){hasUnsavedChanges = false; return true;} return false;" class="d-grid gap-2 mb-2">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="approve_exam">
+                        <button type="submit" class="btn btn-success"><i class="fas fa-check-circle me-2"></i>Phê duyệt chính thức</button>
+                    </form>
+                    {% endif %}
+                    {% else %}
+                    {# Giáo viên / Tổ trưởng → Nộp đề lên cấp trên #}
+                    <form method="POST" onsubmit="if(confirm('Bạn có chắc chắn muốn nộp đề thi này? Sau khi nộp sẽ không thể chỉnh sửa.')){hasUnsavedChanges = false; return true;} return false;" class="d-grid gap-2 mb-2">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="submit_approval">
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane me-2"></i>Nộp đề</button>
+                    </form>
+                    {% endif %}
+                {% endif %}
+
+                {# === NÚT HÀNH ĐỘNG KHI XEM ĐỀ ĐÃ NỘP === #}
+
+                {# --- Đánh dấu đã đọc: chỉ hiện cho người được phân công (NguoiDuyet), khi chưa đọc --- #}
+                {% if de_thi.TrangThai == 'Đã nộp' and de_thi.TrangThaiDoc == 'Chưa đọc' and request.user.giaovien.pk == de_thi.NguoiDuyet_id %}
+                <form method="POST" onsubmit="return confirm('Xác nhận đã đọc đề thi này?');" class="d-grid gap-2 mb-2">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="mark_as_read">
+                    <button type="submit" class="btn btn-warning"><i class="fas fa-envelope-open me-2"></i>Đánh dấu đã đọc</button>
+                </form>
+                {% endif %}
+
+
+
+                {# --- Khi đề "Đã nộp": hướng dẫn tạo bản sao để xử lý --- #}
+                {% if de_thi.TrangThai == 'Đã nộp' %}
+                <div class="alert alert-info py-2 small mb-2">
+                    <i class="fas fa-info-circle me-1"></i>
+                    {% if request.user.giaovien.ChucVu in 'Hiệu trưởng,Phó hiệu trưởng' %}
+                        <strong>Để phê duyệt:</strong> Đánh dấu đã đọc → <strong>Tạo bản sao</strong> → Phê duyệt trên bản sao.
+                    {% elif request.user.giaovien.pk == de_thi.NguoiDuyet_id %}
+                        {% if de_thi.TrangThaiDoc == 'Chưa đọc' %}
+                            Vui lòng <strong>Đánh dấu đã đọc</strong> để xác nhận đã tiếp nhận đề thi.
+                        {% else %}
+                            <strong>Để chỉnh sửa:</strong> <strong>Tạo bản sao</strong> → chỉnh sửa → Nộp lại. Hoặc chuyển lên BGH nếu đề đạt yêu cầu.
+                        {% endif %}
+                    {% else %}
+                        <strong>Để chỉnh sửa:</strong> <strong>Tạo bản sao</strong> → chỉnh sửa → Nộp đề lên cấp trên.
+                    {% endif %}
+                </div>
+                {% endif %}
+
+
+
+                <div class="d-grid gap-2">
+                    <a href="{% url 'exam_export' de_thi.id 'word' %}" class="btn btn-outline-secondary"><i class="fas fa-download me-2"></i>Xuất đề thi (Word)</a>
+                    
+                    <form method="POST" onsubmit="return confirm('Bạn có chắc chắn muốn tạo bản sao của đề thi này không?');" class="d-grid m-0 p-0">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="clone_exam">
+                        <button type="submit" class="btn btn-outline-info"><i class="fas fa-copy me-2"></i>Tạo bản sao</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<!-- Question Picker Modal -->
+<div class="modal fade" id="questionPickerModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title fw-bold text-primary" id="pickerModalTitle"><i class="fas fa-list-check me-2"></i>Chọn câu hỏi từ Ngân hàng</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="p-3 bg-white border-bottom sticky-top shadow-sm d-flex justify-content-between align-items-center">
+                    <div>
+                        <span id="pickerCriteria" class="badge bg-info text-dark fs-6"></span>
+                        <span class="text-muted small ms-2"><i class="fas fa-info-circle me-1"></i>Chỉ hiển thị các câu chưa có trong đề</span>
+                    </div>
+                    <a href="{% url 'question_create' %}?next={% url 'exam_editor' de_thi.pk %}&khoi_id={{ de_thi.Khoi_id|default:'' }}&mon_id={{ de_thi.MonHoc_id|default:'' }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-plus me-1"></i>Tạo câu mới
+                    </a>
+                </div>
+                <div id="pickerLoading" class="text-center py-5 d-none">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="text-muted mt-2">Đang tải danh sách câu hỏi...</p>
+                </div>
+                <div id="pickerEmpty" class="text-center py-5 d-none">
+                    <i class="fas fa-search fa-3x text-muted opacity-25 mb-3"></i>
+                    <h6 class="text-muted mb-3">Không tìm thấy câu hỏi phù hợp hoặc đã chọn hết.</h6>
+                    <a href="{% url 'question_create' %}?next={% url 'exam_editor' de_thi.pk %}&khoi_id={{ de_thi.Khoi_id|default:'' }}&mon_id={{ de_thi.MonHoc_id|default:'' }}" target="_blank" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Soạn câu hỏi mới ngay
+                    </a>
+                </div>
+                <div id="pickerList" class="list-group list-group-flush">
+                    <!-- Loaded via JS -->
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <form method="POST" id="addManualQuestionForm" onsubmit="hasUnsavedChanges = false;">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" id="pickerAction" value="add_manual_question">
+                    <input type="hidden" name="cauhoi_id" id="pickerSelectedId">
+                    <input type="hidden" name="diem_so" id="pickerDiemSo">
+                    <input type="hidden" name="replace_ct_id" id="pickerReplaceCtId">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary" id="pickerSubmitBtn" disabled>
+                        <i class="fas fa-check me-2"></i><span id="pickerSubmitText">Thêm vào đề</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Unsaved Changes Modal -->
+<div class="modal fade" id="unsavedModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title fw-bold text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Đề thi chưa được lưu</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-dark" style="font-size: 1.05rem;">
+                Bạn có những thay đổi chưa được lưu. Nếu bạn thoát bây giờ, dữ liệu có thể bị mất. Bạn muốn làm gì tiếp theo?
+            </div>
+            <div class="modal-footer bg-light">
+                
+
+                <form method="POST" class="m-0 p-0" onsubmit="hasUnsavedChanges = false;">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="cancel_exam">
+                    <button type="submit" class="btn btn-danger">Không lưu (Xóa đề)</button>
+                </form>
+                
+                <form method="POST" class="m-0 p-0" onsubmit="hasUnsavedChanges = false;">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="save_draft">
+                    <button type="submit" class="btn btn-primary">Lưu lại</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+<script>
+    let pickerModal;
+    let unsavedModal;
+    let hasUnsavedChanges = {% if de_thi.TrangThai == 'Nháp' %}true{% else %}false{% endif %}; // Assume true only if actively editing in draft state
+    let pendingLocation = '';
+
+    window.addEventListener('beforeunload', function (e) {
+        if (hasUnsavedChanges) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+
+    document.addEventListener('click', function(e) {
+        const link = e.target.closest('a');
+        if (hasUnsavedChanges && link && link.href && link.target !== '_blank' && link.hostname === window.location.hostname && !link.href.includes('javascript:') && !link.href.includes('#')) {
+            e.preventDefault();
+            pendingLocation = link.href;
+            unsavedModal.show();
+        }
+    });
+
+    // Also disable prompt if submitting inline score updates
+    document.querySelectorAll('form').forEach(f => {
+        if (!f.hasAttribute('onsubmit')) {
+            f.addEventListener('submit', () => { hasUnsavedChanges = false; });
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', function() {
+        pickerModal = new bootstrap.Modal(document.getElementById('questionPickerModal'));
+        unsavedModal = new bootstrap.Modal(document.getElementById('unsavedModal'));
+        
+        // Drag-and-drop reorder đã bị tắt
+    });
+
+    function openQuestionPicker(ctMatranId, diemMoiCau) {
+        document.getElementById('pickerModalTitle').innerHTML = '<i class="fas fa-list-check me-2"></i>Chọn câu hỏi từ Ngân hàng';
+        document.getElementById('pickerCriteria').innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Đang tải...';
+        document.getElementById('pickerAction').value = 'add_manual_question';
+        document.getElementById('pickerDiemSo').value = diemMoiCau;
+        document.getElementById('pickerReplaceCtId').value = '';
+        document.getElementById('pickerSelectedId').value = '';
+        document.getElementById('pickerSubmitText').textContent = 'Thêm vào đề';
+        document.getElementById('pickerSubmitBtn').disabled = true;
+        
+        const listDiv = document.getElementById('pickerList');
+        const loadingDiv = document.getElementById('pickerLoading');
+        const emptyDiv = document.getElementById('pickerEmpty');
+        
+        listDiv.innerHTML = '';
+        listDiv.classList.add('d-none');
+        emptyDiv.classList.add('d-none');
+        loadingDiv.classList.remove('d-none');
+        
+        pickerModal.show();
+        
+        const examId = {{ de_thi.id }};
+        
+        const apiUrl = `{% url 'api_get_matching_questions' %}?ct_matran_id=${ctMatranId}&exam_id=${examId}`;
+        fetch(apiUrl)
+            .then(res => res.json())
+            .then(data => {
+                loadingDiv.classList.add('d-none');
+                if(data.criteria) {
+                    document.getElementById('pickerCriteria').textContent = data.criteria;
+                }
+                
+                // Update "Tạo câu mới" links dynamically with matrix item criteria
+                if(data.ct_info) {
+                    const extra = `&muc_do=${data.ct_info.muc_do}&hinh_thuc=${data.ct_info.hinh_thuc}&mach_id=${data.ct_info.mach_id}&noidung_id=${data.ct_info.noidung_id}`;
+                    document.querySelectorAll('a[href^="/them/?next="]').forEach(a => {
+                        a.href = `{% url 'question_create' %}?next={% url 'exam_editor' de_thi.pk %}&khoi_id={{ de_thi.Khoi_id|default:'' }}&mon_id={{ de_thi.MonHoc_id|default:'' }}${extra}`;
+                    });
+                }
+                
+                if(data.error || !data.questions || data.questions.length === 0) {
+                    emptyDiv.classList.remove('d-none');
+                } else {
+                    listDiv.classList.remove('d-none');
+                    data.questions.forEach(q => {
+                        const item = document.createElement('label');
+                        item.className = 'list-group-item list-group-item-action d-flex gap-3 py-3 cursor-pointer';
+                        item.style.cursor = 'pointer';
+                        
+                        const divContent = document.createElement('div');
+                        divContent.className = 'flex-grow-1';
+                        // Rút gọn nội dung nếu quá dài (bỏ tag HTML)
+                        let textContent = q.noidung.replace(/<[^>]+>/g, ' ');
+                        if(textContent.length > 200) textContent = textContent.substring(0, 200) + '...';
+                        
+                        divContent.innerHTML = `
+                            <div class="d-flex justify-content-between w-100 mb-1">
+                                <h6 class="mb-0 fw-bold text-dark">ID: ${q.id} <span class="badge bg-light text-secondary border fw-normal ms-2">${q.dang_cau_hoi}</span></h6>
+                            </div>
+                            <p class="mb-0 text-muted" style="font-size: 0.95rem;">${textContent}</p>
+                        `;
+                        
+                        const input = document.createElement('input');
+                        input.type = 'radio';
+                        input.name = 'picker_radio';
+                        input.className = 'form-check-input flex-shrink-0 mt-1';
+                        input.value = q.id;
+                        input.onchange = function() {
+                            document.getElementById('pickerSelectedId').value = this.value;
+                            document.getElementById('pickerSubmitBtn').disabled = false;
+                        };
+                        
+                        item.appendChild(input);
+                        item.appendChild(divContent);
+                        listDiv.appendChild(item);
+                    });
+                }
+            })
+            .catch(err => {
+                loadingDiv.classList.add('d-none');
+                emptyDiv.classList.remove('d-none');
+                console.error(err);
+            });
+    }
+
+    function openReplacePicker(ctId) {
+        document.getElementById('pickerModalTitle').innerHTML = '<i class="fas fa-exchange-alt me-2"></i>Chọn câu hỏi thay thế';
+        document.getElementById('pickerCriteria').innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Đang tải...';
+        document.getElementById('pickerAction').value = 'replace_question';
+        document.getElementById('pickerReplaceCtId').value = ctId;
+        document.getElementById('pickerSelectedId').value = '';
+        document.getElementById('pickerSubmitText').textContent = 'Thay thế câu hỏi';
+        document.getElementById('pickerSubmitBtn').disabled = true;
+        
+        const listDiv = document.getElementById('pickerList');
+        const loadingDiv = document.getElementById('pickerLoading');
+        const emptyDiv = document.getElementById('pickerEmpty');
+        
+        listDiv.innerHTML = '';
+        listDiv.classList.add('d-none');
+        emptyDiv.classList.add('d-none');
+        loadingDiv.classList.remove('d-none');
+        
+        pickerModal.show();
+        
+        const examId = {{ de_thi.id }};
+        const apiUrl = `{% url 'api_get_matching_questions' %}?replace_ct_id=${ctId}&exam_id=${examId}`;
+        
+        fetch(apiUrl)
+            .then(res => res.json())
+            .then(data => {
+                loadingDiv.classList.add('d-none');
+                if(data.criteria) {
+                    document.getElementById('pickerCriteria').textContent = data.criteria;
+                }
+                
+                if(data.ct_info) {
+                    const extra = `&muc_do=${data.ct_info.muc_do}&hinh_thuc=${data.ct_info.hinh_thuc}&mach_id=${data.ct_info.mach_id}&noidung_id=${data.ct_info.noidung_id}`;
+                    document.querySelectorAll('a[href^="/them/?next="]').forEach(a => {
+                        a.href = `{% url 'question_create' %}?next={% url 'exam_editor' de_thi.pk %}&khoi_id={{ de_thi.Khoi_id|default:'' }}&mon_id={{ de_thi.MonHoc_id|default:'' }}${extra}`;
+                    });
+                }
+                
+                if(data.error || !data.questions || data.questions.length === 0) {
+                    emptyDiv.classList.remove('d-none');
+                } else {
+                    listDiv.classList.remove('d-none');
+                    data.questions.forEach(q => {
+                        const item = document.createElement('label');
+                        item.className = 'list-group-item list-group-item-action d-flex gap-3 py-3 cursor-pointer';
+                        item.style.cursor = 'pointer';
+                        
+                        const divContent = document.createElement('div');
+                        divContent.className = 'flex-grow-1';
+                        let textContent = q.noidung.replace(/<[^>]+>/g, ' ');
+                        if(textContent.length > 200) textContent = textContent.substring(0, 200) + '...';
+                        
+                        divContent.innerHTML = `
+                            <div class="d-flex justify-content-between w-100 mb-1">
+                                <h6 class="mb-0 fw-bold text-dark">ID: ${q.id} <span class="badge bg-light text-secondary border fw-normal ms-2">${q.dang_cau_hoi}</span></h6>
+                            </div>
+                            <p class="mb-0 text-muted" style="font-size: 0.95rem;">${textContent}</p>
+                        `;
+                        
+                        const input = document.createElement('input');
+                        input.type = 'radio';
+                        input.name = 'picker_radio';
+                        input.className = 'form-check-input flex-shrink-0 mt-1';
+                        input.value = q.id;
+                        input.onchange = function() {
+                            document.getElementById('pickerSelectedId').value = this.value;
+                            document.getElementById('pickerSubmitBtn').disabled = false;
+                        };
+                        
+                        item.appendChild(input);
+                        item.appendChild(divContent);
+                        listDiv.appendChild(item);
+                    });
+                }
+            })
+            .catch(err => {
+                loadingDiv.classList.add('d-none');
+                emptyDiv.classList.remove('d-none');
+                console.error(err);
+            });
+    }
+</script>
+{% endblock %}

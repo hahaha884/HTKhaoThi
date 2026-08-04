@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="mb-0 text-primary fw-bold">Xem trước kết quả phân công</h4>
+            <p class="text-muted small mt-1 mb-0">Bước 2: Kiểm tra lại dữ liệu và điền các giám thị còn thiếu (nếu có) trước khi lưu</p>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+    
+    <form method="POST" id="previewForm">
+        {% csrf_token %}
+        <div class="card border-0 shadow-sm rounded-4 mb-4">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light text-muted">
+                            <tr>
+                                <th class="px-4 py-3 fw-bold border-0">Phòng thi</th>
+                                <th class="py-3 fw-bold border-0">Chi tiết Lịch thi</th>
+                                <th class="py-3 fw-bold border-0">Giám thị 1</th>
+                                <th class="py-3 px-4 fw-bold border-0" style="width: 30%;">Giám thị 2</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in results %}
+                            <tr>
+                                <td class="px-4 py-3">
+                                    <div class="fw-bold text-dark fs-5">{{ row.lop_hoc_str }}</div>
+                                </td>
+                                <td class="py-3">
+                                    <div class="fw-bold text-dark">{{ row.lich_thi_str }}</div>
+                                </td>
+                                <td class="py-3">
+                                    {% if row.giam_thi_1_str %}
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar avatar-sm me-2 bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; font-size: 14px;">
+                                                {{ row.giam_thi_1_str|slice:":1" }}
+                                            </div>
+                                            <span class="text-dark fw-medium">{{ row.giam_thi_1_str }}</span>
+                                        </div>
+                                    {% else %}
+                                        <span class="badge bg-danger">Thiếu giám thị</span>
+                                    {% endif %}
+                                </td>
+                                <td class="py-3 px-4">
+                                    {% if row.is_khối_5_toan_tv %}
+                                        <!-- Ô nhập tay cho GV THCS -->
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-light text-muted"><i class="fas fa-user-graduate"></i></span>
+                                            <input type="text" class="form-control" name="thcs_{{ row.lop_hoc_id }}_{{ row.lich_thi_id }}" value="{{ row.giam_thi_thcs }}" placeholder="Nhập tên giáo viên THCS">
+                                        </div>
+                                    {% else %}
+                                        {% if row.giam_thi_2_str %}
+                                            <div class="d-flex align-items-center">
+                                                <div class="avatar avatar-sm me-2 bg-success text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; font-size: 14px;">
+                                                    {{ row.giam_thi_2_str|slice:":1" }}
+                                                </div>
+                                                <span class="text-dark fw-medium">{{ row.giam_thi_2_str }}</span>
+                                            </div>
+                                        {% else %}
+                                            <span class="badge bg-danger">Thiếu giám thị</span>
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center py-5">
+                                    <div class="text-muted mb-3"><i class="fas fa-check-circle fa-3x text-success"></i></div>
+                                    <h5 class="text-muted">Không có dữ liệu</h5>
+                                    <p class="text-muted small">Tất cả lịch thi trong đợt này đã được phân công hoặc không tìm thấy lớp học.</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="card-footer bg-white p-4 border-top">
+                <div class="d-flex justify-content-between align-items-center">
+                    <button type="submit" name="action" value="cancel" class="btn btn-light rounded-pill px-4 fw-bold text-muted" formnovalidate>
+                        <i class="fas fa-times me-2"></i>Hủy bỏ
+                    </button>
+                    
+                    <div>
+                        <button type="submit" name="action" value="rerun" class="btn btn-outline-primary rounded-pill px-4 fw-bold me-2">
+                            <i class="fas fa-sync-alt me-2"></i>Chạy lại thuật toán
+                        </button>
+                        <button type="submit" name="action" value="save" class="btn btn-primary rounded-pill px-5 fw-bold shadow-sm">
+                            <i class="fas fa-save me-2"></i>Lưu phân công
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}

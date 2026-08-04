@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% block page_title %}Cập nhật Tài khoản{% endblock %}
+{% block content %}
+<div class="card border-0 shadow-sm mt-3" style="max-width: 600px; margin: 0 auto;">
+    <div class="card-body">
+        <h5 class="card-title text-primary mb-4"><i class="fas fa-user-edit me-2"></i>Sửa tài khoản: {{ account.HoTen }}</h5>
+        
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-danger">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="POST">
+            {% csrf_token %}
+            
+            <div class="mb-3">
+                <label class="form-label">Tên đăng nhập (Số điện thoại)</label>
+                <input type="text" class="form-control bg-light" value="{{ account.SDT }}" disabled>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Phân quyền <span class="text-danger">*</span></label>
+                <select name="phanquyen" class="form-select" required>
+                    <option value="Ban Giám Hiệu (BGH)" {% if account.user.groups.all.0.name == 'Ban Giám Hiệu (BGH)' %}selected{% endif %}>Ban Giám Hiệu (BGH)</option>
+                    <option value="Giáo vụ" {% if account.user.groups.all.0.name == 'Giáo vụ' %}selected{% endif %}>Giáo vụ</option>
+                    <option value="Tổ chuyên môn" {% if account.user.groups.all.0.name == 'Tổ chuyên môn' %}selected{% endif %}>Tổ chuyên môn</option>
+                    <option value="Giáo viên" {% if account.user.groups.all.0.name == 'Giáo viên' or not account.user.groups.all %}selected{% endif %}>Giáo viên</option>
+                </select>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Trạng thái <span class="text-danger">*</span></label>
+                <select name="trangthai" class="form-select" required>
+                    <option value="Đang hoạt động" {% if account.TrangThai == 'Đang hoạt động' %}selected{% endif %}>Đang hoạt động</option>
+                    <option value="Dừng hoạt động" {% if account.TrangThai == 'Dừng hoạt động' %}selected{% endif %}>Dừng hoạt động</option>
+                </select>
+                <small class="text-warning"><i class="fas fa-exclamation-triangle"></i> Nếu Dừng hoạt động, tài khoản sẽ lập tức bị vô hiệu hóa.</small>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Ngày bắt đầu</label>
+                <input type="date" name="ngaybatdau" class="form-control {% if account.user.last_login %}bg-light{% endif %}" value="{{ account.NgayBatDauChucVu|date:'Y-m-d' }}" 
+                       {% if account.user.last_login %}readonly{% endif %}>
+                {% if account.user.last_login %}
+                <small class="text-danger"><i class="fas fa-lock"></i> Không sửa được vì tài khoản đã hoạt động</small>
+                {% else %}
+                <small class="text-muted">Ghi nhận thời điểm tài khoản bắt đầu hoạt động.</small>
+                {% endif %}
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Ngày kết thúc (Dừng hoạt động)</label>
+                <input type="date" name="ngayketthuc" class="form-control" value="{{ account.NgayKetThucChucVu|date:'Y-m-d' }}">
+                <small class="text-muted">Ghi nhận thời điểm tài khoản này chính thức dừng hoạt động.</small>
+            </div>
+            
+            <hr>
+            <h6><i class="fas fa-key text-muted me-1"></i> Cấp lại mật khẩu</h6>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" name="reset_password" value="yes" id="resetPassCheck">
+                <label class="form-check-label" for="resetPassCheck">Tích vào đây nếu muốn cấp lại mật khẩu mới</label>
+            </div>
+            
+            <div class="mb-3" id="passwordBlock" style="display: none;">
+                <label class="form-label">Mật khẩu mới</label>
+                <div class="input-group">
+                    <input type="text" name="new_password" id="new_password" class="form-control" value="TH12345!">
+                    <button type="button" class="btn btn-outline-secondary" onclick="generatePass()">Sinh tự động</button>
+                </div>
+                <small class="text-muted">Bắt buộc phải đổi lại khi giáo viên đăng nhập lần tới.</small>
+            </div>
+            
+            <div class="mt-4 border-top pt-3">
+                <button type="submit" class="btn btn-primary px-4"><i class="fas fa-save me-2"></i>Cập nhật</button>
+                <a href="{% url 'account_list' %}" class="btn btn-light ms-2 px-4">Hủy</a>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+    document.getElementById('resetPassCheck').addEventListener('change', function() {
+        document.getElementById('passwordBlock').style.display = this.checked ? 'block' : 'none';
+    });
+    
+    function generatePass() {
+        const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+        let pass = "";
+        for (let i = 0; i < 10; i++) {
+            pass += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        document.getElementById('new_password').value = pass;
+    }
+</script>
+{% endblock %}

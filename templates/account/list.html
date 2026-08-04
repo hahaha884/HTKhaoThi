@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% block page_title %}Quản lý Tài khoản{% endblock %}
+{% block content %}
+<div class="card border-0 shadow-sm mt-3">
+    <div class="card-body">
+        <div class="d-flex justify-content-between mb-3 align-items-center">
+            <h5 class="card-title text-primary mb-0"><i class="fas fa-users-cog me-2"></i>Danh sách Tài khoản</h5>
+            <div class="d-flex gap-2">
+                <form method="GET" action="{% url 'account_list' %}" style="width: 350px;">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                        <input class="form-control shadow-none border-start-0 border-end-0" type="search" name="search" value="{{ search_query }}" placeholder="Tìm kiếm tên, SĐT..." onkeydown="if(event.key === 'Enter'){this.form.submit();}">
+                        <button class="btn btn-outline-secondary dropdown-toggle border-start-0 bg-white" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" style="border-color: #dee2e6;">
+                            <i class="fas fa-filter text-muted"></i>
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-end p-3 shadow border-0" style="width: 250px;">
+                            <h6 class="dropdown-header px-0 text-dark fw-bold"><i class="fas fa-filter me-1"></i> Bộ lọc trạng thái</h6>
+                            <div class="mb-3 mt-2">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="radio" name="status" id="status_all" value="" {% if not status_filter %}checked{% endif %}>
+                                    <label class="form-check-label" for="status_all">Tất cả</label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="radio" name="status" id="status_active" value="Đang hoạt động" {% if status_filter == 'Đang hoạt động' %}checked{% endif %}>
+                                    <label class="form-check-label" for="status_active">Đang hoạt động</label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="radio" name="status" id="status_inactive" value="Dừng hoạt động" {% if status_filter == 'Dừng hoạt động' %}checked{% endif %}>
+                                    <label class="form-check-label" for="status_inactive">Dừng hoạt động</label>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-sm w-100">Áp dụng</button>
+                        </div>
+                    </div>
+                </form>
+                <a href="{% url 'account_create' %}" class="btn btn-primary btn-sm d-flex align-items-center px-3"><i class="fas fa-plus me-1"></i>Thêm tài khoản</a>
+            </div>
+        </div>
+        
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} py-2">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+        
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Tên giáo viên</th>
+                        <th>Số điện thoại (Tên ĐN)</th>
+                        <th>Phân quyền (Role)</th>
+                        <th>Trạng thái</th>
+                        <th class="text-center">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for account in accounts %}
+                    <tr>
+                        <td class="fw-medium">{{ account.HoTen }}</td>
+                        <td><span class="badge bg-light text-dark border">{{ account.SDT }}</span></td>
+                        <td><span class="badge bg-info text-dark border border-info">{{ account.user.groups.all.0.name|default:"Giáo viên" }}</span></td>
+                        <td>
+                            {% if account.TrangThai == 'Đang hoạt động' %}
+                            <span class="badge bg-success">Đang hoạt động</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ account.TrangThai }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <a href="{% url 'account_update' account.pk %}" class="btn btn-sm btn-outline-primary" title="Sửa tài khoản"><i class="fas fa-edit"></i></a>
+                            <form method="POST" action="{% url 'account_delete' account.pk %}" class="d-inline" onsubmit="return confirm('Hủy quyền đăng nhập của giáo viên này?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Xóa tài khoản"><i class="fas fa-user-times"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">Chưa có dữ liệu tài khoản, hoặc không tìm thấy kết quả.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="card-footer bg-white">
+            {% include 'pagination.html' %}
+        </div>
+    </div>
+</div>
+{% endblock %}

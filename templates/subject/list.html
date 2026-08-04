@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% block page_title %}Quản lý Môn học{% endblock %}
+{% block content %}
+<div class="card border-0 shadow-sm mt-3">
+    <div class="card-body">
+        <div class="d-flex justify-content-between mb-3 align-items-center">
+            <h5 class="card-title text-primary mb-0"><i class="fas fa-book me-2"></i>Danh sách Môn học</h5>
+            <div class="d-flex gap-2">
+                <form method="GET" action="{% url 'subject_list' %}" style="width: 350px;">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                        <input class="form-control shadow-none border-start-0 border-end-0" type="search" name="search" value="{{ search_query }}" placeholder="Tìm kiếm môn học..." onkeydown="if(event.key === 'Enter'){this.form.submit();}">
+                        <button class="btn btn-outline-secondary dropdown-toggle border-start-0 bg-white" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" style="border-color: #dee2e6;">
+                            <i class="fas fa-filter text-muted"></i>
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-end p-3 shadow border-0" style="width: 250px;">
+                            <h6 class="dropdown-header px-0 text-dark fw-bold"><i class="fas fa-filter me-1"></i> Bộ lọc trạng thái</h6>
+                            <div class="mb-3 mt-2">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="radio" name="status" id="status_all" value="" {% if not status_filter %}checked{% endif %}>
+                                    <label class="form-check-label" for="status_all">Tất cả</label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="radio" name="status" id="status_active" value="Đang áp dụng" {% if status_filter == 'Đang áp dụng' %}checked{% endif %}>
+                                    <label class="form-check-label" for="status_active">Đang áp dụng</label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="radio" name="status" id="status_inactive" value="Ngừng áp dụng" {% if status_filter == 'Ngừng áp dụng' %}checked{% endif %}>
+                                    <label class="form-check-label" for="status_inactive">Ngừng áp dụng</label>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-sm w-100">Áp dụng</button>
+                        </div>
+                    </div>
+                </form>
+                </form>
+                <div class="alert alert-warning mb-0 py-1 px-3 d-flex align-items-center" style="font-size: 0.9rem;" title="Dữ liệu đã được fix cứng để tập trung thực hiện các chức năng chính.">
+                    <i class="fas fa-lock me-2"></i> Chế độ Fix cứng
+                </div>
+            </div>
+        </div>
+        
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} py-2">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+        
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Tên môn học</th>
+                        <th>Khối áp dụng</th>
+                        <th>Trạng thái</th>
+                        <!-- <th class="text-center">Thao tác</th> -->
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for subject in subjects %}
+                    <tr>
+                        <td class="fw-bold text-dark">{{ subject.TenMon }}</td>
+                        <td>
+                            {% for khoi in subject.KhoiApDung.all %}
+                                <span class="badge bg-light text-dark border">{{ khoi.TenKhoi }}</span>
+                            {% empty %}
+                                <span class="text-muted fst-italic">Chưa cấu hình</span>
+                            {% endfor %}
+                        </td>
+                        <td>
+                            {% if subject.TrangThai == 'Đang áp dụng' %}
+                            <span class="badge bg-success">Đang áp dụng</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Ngừng áp dụng</span>
+                            {% endif %}
+                        </td>
+                        <!-- <td class="text-center">
+                            Khóa thao tác
+                        </td> -->
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="3" class="text-center text-muted py-4">Không có môn học nào hoặc không tìm thấy kết quả.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="card-footer bg-white">
+            {% include 'pagination.html' %}
+        </div>
+    </div>
+</div>
+{% endblock %}

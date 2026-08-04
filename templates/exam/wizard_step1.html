@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-white py-3">
+        <h5 class="text-primary fw-bold mb-0">Tạo Đề thi Mới</h5>
+    </div>
+    <div class="card-body p-4">
+        <form method="POST" action="{% url 'exam_wizard_start' %}" class="mx-auto" style="max-width: 700px;">
+            {% csrf_token %}
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Năm học <span class="text-danger">*</span></label>
+                    <select name="nam_hoc" class="form-select" required>
+                        <option value="">-- Chọn --</option>
+                        {% for n in nam_list %}
+                        <option value="{{ n.id }}">{{ n.TenNamHoc }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Học kỳ <span class="text-danger">*</span></label>
+                    <select name="hoc_ky" class="form-select" required>
+                        <option value="">-- Chọn --</option>
+                        <option value="Học kỳ 1">Học kỳ I</option>
+                        <option value="Học kỳ 2">Học kỳ II</option>
+                    </select>
+                </div>
+                
+                <div class="col-md-12">
+                    <label class="form-label fw-bold">Kỳ thi <span class="text-danger">*</span></label>
+                    <select name="ky_thi" class="form-select" required>
+                        <option value="">-- Chọn --</option>
+                        <option value="Giữa kỳ">Giữa kỳ</option>
+                        <option value="Cuối kỳ">Cuối kỳ</option>
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Khối <span class="text-danger">*</span></label>
+                    <select name="khoi" id="select_khoi" class="form-select" required>
+                        <option value="">-- Chọn --</option>
+                        {% for k in khoi_list %}
+                        <option value="{{ k.id }}">{{ k.TenKhoi }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Môn học <span class="text-danger">*</span></label>
+                    <select name="mon_hoc" id="select_mon_hoc" class="form-select" required disabled>
+                        <option value="">-- Vui lòng chọn Khối trước --</option>
+                        {% for m in mon_list %}
+                        <option value="{{ m.id }}" data-khoi="{% for k in m.KhoiApDung.all %}{{k.id}},{% endfor %}">{{ m.TenMon }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-12 mt-4">
+                    <label class="form-label fw-bold mb-3">Hình thức tạo đề <span class="text-danger">*</span></label>
+                    <div class="d-flex gap-4">
+                        <div class="form-check p-3 border rounded flex-fill bg-light" style="cursor:pointer;" onclick="document.getElementById('radio_auto').click()">
+                            <input class="form-check-input" type="radio" name="hinh_thuc" id="radio_auto" value="Tự động" required checked>
+                            <label class="form-check-label fw-bold text-primary" for="radio_auto" style="cursor:pointer;">
+                                Sinh tự động
+                            </label>
+                            <p class="small text-muted mb-0 mt-1">Hệ thống sẽ bốc ngẫu nhiên câu hỏi từ Ngân hàng dựa trên Ma trận.</p>
+                        </div>
+                        <div class="form-check p-3 border rounded flex-fill" style="cursor:pointer;" onclick="document.getElementById('radio_manual').click()">
+                            <input class="form-check-input" type="radio" name="hinh_thuc" id="radio_manual" value="Thủ công" required>
+                            <label class="form-check-label fw-bold" for="radio_manual" style="cursor:pointer;">
+                                Lựa chọn thủ công
+                            </label>
+                            <p class="small text-muted mb-0 mt-1">Hệ thống tạo khung vỏ đề, bạn tự chọn từng câu hỏi đưa vào.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between mt-5 pt-3 border-top">
+                <a href="{% url 'exam_list' %}" class="btn btn-secondary px-4">Hủy</a>
+                <button type="submit" class="btn btn-primary px-5">Hoàn tất <i class="fas fa-check ms-2"></i></button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Logic highlight the selected creation mode card
+    document.querySelectorAll('input[name="hinh_thuc"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            document.querySelectorAll('input[name="hinh_thuc"]').forEach(r => {
+                const box = r.closest('.form-check');
+                const lbl = box.querySelector('label');
+                if(r.checked) {
+                    box.classList.add('bg-light');
+                    lbl.classList.add('text-primary');
+                } else {
+                    box.classList.remove('bg-light');
+                    lbl.classList.remove('text-primary');
+                }
+            });
+        });
+    });
+
+    // Lọc Môn học theo Khối
+    const selectKhoi = document.getElementById('select_khoi');
+    const selectMon = document.getElementById('select_mon_hoc');
+    const allMonOptions = Array.from(selectMon.options).slice(1); // Bỏ qua option đầu tiên (-- Chọn --)
+
+    selectKhoi.addEventListener('change', function() {
+        const khoiId = this.value;
+        
+        // Reset môn học
+        selectMon.value = '';
+        
+        if (!khoiId) {
+            selectMon.disabled = true;
+            selectMon.options[0].text = '-- Vui lòng chọn Khối trước --';
+            allMonOptions.forEach(opt => opt.style.display = 'none');
+            return;
+        }
+        
+        selectMon.disabled = false;
+        selectMon.options[0].text = '-- Chọn môn học --';
+        
+        // Lọc các option môn học có data-khoi chứa khoiId
+        let hasSubject = false;
+        allMonOptions.forEach(opt => {
+            const khoiList = opt.getAttribute('data-khoi').split(',');
+            if (khoiList.includes(khoiId)) {
+                opt.style.display = '';
+                hasSubject = true;
+            } else {
+                opt.style.display = 'none';
+            }
+        });
+        
+        if (!hasSubject) {
+            selectMon.options[0].text = '-- Không có môn học nào thuộc khối này --';
+            selectMon.disabled = true;
+        }
+    });
+</script>
+{% endblock %}

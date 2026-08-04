@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block page_title %}{% if subject %}Sửa Môn học{% else %}Thêm Môn học{% endif %}{% endblock %}
+{% block content %}
+<div class="card border-0 shadow-sm mt-3" style="max-width: 600px; margin: 0 auto;">
+    <div class="card-body">
+        <h5 class="card-title text-primary mb-4">
+            <i class="fas {% if subject %}fa-edit{% else %}fa-plus-circle{% endif %} me-2"></i>
+            {% if subject %}Sửa môn học: {{ subject.TenMon }}{% else %}Thêm môn học mới{% endif %}
+        </h5>
+        
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-danger py-2">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="POST">
+            {% csrf_token %}
+            
+            <div class="mb-3">
+                <label class="form-label">Tên môn học <span class="text-danger">*</span></label>
+                <input type="text" name="TenMon" class="form-control fw-bold" placeholder="VD: Toán học" value="{{ subject.TenMon }}" required>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Khối áp dụng <span class="text-muted">(Có thể chọn nhiều)</span></label>
+                <div class="border rounded p-3 bg-light">
+                    <div class="row">
+                        {% for khoi in khoi_list %}
+                        <div class="col-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="KhoiApDung" value="{{ khoi.pk }}" id="khoi_{{ khoi.pk }}"
+                                {% if subject and khoi in subject.KhoiApDung.all %}checked{% endif %}>
+                                <label class="form-check-label" for="khoi_{{ khoi.pk }}">
+                                    {{ khoi.TenKhoi }}
+                                </label>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="col-12 text-muted fst-italic">Chưa có khối nào trong hệ thống.</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Trạng thái <span class="text-danger">*</span></label>
+                <select name="TrangThai" class="form-select" required>
+                    <option value="Đang áp dụng" {% if subject.TrangThai == 'Đang áp dụng' %}selected{% endif %}>Đang áp dụng</option>
+                    <option value="Ngừng áp dụng" {% if subject.TrangThai == 'Ngừng áp dụng' %}selected{% endif %}>Ngừng áp dụng</option>
+                </select>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label">Mô tả thêm</label>
+                <textarea name="MoTa" class="form-control" rows="3" placeholder="Nhập mô tả hoặc ghi chú... (Không bắt buộc)">{{ subject.MoTa|default_if_none:'' }}</textarea>
+            </div>
+            
+            <div class="mt-4 border-top pt-3 text-end">
+                <a href="{% url 'subject_list' %}" class="btn btn-light px-4">Hủy</a>
+                <button type="submit" class="btn btn-primary px-4 ms-2"><i class="fas fa-save me-2"></i>{% if subject %}Cập nhật{% else %}Lưu Môn học{% endif %}</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

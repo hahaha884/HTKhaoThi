@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+{% block page_title %}{% if teacher %}Chỉnh sửa Giáo viên{% else %}Thêm Giáo viên mới{% endif %}{% endblock %}
+{% block content %}
+<div class="card border-0 shadow-sm mt-3">
+    <div class="card-body">
+        <h5 class="card-title text-primary mb-4">
+            <i class="fas {% if teacher %}fa-user-edit{% else %}fa-user-plus{% endif %} me-2"></i>
+            Thông tin Giáo viên
+        </h5>
+        
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-danger">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="POST">
+            {% csrf_token %}
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Họ và Tên <span class="text-danger">*</span></label>
+                    <input type="text" name="hoten" class="form-control" value="{{ teacher.HoTen }}" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Ngày sinh <span class="text-danger">*</span></label>
+                    <input type="date" name="ngaysinh" class="form-control" value="{{ teacher.NgaySinh|date:'Y-m-d' }}" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Giới tính <span class="text-danger">*</span></label>
+                    <select name="gioitinh" class="form-select" required>
+                        <option value="">-- Chọn giới tính --</option>
+                        <option value="Nam" {% if teacher.GioiTinh == 'Nam' %}selected{% endif %}>Nam</option>
+                        <option value="Nữ" {% if teacher.GioiTinh == 'Nữ' %}selected{% endif %}>Nữ</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Số điện thoại <span class="text-danger">*</span></label>
+                    <input type="text" name="sdt" class="form-control" value="{{ teacher.SDT }}" required pattern="0[0-9]{9}" title="Số điện thoại gồm 10 chữ số, bắt đầu bằng số 0">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Email <span class="text-danger">*</span></label>
+                    <input type="email" name="email" class="form-control" value="{{ teacher.Email }}" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Chức vụ <span class="text-danger">*</span></label>
+                    <select name="chucvu" id="chucvu" class="form-select" required>
+                        <option value="">-- Chọn chức vụ --</option>
+                        <option value="Hiệu trưởng" {% if teacher.ChucVu == 'Hiệu trưởng' %}selected{% endif %}>Hiệu trưởng</option>
+                        <option value="Phó hiệu trưởng" {% if teacher.ChucVu == 'Phó hiệu trưởng' %}selected{% endif %}>Phó hiệu trưởng</option>
+                        <option value="Tổ trưởng chuyên môn" {% if teacher.ChucVu == 'Tổ trưởng chuyên môn' %}selected{% endif %}>Tổ trưởng chuyên môn</option>
+                        <option value="Tổ phó chuyên môn" {% if teacher.ChucVu == 'Tổ phó chuyên môn' %}selected{% endif %}>Tổ phó chuyên môn</option>
+                        <option value="Giáo viên chủ nhiệm" {% if teacher.ChucVu == 'Giáo viên chủ nhiệm' %}selected{% endif %}>Giáo viên chủ nhiệm</option>
+                        <option value="Giáo viên bộ môn" {% if teacher.ChucVu == 'Giáo viên bộ môn' or not teacher %}selected{% endif %}>Giáo viên bộ môn</option>
+                        <option value="Nhân viên văn thư" {% if teacher.ChucVu == 'Nhân viên văn thư' %}selected{% endif %}>Nhân viên văn thư</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Ngày bắt đầu chức vụ <span class="text-danger">*</span></label>
+                    <input type="date" name="ngaybatdau" class="form-control" value="{{ teacher.NgayBatDauChucVu|date:'Y-m-d' }}" required>
+                </div>
+                <div class="col-md-12" id="monGiangDayBlock">
+                    <label class="form-label">Môn giảng dạy <span class="text-danger">*</span></label>
+                    <div class="border rounded p-3 bg-light" style="max-height: 150px; overflow-y: auto;">
+                        <div class="row">
+                            {% for m in mon_hocs %}
+                            <div class="col-md-4 col-sm-6 mb-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="mongiangday" value="{{ m.id }}" id="mon_{{ m.id }}" {% if m in teacher.MonGiangDay.all %}checked{% endif %}>
+                                    <label class="form-check-label" for="mon_{{ m.id }}">{{ m.TenMon }}</label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                {# Khối phụ trách - chỉ hiện khi chức vụ là Tổ trưởng chuyên môn #}
+                <div class="col-md-12" id="khoiPhuTrachBlock" style="display:none;">
+                    <label class="form-label">Khối phụ trách <span class="text-danger">*</span></label>
+                    <div class="border rounded p-3 bg-light">
+                        <div class="row">
+                            {% for k in khoi_list %}
+                            <div class="col-md-4 col-sm-6 mb-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="khoiphutach" value="{{ k.id }}" id="khoi_{{ k.id }}"
+                                        {% if k in teacher.KhoiPhuTrach.all %}checked{% endif %}>
+                                    <label class="form-check-label" for="khoi_{{ k.id }}">{{ k.TenKhoi }}</label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="form-text text-muted">Xác định tổ trưởng sẽ nhận đề thi của khối nào để phê duyệt.</div>
+                </div>
+            </div>
+            <div class="mt-4 border-top pt-3">
+                <button type="submit" class="btn btn-primary px-4"><i class="fas fa-save me-2"></i>Lưu thông tin</button>
+                <a href="{% url 'teacher_list' %}" class="btn btn-light ms-2 px-4">Hủy</a>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const chucVuSelect = document.getElementById('chucvu');
+        const monGiangDayBlock = document.getElementById('monGiangDayBlock');
+        const khoiPhuTrachBlock = document.getElementById('khoiPhuTrachBlock');
+        const monCheckboxes = monGiangDayBlock.querySelectorAll('input[type="checkbox"]');
+        
+        function toggleBlocks() {
+            const val = chucVuSelect.value;
+            // Ẩn môn giảng dạy với BGH / văn thư
+            if (['Nhân viên văn thư', 'Hiệu trưởng', 'Phó hiệu trưởng'].includes(val)) {
+                monGiangDayBlock.style.display = 'none';
+                monCheckboxes.forEach(cb => cb.checked = false);
+            } else {
+                monGiangDayBlock.style.display = 'block';
+            }
+            // Hiện khối phụ trách chỉ cho Tổ trưởng/Tổ phó chuyên môn
+            if (val === 'Tổ trưởng chuyên môn' || val === 'Tổ phó chuyên môn') {
+                khoiPhuTrachBlock.style.display = 'block';
+            } else {
+                khoiPhuTrachBlock.style.display = 'none';
+                khoiPhuTrachBlock.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+            }
+        }
+        
+        chucVuSelect.addEventListener('change', toggleBlocks);
+        toggleBlocks();
+    });
+</script>
+{% endblock %}

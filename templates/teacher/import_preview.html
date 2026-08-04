@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block page_title %}Xác nhận Import Giáo viên{% endblock %}
+{% block content %}
+<div class="card border-0 shadow-sm mt-3">
+    <div class="card-body">
+        <h5 class="card-title text-primary mb-4"><i class="fas fa-eye me-2"></i>Xem trước dữ liệu Import</h5>
+        
+        <div class="alert alert-warning py-2">
+            Hệ thống tìm thấy <strong>{{ valid_count }}</strong> bản ghi hợp lệ. Các bản ghi bị lỗi (màu đỏ) sẽ bị bỏ qua khi Import.
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Họ tên</th>
+                        <th>Giới tính</th>
+                        <th>SĐT</th>
+                        <th>Email</th>
+                        <th>Chức vụ</th>
+                        <th>Trạng thái</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in data %}
+                    <tr class="{% if not item.is_valid %}table-danger{% endif %}">
+                        <td>{{ item.hoten }}</td>
+                        <td>{{ item.gioitinh }}</td>
+                        <td>{{ item.sdt }}</td>
+                        <td>{{ item.email }}</td>
+                        <td>{{ item.chucvu }}</td>
+                        <td>
+                            {% if item.is_valid %}
+                            <span class="badge bg-success">Hợp lệ</span>
+                            {% else %}
+                            <span class="text-danger fw-bold"><i class="fas fa-times-circle"></i> {{ item.errors }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <form method="POST" class="mt-4 border-top pt-3 text-end">
+            {% csrf_token %}
+            <input type="hidden" name="session_key" value="{{ session_key }}">
+            <a href="{% url 'teacher_import' %}" class="btn btn-light px-4">Quay lại tải file</a>
+            {% if valid_count > 0 %}
+            <button type="submit" name="confirm_import" class="btn btn-success px-4 ms-2"><i class="fas fa-check me-2"></i>Xác nhận Import ({{ valid_count }})</button>
+            {% else %}
+            <button type="button" class="btn btn-success px-4 ms-2" disabled><i class="fas fa-check me-2"></i>Không có dữ liệu hợp lệ</button>
+            {% endif %}
+        </form>
+    </div>
+</div>
+{% endblock %}

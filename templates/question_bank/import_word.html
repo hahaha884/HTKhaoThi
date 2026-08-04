@@ -1,0 +1,291 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Import Word - Ngân hàng câu hỏi{% endblock %}
+{% block page_title %}Import Đề thi từ Word{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Cột trái: Form cấu hình & Upload -->
+    <div class="col-md-4">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white border-bottom">
+                <h5 class="mb-0 fw-bold"><i class="fas fa-upload me-2 text-primary"></i>Tải lên File Word</h5>
+            </div>
+            <div class="card-body">
+                <form id="importForm" method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <div class="alert alert-info py-2 mb-3 small">
+                        <i class="fas fa-magic me-2"></i>Hệ thống sẽ dùng AI để tự động phân tích và phân loại Khối, Môn học, Mạch kiến thức cho TỪNG câu hỏi!
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">File Đề Thi (.docx hoặc .pdf)</label>
+                        <input class="form-control" type="file" name="word_file" accept=".docx, .pdf" required>
+                        <small class="text-muted mt-2 d-block">
+                            * Format file chuẩn: <br>
+                            <b>Câu 1:</b> Nội dung câu hỏi <br>
+                            A. Đáp án 1 <br>
+                            B. Đáp án 2 <br>
+                            C. Đáp án 3 <br>
+                            D. Đáp án 4
+                        </small>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100" onclick="if(document.querySelector('input[type=file]').value) { this.innerHTML='<i class=\'fas fa-spinner fa-spin me-2\'></i>AI đang phân tích (10-15s)...'; this.classList.add('disabled'); }">
+                        <i class="fas fa-file-import me-2"></i>Tiến hành trích xuất
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cột phải: Xem trước & AI -->
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-bold"><i class="fas fa-eye me-2 text-primary"></i>Xem trước câu hỏi</h5>
+                <button class="btn btn-success" id="btnSaveAll" style="display: none;">
+                    <i class="fas fa-save me-2"></i>Lưu tất cả vào CSDL
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="previewContainer">
+                    <div class="text-center text-muted py-5" id="emptyState">
+                        <i class="fas fa-file-word fa-3x mb-3 text-secondary"></i>
+                        <p>Vui lòng upload file để xem danh sách câu hỏi.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const parsedData = {{ parsed_groups|safe }};
+    const parsedGroups = (parsedData && parsedData.groups) ? parsedData.groups : (Array.isArray(parsedData) ? parsedData : []);
+    
+    const previewContainer = document.getElementById('previewContainer');
+    const emptyState = document.getElementById('emptyState');
+    const btnSaveAll = document.getElementById('btnSaveAll');
+
+    function renderQuestions() {
+        if (!parsedGroups || parsedGroups.length === 0) {
+            emptyState.style.display = 'block';
+            btnSaveAll.style.display = 'none';
+            return;
+        }
+
+        emptyState.style.display = 'none';
+        btnSaveAll.style.display = 'inline-block';
+        previewContainer.innerHTML = '';
+        
+        // Cảnh báo phạm vi kiến thức
+        if (parsedData && parsedData.is_out_of_scope) {
+            const warningAlert = document.createElement('div');
+            warningAlert.className = 'alert alert-danger shadow-sm border-danger border-2 mb-4';
+            warningAlert.innerHTML = `
+                <h5 class="alert-heading fw-bold mb-2"><i class="fas fa-exclamation-triangle me-2"></i>Cảnh báo: Nội dung ngoài chương trình!</h5>
+                <p class="mb-0">${parsedData.scope_warning || 'Đề thi này có chứa kiến thức không thuộc chương trình Tiểu học (Lớp 1-5). Vui lòng kiểm tra lại cẩn thận.'}</p>
+            `;
+            previewContainer.appendChild(warningAlert);
+        }
+
+        parsedGroups.forEach((group, gIndex) => {
+            const groupCard = document.createElement('div');
+            groupCard.className = 'card mb-4 border-2 border-primary';
+            
+            let html = '';
+            if (group.group_content) {
+                html += `
+                    <div class="card-header bg-light text-dark fw-bold">
+                        <i class="fas fa-layer-group me-2"></i>Đoạn văn chung
+                    </div>
+                    <div class="card-body bg-light border-bottom fst-italic" contenteditable="true" onblur="parsedGroups[${gIndex}].group_content = this.innerText" title="Click để sửa đoạn văn chung" style="outline: none;">
+                        ${group.group_content.replace(/\n/g, '<br>')}
+                    </div>
+                `;
+            }
+            
+            html += '<div class="card-body">';
+            
+            group.questions.forEach((q, qIndex) => {
+                let answersHtml = '';
+                const qType = q.question_type || (q.answers && q.answers.length > 0 ? 'MCQ' : 'EssayShort');
+                
+                if ((qType === 'MCQ' || qType === 'MSQ') && q.answers && q.answers.length > 0) {
+                    const isRadio = (qType === 'MCQ');
+                    q.answers.forEach((ans, ansIdx) => {
+                        let isCorrect = false;
+                        if (isRadio) {
+                            isCorrect = (q.correct === ansIdx);
+                        } else {
+                            isCorrect = (Array.isArray(q.correct) && q.correct.includes(ansIdx));
+                        }
+                        const ansText = (typeof ans === 'object') ? (ans.text || '') : ans;
+                        const ansImage = (typeof ans === 'object' && ans.image && ans.image.startsWith('data:image/')) ? ans.image : null;
+                        
+                        answersHtml += `
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="${isRadio ? 'radio' : 'checkbox'}" ${isCorrect ? 'checked' : ''} onchange="updateCorrect(${gIndex}, ${qIndex}, ${ansIdx}, this.checked, '${qType}')" name="g_${gIndex}_q_${qIndex}_correct" value="${ansIdx}">
+                                <label class="form-check-label ${isCorrect ? 'fw-bold text-success' : ''}" contenteditable="true" onblur="updateAnswerText(${gIndex}, ${qIndex}, ${ansIdx}, this.innerText)" style="outline: none;" title="Click để sửa đáp án">
+                                    ${ansText}
+                                </label>
+                                ${ansImage ? `<div class="mt-1"><img src="${ansImage}" style="max-height: 100px;" class="img-thumbnail rounded" onerror="this.outerHTML='<span class=\\'text-danger small\\'><i class=\\'fas fa-exclamation-circle\\'></i> Lỗi ảnh công thức (MathType/WMF) không hỗ trợ trên Web.</span>'"></div>` : ''}
+                            </div>
+                        `;
+                    });
+                } else if (qType === 'TF' && q.answers && q.answers.length > 0) {
+                    answersHtml += `<table class="table table-sm table-bordered mt-2"><tbody>`;
+                    q.answers.forEach((ans, idx) => {
+                        const ansImage = (ans.image && ans.image.startsWith('data:image/')) ? ans.image : null;
+                        answersHtml += `<tr>
+                            <td class="align-middle" contenteditable="true" onblur="parsedGroups[${gIndex}].questions[${qIndex}].answers[${idx}].statement = this.innerText" style="outline: none;" title="Click để sửa mệnh đề">
+                                ${ans.statement}
+                                ${ansImage ? `<br><img src="${ansImage}" style="max-height: 100px;" class="img-thumbnail mt-1" onerror="this.outerHTML='<span class=\\'text-danger small\\'><i class=\\'fas fa-exclamation-circle\\'></i> Lỗi ảnh công thức (MathType/WMF) không hỗ trợ trên Web.</span>'">` : ''}
+                            </td>
+                            <td class="text-center align-middle fw-bold text-success" style="width: 80px;" contenteditable="true" onblur="parsedGroups[${gIndex}].questions[${qIndex}].answers[${idx}].correct_label = this.innerText" title="Click để sửa nhãn Đúng/Sai">${ans.correct_label}</td>
+                        </tr>`;
+                    });
+                    answersHtml += `</tbody></table>`;
+                } else if (qType === 'Matching' && q.answers && q.answers.length > 0) {
+                    answersHtml += `<table class="table table-sm table-bordered mt-2"><tbody>`;
+                    q.answers.forEach((ans, idx) => {
+                        const leftImage = (ans.left_image && ans.left_image.startsWith('data:image/')) ? ans.left_image : null;
+                        const rightImage = (ans.right_image && ans.right_image.startsWith('data:image/')) ? ans.right_image : null;
+                        answersHtml += `<tr>
+                            <td class="bg-light text-center align-middle" contenteditable="true" onblur="parsedGroups[${gIndex}].questions[${qIndex}].answers[${idx}].left = this.innerText" style="outline: none;" title="Click để sửa vế trái">
+                                ${ans.left}
+                                ${leftImage ? `<br><img src="${leftImage}" style="max-height: 100px;" class="img-thumbnail mt-1" onerror="this.outerHTML='<span class=\\'text-danger small\\'><i class=\\'fas fa-exclamation-circle\\'></i> Lỗi ảnh công thức (MathType/WMF) không hỗ trợ trên Web.</span>'">` : ''}
+                            </td>
+                            <td class="text-center align-middle"><i class="fas fa-arrow-right text-muted"></i></td>
+                            <td class="bg-light text-center align-middle" contenteditable="true" onblur="parsedGroups[${gIndex}].questions[${qIndex}].answers[${idx}].right = this.innerText" style="outline: none;" title="Click để sửa vế phải">
+                                ${ans.right}
+                                ${rightImage ? `<br><img src="${rightImage}" style="max-height: 100px;" class="img-thumbnail mt-1" onerror="this.outerHTML='<span class=\\'text-danger small\\'><i class=\\'fas fa-exclamation-circle\\'></i> Lỗi ảnh công thức (MathType/WMF) không hỗ trợ trên Web.</span>'">` : ''}
+                            </td>
+                        </tr>`;
+                    });
+                    answersHtml += `</tbody></table>`;
+                } else if (qType === 'FIB' && q.answers && q.answers.length > 0) {
+                    answersHtml += `<ul class="list-unstyled mt-2">`;
+                    q.answers.forEach((ans, idx) => {
+                        answersHtml += `<li class="mb-1"><span class="badge bg-secondary me-2">Chỗ trống ${idx+1}</span> <strong contenteditable="true" onblur="parsedGroups[${gIndex}].questions[${qIndex}].answers[${idx}] = this.innerText" style="outline: none; border-bottom: 1px dashed #ccc;" class="px-1" title="Click để sửa đáp án điền khuyết">${ans}</strong></li>`;
+                    });
+                    answersHtml += `</ul>`;
+                } else {
+                    answersHtml = `<div class="text-muted fst-italic"><i class="fas fa-pen-nib me-1"></i> (Chưa bóc tách được đáp án riêng lẻ. Đang xử lý dưới dạng Tự luận.)</div>`;
+                }
+
+                let badges = '';
+                if (q.khoi_name) badges += `<span class="badge bg-secondary me-1">${q.khoi_name}</span>`;
+                if (q.mon_name) badges += `<span class="badge bg-info text-dark me-1">${q.mon_name}</span>`;
+                if (q.mach_name) badges += `<span class="badge bg-success me-1">${q.mach_name}</span>`;
+                if (q.noidung_name) badges += `<span class="badge bg-warning text-dark mb-2">${q.noidung_name}</span>`;
+                
+                if (q.is_ai_solved) {
+                    badges += `<span class="badge bg-danger ms-2 mb-2"><i class="fas fa-robot me-1"></i>AI tự giải (Hãy kiểm tra)</span>`;
+                }
+                
+                let explanationHtml = '';
+                if (q.explanation) {
+                    explanationHtml = `
+                        <div class="alert alert-success mt-3 mb-0 p-2" style="font-size: 0.9rem;">
+                            <strong><i class="fas fa-check-circle me-1"></i>Đáp án/Hướng dẫn chấm:</strong><br>
+                            <div contenteditable="true" onblur="parsedGroups[${gIndex}].questions[${qIndex}].explanation = this.innerText" style="outline: none;" title="Click để sửa hướng dẫn chấm">
+                                ${q.explanation.replace(/\n/g, '<br>')}
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                html += `
+                    <div class="card mb-3 border-secondary border-opacity-25 shadow-none">
+                        <div class="card-body">
+                            <div class="fw-bold mb-2 p-1" contenteditable="true" onblur="parsedGroups[${gIndex}].questions[${qIndex}].content = this.innerText" style="outline: none; border: 1px dashed transparent;" onmouseover="this.style.border='1px dashed #ccc'" onmouseout="this.style.border='1px dashed transparent'" title="Click để sửa nội dung câu hỏi">${q.content}</div>
+                            ${q.image && q.image.startsWith('data:image/') ? `<div class="mb-2 text-center"><img src="${q.image}" class="img-fluid rounded border" style="max-height: 200px;" alt="Hình ảnh câu hỏi" onerror="this.outerHTML='<div class=\\'alert alert-danger p-2 small text-start\\'><i class=\\'fas fa-exclamation-triangle me-1\\'></i> Hình ảnh này chứa công thức (MathType/WMF) không hỗ trợ trên Web.</div>'"></div>` : ''}
+                            ${badges}
+                            <div class="mt-2 ms-2">
+                                ${answersHtml}
+                            </div>
+                            ${explanationHtml}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            groupCard.innerHTML = html;
+            previewContainer.appendChild(groupCard);
+        });
+    }
+
+    window.updateAnswerText = function(gIndex, qIndex, aIndex, newText) {
+        const ans = parsedGroups[gIndex].questions[qIndex].answers[aIndex];
+        if (typeof ans === 'object') {
+            ans.text = newText;
+        } else {
+            parsedGroups[gIndex].questions[qIndex].answers[aIndex] = newText;
+        }
+    };
+
+    window.updateCorrect = function(gIndex, qIndex, aIndex, isChecked, qType) {
+        const q = parsedGroups[gIndex].questions[qIndex];
+        if (qType === 'MCQ') {
+            q.correct = aIndex;
+        } else if (qType === 'MSQ') {
+            if (!Array.isArray(q.correct)) q.correct = [];
+            if (isChecked) {
+                if (!q.correct.includes(aIndex)) q.correct.push(aIndex);
+            } else {
+                q.correct = q.correct.filter(idx => idx !== aIndex);
+            }
+        }
+        renderQuestions();
+    };
+
+    // Bỏ tính năng Gợi ý tương tự hoặc tự bạn có thể thêm lại sau.
+
+
+    btnSaveAll.addEventListener('click', function() {
+
+        this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Đang lưu...';
+        this.disabled = true;
+
+        fetch('{% url "save_imported" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({
+                groups: parsedGroups
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.success) {
+                alert(data.message);
+                window.location.href = '{% url "question_list" %}';
+            } else {
+                alert(data.error || 'Có lỗi xảy ra.');
+                this.innerHTML = '<i class="fas fa-save me-2"></i>Lưu tất cả vào CSDL';
+                this.disabled = false;
+            }
+        })
+        .catch(err => {
+            alert('Lỗi khi lưu: ' + err);
+            this.innerHTML = '<i class="fas fa-save me-2"></i>Lưu tất cả vào CSDL';
+            this.disabled = false;
+        });
+    });
+
+    // Initial render
+    document.addEventListener("DOMContentLoaded", function() {
+        if(parsedGroups && parsedGroups.length > 0) {
+            renderQuestions();
+        }
+    });
+</script>
+
+{% endblock %}

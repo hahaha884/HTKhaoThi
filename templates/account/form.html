@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block page_title %}Cấp Tài khoản Giáo viên{% endblock %}
+{% block content %}
+<div class="card border-0 shadow-sm mt-3" style="max-width: 600px; margin: 0 auto;">
+    <div class="card-body">
+        <h5 class="card-title text-primary mb-4"><i class="fas fa-user-plus me-2"></i>Cấp tài khoản mới</h5>
+        
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-danger">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="POST">
+            {% csrf_token %}
+            
+            <div class="mb-3">
+                <label class="form-label fw-bold">Chọn giáo viên (Chưa có tài khoản) <span class="text-danger">*</span></label>
+                <input list="teacherList" name="sdt" id="sdtInput" class="form-control" placeholder="Nhập số điện thoại hoặc chọn từ danh sách..." required autocomplete="off">
+                <datalist id="teacherList">
+                    {% for t in teachers %}
+                    <option value="{{ t.SDT }}">{{ t.HoTen }} ({{ t.SDT }})</option>
+                    {% endfor %}
+                </datalist>
+                <small class="text-muted">Lưu ý: Tên đăng nhập mặc định sẽ là Số điện thoại của giáo viên.</small>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label fw-bold">Phân quyền <span class="text-danger">*</span></label>
+                <select name="phanquyen" class="form-select" required>
+                    <option value="">-- Chọn quyền truy cập --</option>
+                    <option value="Ban Giám Hiệu (BGH)">Ban Giám Hiệu (BGH)</option>
+                    <option value="Giáo vụ">Giáo vụ</option>
+                    <option value="Tổ chuyên môn">Tổ chuyên môn</option>
+                    <option value="Giáo viên">Giáo viên</option>
+                </select>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label fw-bold">Mật khẩu <span class="text-danger">*</span></label>
+                <div class="input-group">
+                    <input type="text" name="password" id="password" class="form-control" value="TH12345!" required>
+                    <button type="button" class="btn btn-outline-secondary" onclick="generatePass()">Sinh tự động</button>
+                </div>
+                <small class="text-muted">Mật khẩu phải từ 8 ký tự, gồm cả chữ và số.</small>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label fw-bold">Ngày bắt đầu</label>
+                <input type="date" name="ngaybatdau" class="form-control">
+            </div>
+            
+            <div class="mt-4 border-top pt-3">
+                <button type="submit" class="btn btn-primary px-4"><i class="fas fa-save me-2"></i>Cấp tài khoản</button>
+                <a href="{% url 'account_list' %}" class="btn btn-light ms-2 px-4">Hủy</a>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+    function generatePass() {
+        const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+        let pass = "";
+        for (let i = 0; i < 10; i++) {
+            pass += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        document.getElementById('password').value = pass;
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,551 @@
+{% extends 'base.html' %}
+
+{% block title %}Thêm/Sửa Nhóm Câu hỏi{% endblock %}
+{% block page_title %}Ngân hàng câu hỏi{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Cột trái: Thông tin nhóm -->
+    <div class="col-md-5">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-bold text-success"><i class="fas fa-layer-group me-2"></i>{% if nhom %}Sửa Nhóm Câu hỏi{% else %}Thêm Nhóm Câu hỏi{% endif %}</h5>
+            </div>
+            <div class="card-body">
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} py-2">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+
+                <form method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="update_group">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Tên Nhóm <span class="text-danger">*</span></label>
+                        <input type="text" name="TenNhom" class="form-control" value="{{ nhom.TenNhom }}" required>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small">Khối <span class="text-danger">*</span></label>
+                            <select name="Khoi" class="form-select form-select-sm" required {% if nhom %}disabled{% endif %}>
+                                <option value="">-- Chọn Khối --</option>
+                                {% for k in khois %}
+                                <option value="{{ k.pk }}" {% if nhom.Khoi_id == k.pk %}selected{% endif %}>{{ k.TenKhoi }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if nhom %}<input type="hidden" name="Khoi" value="{{ nhom.Khoi_id }}">{% endif %}
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small">Môn học <span class="text-danger">*</span></label>
+                            <select name="MonHoc" class="form-select form-select-sm" required {% if nhom %}disabled{% endif %}>
+                                <option value="">-- Chọn Môn --</option>
+                                {% for m in mons %}
+                                <option value="{{ m.pk }}" {% if nhom.MonHoc_id == m.pk %}selected{% endif %}>{{ m.TenMon }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if nhom %}<input type="hidden" name="MonHoc" value="{{ nhom.MonHoc_id }}">{% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-12">
+                            <label class="form-label small">Mạch kiến thức <span class="text-danger">*</span></label>
+                            <select name="MachKienThuc" class="form-select form-select-sm" required {% if nhom %}disabled{% endif %}>
+                                <option value="">-- Chọn Mạch KT --</option>
+                                {% for m in machs %}
+                                <option value="{{ m.pk }}" data-mon="{{ m.MonHoc_id }}" data-khoi="{{ m.Khoi_id }}" {% if nhom.MachKienThuc_id == m.pk %}selected{% endif %}>{{ m.TenMach }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if nhom %}<input type="hidden" name="MachKienThuc" value="{{ nhom.MachKienThuc_id }}">{% endif %}
+                        </div>
+                        <div class="col-12 mt-2">
+                            <label class="form-label small">Nội dung KT <span class="text-danger">*</span></label>
+                            <select name="NoiDungKienThuc" class="form-select form-select-sm" required {% if nhom %}disabled{% endif %}>
+                                <option value="">-- Chọn ND KT --</option>
+                                {% for nd in noidungs %}
+                                <option value="{{ nd.pk }}" data-mach="{{ nd.MachKienThuc_id }}" {% if nhom.NoiDungKienThuc_id == nd.pk %}selected{% endif %}>{{ nd.TenNoidung }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if nhom %}<input type="hidden" name="NoiDungKienThuc" value="{{ nhom.NoiDungKienThuc_id }}">{% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Nội dung chung (Ngữ liệu)</label>
+                        <textarea name="NoiDungChung" class="form-control" rows="5" placeholder="Đoạn văn, bài thơ, ngữ liệu chung...">{{ nhom.NoiDungChung }}</textarea>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label small"><i class="fas fa-image me-1"></i>Hình ảnh ngữ liệu (nếu có)</label>
+                        <div class="d-flex align-items-center gap-2 mt-1">
+                            <label class="btn btn-outline-primary btn-sm mb-0 px-3 cursor-pointer" title="Thêm hình ảnh">
+                                <i class="fas fa-camera camera-icon {% if nhom.HinhAnh %}d-none{% endif %}"></i>
+                                <img class="img-preview {% if not nhom.HinhAnh %}d-none{% endif %}" style="height: 24px; max-width: 60px; object-fit: contain;" {% if nhom.HinhAnh %}src="{{ nhom.HinhAnh.url }}"{% endif %}>
+                                <input type="file" name="HinhAnh" id="fileNhom" class="d-none" accept="image/*" onchange="previewIcon(this); const chk = document.getElementById('xoaHinhAnhNhom'); if(chk) chk.checked = false;">
+                            </label>
+                            <a id="viewBtnNhom" href="{% if nhom.HinhAnh %}{{ nhom.HinhAnh.url }}{% else %}#{% endif %}" target="_blank" class="btn btn-outline-info btn-sm px-3 {% if not nhom.HinhAnh %}d-none{% endif %}" title="Xem ảnh"><i class="fas fa-external-link-alt"></i></a>
+                            <button id="delBtnNhom" class="btn btn-outline-danger btn-sm px-3 {% if not nhom.HinhAnh %}d-none{% endif %}" type="button" title="Xóa ảnh" onclick="
+                                const fileInp = document.getElementById('fileNhom');
+                                const chk = document.getElementById('xoaHinhAnhNhom');
+                                fileInp.value = '';
+                                if (chk) chk.checked = true;
+                                previewIcon(fileInp);
+                            "><i class="fas fa-trash-alt"></i></button>
+                            <input type="checkbox" name="XoaHinhAnh" id="xoaHinhAnhNhom" class="d-none">
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between border-top pt-3">
+                        <a href="{% url 'question_list' %}" class="btn btn-secondary">Hủy</a>
+                        <button type="submit" class="btn btn-success"><i class="fas fa-save me-2"></i>Lưu Nhóm</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cột phải: Các câu hỏi thành viên -->
+    <div class="col-md-7">
+        {% if nhom %}
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold text-primary">Các câu hỏi thành viên ({{ cau_hois|length }})</h6>
+                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addChildModal">
+                    <i class="fas fa-plus me-1"></i>Thêm câu hỏi
+                </button>
+            </div>
+            <div class="card-body p-0">
+                {% if cau_hois %}
+                <ul class="list-group list-group-flush">
+                    {% for q in cau_hois %}
+                    <li class="list-group-item p-3">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <span class="badge bg-light text-dark border me-2">#{{ q.id }}</span>
+                                <strong>{{ q.NoiDungCauHoi|truncatechars:80 }}</strong>
+                            </div>
+                            <div>
+                                <a href="{% url 'question_update' q.pk %}" class="btn btn-sm btn-outline-primary py-0 px-2" title="Sửa chi tiết"><i class="fas fa-edit"></i></a>
+                                <form method="POST" action="{% url 'question_delete' q.pk %}" class="d-inline" onsubmit="return confirm('Xóa câu hỏi này khỏi nhóm?');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2"><i class="fas fa-trash"></i></button>
+                                </form>
+                            </div>
+                        </div>
+                        <div class="small text-muted mt-2">
+                            <span class="me-3"><i class="fas fa-tag me-1"></i>{{ q.HinhThuc }} - {{ q.DangCauHoi }}</span>
+                            <span><i class="fas fa-layer-group me-1"></i>{{ q.MucDo }}</span>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <div class="text-center py-5">
+                    <p class="text-muted mb-0">Chưa có câu hỏi thành viên nào.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Modal Thêm câu hỏi thành viên -->
+        <div class="modal fade" id="addChildModal" tabindex="-1" data-bs-backdrop="static">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Thêm câu hỏi vào nhóm</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form method="POST" enctype="multipart/form-data" id="childForm">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="add_child">
+                            
+                            <div class="row g-3 mb-3 bg-light p-2 rounded">
+                                <div class="col-md-4">
+                                    <label class="form-label small">Hình thức</label>
+                                    <select name="HinhThuc" id="hinhThuc" class="form-select form-select-sm" required>
+                                        <option value="Trắc nghiệm">Trắc nghiệm</option>
+                                        <option value="Tự luận">Tự luận</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small">Dạng câu hỏi</label>
+                                    <select name="DangCauHoi" id="dangCauHoi" class="form-select form-select-sm" required>
+                                        <!-- Rendered by JS -->
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small">Mức độ</label>
+                                    <select name="MucDo" class="form-select form-select-sm" required>
+                                        <option value="Mức 1">Mức 1</option>
+                                        <option value="Mức 2">Mức 2</option>
+                                        <option value="Mức 3">Mức 3</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Nội dung câu hỏi <span class="text-danger">*</span></label>
+                                <textarea name="NoiDungCauHoi" class="form-control mb-2" rows="2" required placeholder="Nội dung câu hỏi..."></textarea>
+                                <div class="d-flex align-items-center gap-2 mt-1">
+                                    <label class="btn btn-outline-primary btn-sm mb-0 px-3 cursor-pointer" title="Thêm hình ảnh">
+                                        <i class="fas fa-camera camera-icon"></i>
+                                        <img class="img-preview d-none" style="height: 24px; max-width: 60px; object-fit: contain;">
+                                        <input type="file" name="HinhAnh" id="fileCauHoiModal" class="d-none" accept="image/*" onchange="previewIcon(this)">
+                                    </label>
+                                    <a class="btn btn-outline-info btn-sm px-3 d-none" target="_blank" title="Xem ảnh"><i class="fas fa-external-link-alt"></i></a>
+                                    <button class="btn btn-outline-danger btn-sm px-3 d-none" type="button" title="Xóa ảnh" onclick="const inp = this.parentElement.querySelector('input[type=file]'); inp.value=''; previewIcon(inp);"><i class="fas fa-trash-alt"></i></button>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Thiết lập đáp án <span class="text-danger">*</span></label>
+                                <div id="answersContainer" class="p-3 border rounded bg-light"></div>
+                            </div>
+                            
+                            <div class="text-end">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                                <button type="submit" class="btn btn-primary"><i class="fas fa-plus me-1"></i>Thêm vào nhóm</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <script>
+            // JS for cascading logic and dynamic answer area (Similar to single question form)
+            const hinhThucSelect = document.getElementById('hinhThuc');
+            const dangCauHoiSelect = document.getElementById('dangCauHoi');
+            const answersContainer = document.getElementById('answersContainer');
+            
+            const dangMap = {
+                'Trắc nghiệm': [
+                    {value: 'MCQ', text: 'Nhiều lựa chọn (Single Choice)'},
+                    {value: 'MSQ', text: 'Nhiều lựa chọn (Multiple Choice)'},
+                    {value: 'TF', text: 'Đúng/Sai'},
+                    {value: 'Matching', text: 'Ghép nối'},
+                    {value: 'FIB', text: 'Điền khuyết'}
+                ],
+                'Tự luận': [
+                    {value: 'EssayShort', text: 'Tự luận ngắn'},
+                    {value: 'EssayLong', text: 'Tự luận dài'}
+                ]
+            };
+
+            function updateDangCauHoi() {
+                const ht = hinhThucSelect.value;
+                const options = dangMap[ht] || [];
+                dangCauHoiSelect.innerHTML = '';
+                options.forEach(opt => {
+                    dangCauHoiSelect.innerHTML += `<option value="${opt.value}">${opt.text}</option>`;
+                });
+                updateAnswerArea();
+            }
+
+            function updateAnswerArea() {
+                const dang = dangCauHoiSelect.value;
+                let html = '';
+                
+                if (dang === 'MCQ' || dang === 'MSQ') {
+                    const inputType = dang === 'MCQ' ? 'radio' : 'checkbox';
+                    html = `
+                        <button type="button" class="btn btn-sm btn-outline-success mb-2" onclick="addChoiceRow('${inputType}')"><i class="fas fa-plus me-1"></i>Thêm phương án</button>
+                        <div id="choicesList"></div>
+                    `;
+                    answersContainer.innerHTML = html;
+                    for(let i=0; i<4; i++) addChoiceRow(inputType);
+                } else if (dang === 'TF') {
+                    html = `
+                        <div class="mb-3">
+                            <label class="form-label small mb-0">Các ký hiệu lựa chọn (Cách nhau bởi dấu phẩy, VD: Đ, S hoặc T, F, NG)</label>
+                            <div class="input-group input-group-sm mt-1">
+                                <input type="text" id="tfLabelsInput" name="TfLabels" class="form-control" value="Đúng, Sai" required>
+                                <button class="btn btn-primary" type="button" onclick="updateTFColumns()">Cập nhật cột</button>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-success mb-2" onclick="addTFRow()"><i class="fas fa-plus me-1"></i>Thêm mệnh đề</button>
+                        <div id="tfList"></div>
+                    `;
+                    answersContainer.innerHTML = html;
+                    for(let i=0; i<4; i++) addTFRow();
+                } else if (dang === 'Matching') {
+                    html = `
+                        <button type="button" class="btn btn-sm btn-outline-success mb-2" onclick="addMatchRow()"><i class="fas fa-plus me-1"></i>Thêm cặp ghép</button>
+                        <div id="matchList"></div>
+                    `;
+                    answersContainer.innerHTML = html;
+                    for(let i=0; i<3; i++) addMatchRow();
+                } else if (dang === 'FIB') {
+                    html = `<textarea name="DapAnFIB" class="form-control" rows="3" placeholder="Nhập đáp án (mỗi đáp án 1 dòng)" required></textarea>`;
+                    answersContainer.innerHTML = html;
+                } else if (dang.startsWith('Essay')) {
+                    html = `<textarea name="DapAnMau" class="form-control mb-2" rows="3" placeholder="Đáp án mẫu..." required></textarea>
+                            <div class="d-flex align-items-center gap-2 mt-1">
+                                <label class="btn btn-outline-primary btn-sm mb-0 px-3" title="Thêm hình ảnh đáp án">
+                                    <i class="fas fa-camera camera-icon"></i>
+                                    <img class="img-preview d-none" style="height: 24px; max-width: 60px; object-fit: contain;">
+                                    <input type="file" name="HinhAnhDapAn" class="d-none" accept="image/*" onchange="previewIcon(this)">
+                                </label>
+                                <a class="btn btn-outline-info btn-sm px-3 d-none" target="_blank" title="Xem ảnh"><i class="fas fa-external-link-alt"></i></a>
+                                <button class="btn btn-outline-danger btn-sm px-3 d-none" type="button" title="Xóa ảnh" onclick="const inp=this.parentElement.querySelector('input[type=file]'); inp.value=''; previewIcon(inp);"><i class="fas fa-trash-alt"></i></button>
+                            </div>`;
+                    answersContainer.innerHTML = html;
+                }
+            }
+
+            function addChoiceRow(inputType) {
+                const list = document.getElementById('choicesList');
+                const index = list.children.length;
+                const row = document.createElement('div');
+                row.className = 'input-group mb-2 input-group-sm';
+                const defaultLabel = String.fromCharCode(65 + index); // A, B, C...
+                row.innerHTML = `
+                    <div class="input-group-text bg-white">
+                        <input class="form-check-input mt-0" type="${inputType}" name="IsCorrect" value="${index}">
+                    </div>
+                    <input type="text" name="ChoiceLabel" class="form-control text-center fw-bold text-primary" style="max-width: 50px;" value="${defaultLabel}" required title="Ký hiệu (A, B, C...)">
+                    <input type="text" name="ChoiceContent" class="form-control" placeholder="Phương án..." required>
+                    <label class="input-group-text bg-white cursor-pointer px-2" title="Thêm hình ảnh" style="cursor:pointer;">
+                        <i class="fas fa-camera text-primary camera-icon"></i>
+                        <img class="img-preview d-none" style="height: 20px; max-width: 40px; object-fit: contain;">
+                        <input type="file" name="ChoiceImage_${index}" class="d-none" accept="image/*" onchange="previewIcon(this)">
+                    </label>
+                    <a class="btn btn-outline-primary d-none px-3" target="_blank" title="Xem ảnh"><i class="fas fa-external-link-alt"></i></a>
+                    <button class="btn btn-outline-danger d-none px-3" type="button" title="Xóa ảnh" onclick="const inp = this.previousElementSibling.previousElementSibling.querySelector('input[type=file]'); inp.value=''; previewIcon(inp);"><i class="fas fa-trash-alt"></i></button>
+                    <button class="btn btn-outline-danger px-2" type="button" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>
+                `;
+                list.appendChild(row);
+            }
+
+            function addTFRow() {
+                const list = document.getElementById('tfList');
+                const labelsInput = document.getElementById('tfLabelsInput');
+                const labels = labelsInput ? labelsInput.value.split(',').map(s => s.trim()).filter(s => s) : ['Đúng', 'Sai'];
+                
+                const index = list.children.length;
+                const row = document.createElement('div');
+                row.className = 'input-group mb-2 input-group-sm';
+                
+                let radiosHtml = '';
+                labels.forEach(lbl => {
+                    radiosHtml += `<label class="mb-0 text-dark small me-3" style="cursor:pointer;"><input type="radio" name="TFCorrect_${index}" value="${lbl}" required> ${lbl}</label>`;
+                });
+
+                row.innerHTML = `
+                    <span class="input-group-text">${index + 1}</span>
+                    <input type="hidden" name="TFIndex" value="${index}">
+                    <input type="text" name="TFContent" class="form-control" placeholder="Mệnh đề..." required>
+                    <div class="input-group-text bg-white px-2 tf-radios">
+                        ${radiosHtml}
+                    </div>
+                    <label class="input-group-text bg-white cursor-pointer px-2" title="Thêm hình ảnh" style="cursor:pointer;">
+                        <i class="fas fa-camera text-primary camera-icon"></i>
+                        <img class="img-preview d-none" style="height: 20px; max-width: 40px; object-fit: contain;">
+                        <input type="file" name="TFImage_${index}" class="d-none" accept="image/*" onchange="previewIcon(this)">
+                    </label>
+                    <a class="btn btn-outline-primary d-none px-3" target="_blank" title="Xem ảnh"><i class="fas fa-external-link-alt"></i></a>
+                    <button class="btn btn-outline-danger d-none px-3" type="button" title="Xóa ảnh" onclick="const inp = this.previousElementSibling.previousElementSibling.querySelector('input[type=file]'); inp.value=''; previewIcon(inp);"><i class="fas fa-trash-alt"></i></button>
+                    <button class="btn btn-outline-danger px-2" type="button" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>
+                `;
+                list.appendChild(row);
+            }
+
+            function updateTFColumns() {
+                const labelsInput = document.getElementById('tfLabelsInput');
+                const labels = labelsInput.value.split(',').map(s => s.trim()).filter(s => s);
+                if (labels.length === 0) return;
+                
+                const rows = document.querySelectorAll('#tfList .input-group');
+                rows.forEach((row) => {
+                    const idxInput = row.querySelector('input[name="TFIndex"]');
+                    if(!idxInput) return;
+                    const index = idxInput.value;
+                    
+                    const radioContainer = row.querySelector('.tf-radios');
+                    let radiosHtml = '';
+                    labels.forEach(lbl => {
+                        radiosHtml += `<label class="mb-0 text-dark small me-3" style="cursor:pointer;"><input type="radio" name="TFCorrect_${index}" value="${lbl}" required> ${lbl}</label>`;
+                    });
+                    radioContainer.innerHTML = radiosHtml;
+                });
+            }
+            
+            function addMatchRow() {
+                const list = document.getElementById('matchList');
+                const index = list.children.length;
+                const row = document.createElement('div');
+                row.className = 'input-group mb-2 input-group-sm';
+                row.innerHTML = `
+                    <label class="input-group-text bg-white cursor-pointer px-2" title="Ảnh vế trái">
+                        <i class="fas fa-camera text-primary camera-icon"></i>
+                        <img class="img-preview d-none" style="height: 20px; max-width: 40px; object-fit: contain;">
+                        <input type="file" name="MatchImageLeft_${index}" class="d-none" accept="image/*" onchange="previewIcon(this)">
+                    </label>
+                    <a class="btn btn-outline-primary d-none px-3" target="_blank" title="Xem ảnh"><i class="fas fa-external-link-alt"></i></a>
+                    <button class="btn btn-outline-danger d-none px-3" type="button" title="Xóa ảnh" onclick="const inp = this.previousElementSibling.previousElementSibling.querySelector('input[type=file]'); inp.value=''; previewIcon(inp);"><i class="fas fa-trash-alt"></i></button>
+                    
+                    <input type="text" name="MatchLeft" class="form-control" placeholder="Vế trái..." required>
+                    <span class="input-group-text bg-light"><i class="fas fa-arrow-right"></i></span>
+                    <input type="text" name="MatchRight" class="form-control" placeholder="Vế phải..." required>
+                    
+                    <label class="input-group-text bg-white cursor-pointer px-2" title="Ảnh vế phải">
+                        <i class="fas fa-camera text-primary camera-icon"></i>
+                        <img class="img-preview d-none" style="height: 20px; max-width: 40px; object-fit: contain;">
+                        <input type="file" name="MatchImageRight_${index}" class="d-none" accept="image/*" onchange="previewIcon(this)">
+                    </label>
+                    <a class="btn btn-outline-primary d-none px-3" target="_blank" title="Xem ảnh"><i class="fas fa-external-link-alt"></i></a>
+                    <button class="btn btn-outline-danger d-none px-3" type="button" title="Xóa ảnh" onclick="const inp = this.previousElementSibling.previousElementSibling.querySelector('input[type=file]'); inp.value=''; previewIcon(inp);"><i class="fas fa-trash-alt"></i></button>
+                    
+                    <button class="btn btn-outline-danger px-2" type="button" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>
+                `;
+                list.appendChild(row);
+            }
+
+            hinhThucSelect.addEventListener('change', updateDangCauHoi);
+            dangCauHoiSelect.addEventListener('change', updateAnswerArea);
+            updateDangCauHoi();
+        </script>
+        
+        {% else %}
+        <div class="card border-0 shadow-sm h-100 bg-light d-flex align-items-center justify-content-center">
+            <div class="text-center p-5">
+                <i class="fas fa-save fa-3x text-muted mb-3 opacity-25"></i>
+                <h6 class="text-muted">Vui lòng Lưu Nhóm câu hỏi trước<br>khi thêm các câu hỏi thành viên.</h6>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    // Cascading Dropdowns for Group Form
+    const API_MON = "{% url 'api_mon_theo_khoi' %}";
+    const API_MACH = "{% url 'api_mach_theo_mon_khoi' %}";
+    const API_NOIDUNG = "{% url 'api_noidung_theo_mach' %}";
+
+    const selKhoiGroup = document.querySelector('select[name="Khoi"]');
+    const selMonGroup  = document.querySelector('select[name="MonHoc"]');
+    const selMachGroup = document.querySelector('select[name="MachKienThuc"]');
+    const selNdGroup   = document.querySelector('select[name="NoiDungKienThuc"]');
+
+    const savedMonGroup = "{% if nhom %}{{ nhom.MonHoc_id }}{% endif %}";
+    const savedMachGroup = "{% if nhom %}{{ nhom.MachKienThuc_id }}{% endif %}";
+    const savedNdGroup = "{% if nhom %}{{ nhom.NoiDungKienThuc_id }}{% endif %}";
+
+    function loadMonGroup(khoiId, keepMon) {
+        if (!khoiId) {
+            selMonGroup.innerHTML = '<option value="">-- Chọn Môn --</option>';
+            loadMachGroup(khoiId, '', '');
+            return;
+        }
+        fetch(`${API_MON}?khoi_id=${khoiId}`)
+            .then(r => r.json())
+            .then(data => {
+                selMonGroup.innerHTML = '<option value="">-- Chọn Môn --</option>';
+                data.forEach(m => {
+                    const opt = new Option(m.TenMon, m.id);
+                    if (keepMon && String(m.id) === keepMon) opt.selected = true;
+                    selMonGroup.appendChild(opt);
+                });
+                loadMachGroup(khoiId, selMonGroup.value, keepMon ? savedMachGroup : '');
+            });
+    }
+
+    function loadMachGroup(khoiId, monId, keepMach) {
+        if (!khoiId || !monId) {
+            selMachGroup.innerHTML = '<option value="">-- Chọn Mạch KT --</option>';
+            loadNdGroup('', '');
+            return;
+        }
+        fetch(`${API_MACH}?khoi_id=${khoiId}&mon_id=${monId}`)
+            .then(r => r.json())
+            .then(data => {
+                selMachGroup.innerHTML = '<option value="">-- Chọn Mạch KT --</option>';
+                data.forEach(m => {
+                    const opt = new Option(m.TenMach, m.id);
+                    if (keepMach && String(m.id) === keepMach) opt.selected = true;
+                    selMachGroup.appendChild(opt);
+                });
+                loadNdGroup(selMachGroup.value, keepMach ? savedNdGroup : '');
+            });
+    }
+
+    function loadNdGroup(machId, keepNd) {
+        if (!machId) {
+            selNdGroup.innerHTML = '<option value="">-- Chọn ND KT --</option>';
+            return;
+        }
+        fetch(`${API_NOIDUNG}?mach_id=${machId}`)
+            .then(r => r.json())
+            .then(data => {
+                selNdGroup.innerHTML = '<option value="">-- Chọn ND KT --</option>';
+                data.forEach(nd => {
+                    const opt = new Option(nd.TenNoidung, nd.id);
+                    if (keepNd && String(nd.id) === keepNd) opt.selected = true;
+                    selNdGroup.appendChild(opt);
+                });
+            });
+    }
+
+    if (!selKhoiGroup.disabled) {
+        selKhoiGroup.addEventListener('change', function() {
+            loadMonGroup(this.value, '');
+        });
+
+        selMonGroup.addEventListener('change', function() {
+            loadMachGroup(selKhoiGroup.value, this.value, '');
+        });
+
+        selMachGroup.addEventListener('change', function() {
+            loadNdGroup(this.value, '');
+        });
+
+        window.addEventListener('DOMContentLoaded', function() {
+            if (selKhoiGroup.value && !savedMonGroup) {
+                // Initial load if Khoi is pre-selected
+                loadMonGroup(selKhoiGroup.value, '');
+            } else if (selKhoiGroup.value && savedMonGroup) {
+                // Reload via AJAX to prune list even if in edit mode (optional, but good for UI)
+                loadMonGroup(selKhoiGroup.value, savedMonGroup);
+            }
+        });
+    } else {
+        // If disabled, just prune the lists to only show the selected items to match screenshot fix
+        window.addEventListener('DOMContentLoaded', function() {
+            Array.from(selMonGroup.options).forEach(o => { if(!o.selected && o.value !== "") o.remove(); });
+            Array.from(selMachGroup.options).forEach(o => { if(!o.selected && o.value !== "") o.remove(); });
+            Array.from(selNdGroup.options).forEach(o => { if(!o.selected && o.value !== "") o.remove(); });
+        });
+    }
+
+    function previewIcon(input) {
+        const label = input.parentElement;
+        const icon = label.querySelector('.camera-icon');
+        const img = label.querySelector('.img-preview');
+        const viewBtn = label.nextElementSibling;
+        const clearBtn = viewBtn ? viewBtn.nextElementSibling : null;
+        
+        if (input.files && input.files[0]) {
+            if(icon) icon.classList.add('d-none');
+            if(img) {
+                img.classList.remove('d-none');
+                img.src = URL.createObjectURL(input.files[0]);
+            }
+            if(viewBtn && viewBtn.title === 'Xem ảnh') viewBtn.classList.remove('d-none');
+            if(clearBtn && clearBtn.title === 'Xóa ảnh') clearBtn.classList.remove('d-none');
+        } else {
+            if(icon) icon.classList.remove('d-none');
+            if(img) {
+                img.classList.add('d-none');
+                img.src = '';
+            }
+            if(viewBtn && viewBtn.title === 'Xem ảnh') viewBtn.classList.add('d-none');
+            if(clearBtn && clearBtn.title === 'Xóa ảnh') clearBtn.classList.add('d-none');
+        }
+    }
+</script>
+{% endblock %}

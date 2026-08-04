@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+{% block page_title %}{% if lop %}Sửa Lớp học{% else %}Thêm Lớp học{% endif %}{% endblock %}
+{% block content %}
+<div class="card border-0 shadow-sm mt-3" style="max-width: 600px; margin: 0 auto;">
+    <div class="card-body">
+        <h5 class="card-title text-primary mb-4">
+            <i class="fas {% if lop %}fa-edit{% else %}fa-plus-circle{% endif %} me-2"></i>
+            {% if lop %}Sửa lớp: {{ lop.TenLop }}{% else %}Thêm lớp học mới{% endif %}
+        </h5>
+        
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-danger py-2">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="POST">
+            {% csrf_token %}
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Năm học <span class="text-danger">*</span></label>
+                    <select name="MaNamHoc" class="form-select" required>
+                        <option value="">-- Chọn năm học --</option>
+                        {% for nh in namhocs %}
+                        <option value="{{ nh.pk }}" {% if lop.MaNamHoc_id == nh.pk %}selected{% endif %}>{{ nh.TenNamHoc }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Khối trực thuộc <span class="text-danger">*</span></label>
+                    <select name="MaKhoi" class="form-select" required>
+                        <option value="">-- Chọn khối --</option>
+                        {% for k in khois %}
+                        <option value="{{ k.pk }}" {% if lop.MaKhoi_id == k.pk %}selected{% endif %}>{{ k.TenKhoi }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-8">
+                    <label class="form-label">Tên lớp <span class="text-danger">*</span></label>
+                    <input type="text" name="TenLop" class="form-control fw-bold" placeholder="VD: A1 (Hệ thống sẽ tự thêm tiền tố Khối)" value="{{ lop.TenLop|default:'' }}" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Sĩ số tối đa <span class="text-danger">*</span></label>
+                    <input type="number" name="SiSoToiDa" class="form-control" value="{{ lop.SiSoToiDa|default:35 }}" min="1" required>
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <label class="form-label">Giáo viên chủ nhiệm</label>
+                <select name="GVCN" id="gvcnSelect" class="form-select">
+                    <option value="">-- Có thể để trống nếu chưa phân công --</option>
+                    {% for gv in giaoviens %}
+                    <option value="{{ gv.pk }}" data-assigned="{{ gv.assigned_namhocs|join:',' }}" {% if lop.GVCN_id == gv.pk %}selected{% endif %}>{{ gv.HoTen }} - {{ gv.SDT }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="mt-4 border-top pt-3 text-end">
+                <a href="{% url 'class_list' %}" class="btn btn-light px-4">Hủy</a>
+                <button type="submit" class="btn btn-primary px-4 ms-2"><i class="fas fa-save me-2"></i>{% if lop %}Cập nhật{% else %}Lưu lớp học{% endif %}</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const namhocSelect = document.querySelector('select[name="MaNamHoc"]');
+    const gvcnSelect = document.getElementById('gvcnSelect');
+    const allOptions = Array.from(gvcnSelect.options).filter(opt => opt.value !== "");
+    const defaultOption = gvcnSelect.querySelector('option[value=""]');
+
+    function updateGVCN() {
+        const selectedNamHoc = namhocSelect.value;
+        
+        if (!selectedNamHoc) {
+            gvcnSelect.disabled = true;
+            defaultOption.text = "-- Vui lòng chọn Năm học trước --";
+            allOptions.forEach(opt => {
+                if (opt.parentNode) opt.parentNode.removeChild(opt);
+            });
+            return;
+        }
+        
+        gvcnSelect.disabled = false;
+        defaultOption.text = "-- Có thể để trống nếu chưa phân công --";
+        
+        allOptions.forEach(opt => {
+            const assigned = opt.getAttribute('data-assigned');
+            const assignedArray = assigned ? assigned.split(',') : [];
+            
+            if (assignedArray.includes(selectedNamHoc)) {
+                if (opt.parentNode) {
+                    if (opt.selected) gvcnSelect.value = ''; 
+                    opt.parentNode.removeChild(opt);
+                }
+            } else {
+                if (!opt.parentNode) {
+                    gvcnSelect.appendChild(opt);
+                }
+            }
+        });
+    }
+    
+    namhocSelect.addEventListener('change', updateGVCN);
+    updateGVCN(); 
+});
+</script>
+{% endblock %}

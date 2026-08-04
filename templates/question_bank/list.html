@@ -1,0 +1,271 @@
+{% extends 'base.html' %}
+
+{% block title %}Quản lý Ngân hàng câu hỏi{% endblock %}
+{% block page_title %}Ngân hàng câu hỏi{% endblock %}
+
+{% block content %}
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <form method="GET" action="{% url 'question_list' %}" class="row g-3 mb-4" id="filterForm">
+            <!-- Tìm kiếm -->
+            <div class="col-md-12">
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                    <input type="text" name="keyword" class="form-control border-start-0 ps-0" placeholder="Tìm kiếm theo nội dung câu hỏi hoặc tên nhóm..." value="{{ request.GET.keyword }}">
+                    <button type="submit" class="btn btn-primary px-4">Tìm kiếm</button>
+                </div>
+            </div>
+            
+            <!-- Lọc -->
+            <div class="col-md-2">
+                <select name="khoi" id="filter_khoi" class="form-select">
+                    <option value="">-- Tất cả Khối --</option>
+                    {% for k in khois %}
+                    <option value="{{ k.pk }}" {% if selected_khoi == k.pk|stringformat:"s" %}selected{% endif %}>{{ k.TenKhoi }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select name="mon" id="filter_mon" class="form-select">
+                    <option value="">-- Tất cả Môn --</option>
+                    {% for m in mons %}
+                    <option value="{{ m.pk }}" {% if selected_mon == m.pk|stringformat:"s" %}selected{% endif %}>{{ m.TenMon }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select name="mach" id="filter_mach" class="form-select">
+                    <option value="">-- Tất cả Mạch KT --</option>
+                    {% for m in machs %}
+                    <option value="{{ m.pk }}" {% if selected_mach == m.pk|stringformat:"s" %}selected{% endif %}>{{ m.TenMach }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select name="noidung" id="filter_noidung" class="form-select">
+                    <option value="">-- Tất cả Nội dung KT --</option>
+                    {% for nd in noidungs %}
+                    <option value="{{ nd.pk }}" {% if selected_noidung == nd.pk|stringformat:"s" %}selected{% endif %}>{{ nd.TenNoidung }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select name="hinh_thuc" class="form-select">
+                    <option value="">-- Hình thức --</option>
+                    <option value="Trắc nghiệm" {% if request.GET.hinh_thuc == 'Trắc nghiệm' %}selected{% endif %}>Trắc nghiệm</option>
+                    <option value="Tự luận" {% if request.GET.hinh_thuc == 'Tự luận' %}selected{% endif %}>Tự luận</option>
+                </select>
+            </div>
+            <div class="col-md-3 mt-3">
+                <select name="dang_cau_hoi" class="form-select">
+                    <option value="">-- Dạng câu hỏi --</option>
+                    <option value="MCQ" {% if selected_dang_cau_hoi == 'MCQ' %}selected{% endif %}>Nhiều lựa chọn (Single Choice)</option>
+                    <option value="MSQ" {% if selected_dang_cau_hoi == 'MSQ' %}selected{% endif %}>Nhiều lựa chọn (Multiple Choice)</option>
+                    <option value="TF" {% if selected_dang_cau_hoi == 'TF' %}selected{% endif %}>Đúng/Sai</option>
+                    <option value="Matching" {% if selected_dang_cau_hoi == 'Matching' %}selected{% endif %}>Ghép nối</option>
+                    <option value="FIB" {% if selected_dang_cau_hoi == 'FIB' %}selected{% endif %}>Điền khuyết</option>
+                    <option value="EssayShort" {% if selected_dang_cau_hoi == 'EssayShort' %}selected{% endif %}>Tự luận ngắn</option>
+                    <option value="EssayLong" {% if selected_dang_cau_hoi == 'EssayLong' %}selected{% endif %}>Tự luận dài</option>
+                </select>
+            </div>
+            <div class="col-md-2 mt-3">
+                <select name="muc_do" class="form-select">
+                    <option value="">-- Mức độ --</option>
+                    <option value="Mức 1" {% if request.GET.muc_do == 'Mức 1' %}selected{% endif %}>Mức 1</option>
+                    <option value="Mức 2" {% if request.GET.muc_do == 'Mức 2' %}selected{% endif %}>Mức 2</option>
+                    <option value="Mức 3" {% if request.GET.muc_do == 'Mức 3' %}selected{% endif %}>Mức 3</option>
+                </select>
+            </div>
+            <div class="col-md-1 mt-3">
+                <a href="{% url 'question_list' %}" class="btn btn-outline-secondary w-100" title="Xóa lọc"><i class="fas fa-sync"></i></a>
+            </div>
+        </form>
+
+<script>
+const API_MON = "{% url 'api_mon_theo_khoi' %}";
+const API_MACH = "{% url 'api_mach_theo_mon_khoi' %}";
+const API_NOIDUNG = "{% url 'api_noidung_theo_mach' %}";
+const selKhoi = document.getElementById('filter_khoi');
+const selMon  = document.getElementById('filter_mon');
+const selMach = document.getElementById('filter_mach');
+const selNoidung = document.getElementById('filter_noidung');
+
+// Lưu giá trị đang chọn (để giữ lại sau khi reload options)
+const savedMon  = "{{ selected_mon }}";
+const savedMach = "{{ selected_mach }}";
+const savedNoidung = "{{ selected_noidung }}";
+
+function loadMon(khoiId, keepMon) {
+    fetch(`${API_MON}?khoi_id=${khoiId}`)
+        .then(r => r.json())
+        .then(data => {
+            selMon.innerHTML = '<option value="">-- Tất cả Môn --</option>';
+            data.forEach(m => {
+                const opt = new Option(m.TenMon, m.id);
+                if (keepMon && String(m.id) === keepMon) opt.selected = true;
+                selMon.appendChild(opt);
+            });
+            loadMach(khoiId, selMon.value, keepMon ? savedMach : '');
+        });
+}
+
+function loadMach(khoiId, monId, keepMach) {
+    fetch(`${API_MACH}?khoi_id=${khoiId}&mon_id=${monId}`)
+        .then(r => r.json())
+        .then(data => {
+            selMach.innerHTML = '<option value="">-- Tất cả Mạch KT --</option>';
+            data.forEach(m => {
+                const opt = new Option(m.TenMach, m.id);
+                if (keepMach && String(m.id) === keepMach) opt.selected = true;
+                selMach.appendChild(opt);
+            });
+            loadNoidung(selMach.value, keepMach ? savedNoidung : '');
+        });
+}
+
+function loadNoidung(machId, keepNoidung) {
+    if (!machId) {
+        selNoidung.innerHTML = '<option value="">-- Tất cả Nội dung KT --</option>';
+        return;
+    }
+    fetch(`${API_NOIDUNG}?mach_id=${machId}`)
+        .then(r => r.json())
+        .then(data => {
+            selNoidung.innerHTML = '<option value="">-- Tất cả Nội dung KT --</option>';
+            data.forEach(nd => {
+                const opt = new Option(nd.TenNoidung, nd.id);
+                if (keepNoidung && String(nd.id) === keepNoidung) opt.selected = true;
+                selNoidung.appendChild(opt);
+            });
+        });
+}
+
+selKhoi.addEventListener('change', function() {
+    loadMon(this.value, '');
+});
+
+selMon.addEventListener('change', function() {
+    loadMach(selKhoi.value, this.value, '');
+});
+
+selMach.addEventListener('change', function() {
+    loadNoidung(this.value, '');
+});
+
+// Khi tải trang, nếu đang có khối được chọn → load mon + mach
+window.addEventListener('DOMContentLoaded', function() {
+    if (selKhoi.value) {
+        loadMon(selKhoi.value, savedMon);
+    }
+});
+</script>
+
+
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center py-3 border-bottom-0">
+        <h5 class="mb-0 fw-bold text-primary">Danh sách Câu hỏi</h5>
+        
+        <div>
+            <a href="{% url 'import_word_preview' %}" class="btn btn-outline-primary rounded-pill px-3 me-2">
+                <i class="fas fa-file-word me-1"></i>Import Word
+            </a>
+            <div class="dropdown d-inline-block">
+                <button class="btn btn-accent rounded-pill px-4 dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <i class="fas fa-plus me-2"></i>Thêm câu hỏi
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow">
+                    <li><a class="dropdown-item py-2" href="{% url 'question_create' %}"><i class="fas fa-list-ul me-2 text-primary"></i>Câu hỏi đơn</a></li>
+                    <li><a class="dropdown-item py-2" href="{% url 'group_create' %}"><i class="fas fa-layer-group me-2 text-success"></i>Nhóm câu hỏi</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card-body p-0">
+        {% if messages %}
+            <div class="px-3 pt-3">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} py-2">{{ message }}</div>
+            {% endfor %}
+            </div>
+        {% endif %}
+
+        {% if questions %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3" width="4%">ID</th>
+                        <th width="25%">Nội dung câu hỏi</th>
+                        <th width="10%">Nhóm</th>
+                        <th width="13%">Môn / Khối</th>
+                        <th width="9%">Hình thức</th>
+                        <th width="9%">Mức độ</th>
+                        <th width="15%">Người tạo</th>
+                        <th width="15%" class="text-center">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for q in questions %}
+                    <tr>
+                        <td class="ps-3 text-muted">#{{ q.id }}</td>
+                        <td>
+                            <div class="text-wrap" style="max-width: 300px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                                {{ q.NoiDungCauHoi }}
+                            </div>
+                        </td> 
+                        <td>
+                            {% if q.NhomCauHoi %}
+                                <a href="{% url 'group_update' q.NhomCauHoi.pk %}" class="badge bg-secondary text-decoration-none" title="{{ q.NhomCauHoi.TenNhom }}"><i class="fas fa-layer-group me-1"></i>Nhóm</a>
+                            {% else %}
+                                <span class="text-muted small">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="small fw-bold text-dark">{{ q.MonHoc.TenMon|default:"-" }}</div>
+                            <div class="small text-muted">{{ q.Khoi.TenKhoi|default:"-" }}</div>
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-dark border">{{ q.HinhThuc }}</span>
+                            <div class="small text-muted mt-1">{{ q.DangCauHoi }}</div>
+                        </td>
+                        <td>
+                            <span class="badge bg-info text-dark">{{ q.MucDo }}</span>
+                        </td>
+                        <td>
+                            {% if q.NguoiTao %}
+                                <div class="small fw-semibold text-dark"><i class="fas fa-user-circle me-1 text-secondary"></i>{{ q.NguoiTao.HoTen }}</div>
+                                <div class="small text-muted">{{ q.NguoiTao.ChucVu }}</div>
+                            {% else %}
+                                <span class="text-muted small">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <a href="{% url 'question_update' q.pk %}" class="btn btn-sm btn-outline-primary" title="Sửa"><i class="fas fa-edit"></i></a>
+                            {% if q.id in locked_ids %}
+                                <button class="btn btn-sm btn-outline-secondary" disabled title="Câu hỏi đang dùng trong đề thi chính thức, không thể xóa"><i class="fas fa-lock"></i></button>
+                            {% else %}
+                                <form method="POST" action="{% url 'question_delete' q.pk %}" class="d-inline" onsubmit="return confirm('Bạn có chắc chắn muốn xóa câu hỏi này?');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Xóa"><i class="fas fa-trash"></i></button>
+                                </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="card-footer bg-white">
+            {% include 'pagination.html' %}
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <img src="https://cdn-icons-png.flaticon.com/512/7486/7486747.png" width="120" class="mb-3 opacity-50">
+            <h5 class="text-muted">Không tìm thấy câu hỏi nào</h5>
+            <p class="text-muted">Hãy thay đổi bộ lọc hoặc thêm câu hỏi mới!</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

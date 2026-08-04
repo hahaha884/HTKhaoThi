@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+{% block page_title %}Tạo lịch thi mới - Bước 2{% endblock %}
+{% block content %}
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        {# Progress Indicator #}
+        <div class="mb-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="text-center flex-fill">
+                    <div class="bg-success text-white rounded-circle mx-auto d-flex align-items-center justify-content-center fw-bold" style="width:40px;height:40px"><i class="fas fa-check"></i></div>
+                    <small class="d-block mt-2 fw-semibold text-success">Thông tin ca thi</small>
+                </div>
+                <div class="flex-fill border-top border-2 border-success opacity-25 mx-2" style="margin-top:-35px"></div>
+                <div class="text-center flex-fill">
+                    <div class="bg-primary text-white border rounded-circle mx-auto d-flex align-items-center justify-content-center fw-bold" style="width:40px;height:40px">2</div>
+                    <small class="d-block mt-2 fw-semibold text-primary">Chọn đề thi</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white py-3 border-bottom">
+                <h6 class="fw-bold mb-0 text-dark"><i class="fas fa-info-circle me-2"></i>Tóm tắt thông tin ca thi</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-2">
+                        <span class="text-muted">Khối:</span> <span class="fw-bold">{{ khoi.TenKhoi }}</span>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <span class="text-muted">Môn học:</span> <span class="fw-bold">{{ mon.TenMon }}</span>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <span class="text-muted">Học kỳ:</span> <span class="fw-bold">{{ step1_data.hoc_ky }}</span>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <span class="text-muted">Kỳ thi:</span> <span class="fw-bold">{{ step1_data.ky_thi }}</span>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <span class="text-muted">Buổi:</span> <span class="fw-bold">{{ step1_data.ca_thi }}</span>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <span class="text-muted">Ngày thi:</span> <span class="fw-bold">{{ step1_data.ngay_thi }}</span>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <span class="text-muted">Thời gian:</span> <span class="fw-bold">{{ step1_data.gio_bat_dau }} - {{ step1_data.gio_ket_thuc }}</span>
+                    </div>
+                    {% if step1_data.ghi_chu %}
+                    <div class="col-12 mt-2">
+                        <span class="text-muted">Ghi chú:</span> <span class="fst-italic">{{ step1_data.ghi_chu }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white py-3 border-bottom">
+                <h5 class="fw-bold mb-0 text-primary">
+                    <i class="fas fa-file-alt me-2"></i>Bước 2: Chọn đề thi chính thức
+                </h5>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST">
+                    {% csrf_token %}
+                    
+                    {% if de_thi_list %}
+                        <div class="table-responsive mb-4">
+                            <table class="table table-hover border">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 40px;"></th>
+                                        <th>Tên đề thi</th>
+                                        <th>Người gửi</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for dt in de_thi_list %}
+                                    <tr>
+                                        <td class="text-center align-middle">
+                                            <input class="form-check-input" type="radio" name="de_thi_id" id="de_thi_{{ dt.id }}" value="{{ dt.id }}" required>
+                                        </td>
+                                        <td>
+                                            <label class="form-check-label w-100 d-block" style="cursor: pointer;" for="de_thi_{{ dt.id }}">
+                                                <div class="fw-bold text-primary">{{ dt.TenDe }}</div>
+                                                <small class="text-muted">Tạo lúc: {{ dt.CreatedAt|date:"d/m/Y H:i" }}</small>
+                                            </label>
+                                        </td>
+                                        <td class="align-middle">{{ dt.NguoiTao.HoTen|default:"-" }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>Không có đề thi chính thức nào khả dụng cho Khối và Môn học này. 
+                            Vui lòng duyệt thêm đề thi hoặc quay lại thay đổi môn học.
+                        </div>
+                    {% endif %}
+
+                    <div class="d-flex gap-2 justify-content-end">
+                        <button type="submit" name="action" value="cancel" class="btn btn-light border" formnovalidate>
+                            <i class="fas fa-times me-2"></i>Hủy thao tác
+                        </button>
+                        <a href="{% url 'schedule_create_step1' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Quay lại
+                        </a>
+                        {% if de_thi_list %}
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-check me-2"></i>Hoàn tất
+                        </button>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

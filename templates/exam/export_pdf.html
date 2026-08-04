@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Đề thi: {{ de_thi.TenDe }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+            @frame footer_frame {
+                -pdf-frame-content: footer_content;
+                left: 50pt; width: 512pt; top: 800pt; height: 20pt;
+            }
+        }
+        body {
+            font-family: 'Times New Roman', serif;
+            font-size: 13pt;
+            line-height: 1.5;
+        }
+        .header-table {
+            width: 100%;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .header-title {
+            font-weight: bold;
+            font-size: 14pt;
+            text-transform: uppercase;
+        }
+        .header-subtitle {
+            font-weight: bold;
+            font-size: 14pt;
+            text-transform: uppercase;
+        }
+        .score-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        .score-table th, .score-table td {
+            border: 1px solid black;
+            padding: 5px;
+            text-align: center;
+            vertical-align: top;
+        }
+        .student-info {
+            text-align: left;
+            padding: 10px;
+        }
+        .question {
+            margin-top: 15px;
+            margin-bottom: 10px;
+        }
+        .question-title {
+            font-weight: bold;
+            font-style: italic;
+        }
+        .answers {
+            margin-top: 5px;
+        }
+        .answer-item {
+            display: inline-block;
+            width: 45%;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="footer_content" style="text-align: right; font-size: 11pt;">
+        Trang <pdf:pagenumber>
+    </div>
+
+    <div class="header-table">
+        <div class="header-title">TRƯỜNG TIỂU HỌC SỐ 1 AN ĐÔNG</div>
+        <div class="header-subtitle">KIỂM TRA ĐỊNH KÌ {{ de_thi.KyThi|upper }} {{ hoc_ky_text }} NĂM HỌC {{ de_thi.NamHoc.TenNamHoc|default:'' }}</div>
+        <div class="header-subtitle" style="margin-top: 10px;">MÔN: {{ de_thi.MonHoc.TenMon|upper|default:'' }} - {{ de_thi.Khoi.TenKhoi|upper|default:'' }}</div>
+        <div>Thời gian: {{ thoi_gian }} phút</div>
+        {% if ngay_thi_str %}
+        <div>Ngày thi: {{ ngay_thi_str }}</div>
+        {% endif %}
+    </div>
+    
+    <table class="score-table">
+        <tr>
+            <td rowspan="2" style="text-align: left; padding: 10px;">
+                Họ và tên:...........................................................<br><br>
+                Lớp: {{ de_thi.Khoi.TenKhoi|default:'' }}....
+            </td>
+            <td>Giám thị</td>
+            <td>Giám khảo</td>
+        </tr>
+        <tr>
+            <td><br><br></td>
+            <td><br><br></td>
+        </tr>
+        <tr>
+            <td style="font-weight: bold;">Điểm</td>
+            <td colspan="2" style="font-weight: bold;">Nhận xét của giáo viên</td>
+        </tr>
+        <tr>
+            <td><br><br><br></td>
+            <td colspan="2"><br><br><br></td>
+        </tr>
+    </table>
+
+    {% for ct in chi_tiet %}
+        <div class="question">
+            <span class="question-title">Câu {{ ct.ThuTuCau }} ({{ ct.DiemSo }} điểm).</span> 
+            {{ ct.MaCauHoi.NoiDungCauHoi|safe }}
+            
+            {% if ct.MaCauHoi.HinhAnh %}
+                <div style="margin-top: 10px; text-align: center;">
+                    <img src="{{ ct.MaCauHoi.HinhAnh.path }}" style="max-width: 300px; max-height: 200px;">
+                </div>
+            {% endif %}
+            
+            {% if ct.MaCauHoi.DangCauHoi == 'MCQ' %}
+                <div class="answers">
+                    {% for da in ct.MaCauHoi.dap_ans.all|dictsort:"ThuTu" %}
+                        <div class="answer-item">
+                            {% if forloop.counter == 1 %}A.{% elif forloop.counter == 2 %}B.{% elif forloop.counter == 3 %}C.{% else %}D.{% endif %}
+                            {{ da.NoiDung|safe }}
+                        </div>
+                    {% endfor %}
+                </div>
+                <div style="clear: both;"></div>
+            {% endif %}
+        </div>
+    {% endfor %}
+</body>
+</html>

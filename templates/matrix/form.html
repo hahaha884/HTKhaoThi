@@ -1,0 +1,425 @@
+{% extends 'base.html' %}
+{% block page_title %}{% if matran %}Cập nhật Ma trận{% else %}Thêm Ma trận{% endif %}{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm mt-3 border-0">
+    <div class="card-header bg-white border-bottom pt-3 pb-2">
+        <h5 class="text-primary mb-0"><i class="fas fa-table me-2"></i>{% if matran %}Chỉnh sửa Ma trận: {{ matran.TenMaTran }}{% else %}Tạo mới Ma trận Đề thi{% endif %}</h5>
+    </div>
+    
+    <div class="card-body">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} py-2">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+        
+        <form method="POST" id="matrixForm">
+            {% csrf_token %}
+            <h6 class="text-muted border-bottom pb-2 mb-3">Thông tin chung</h6>
+            <div class="row g-3 mb-4">
+                <div class="col-md-12">
+                    <label class="form-label fw-bold">Tên ma trận <span class="text-danger">*</span></label>
+                    <input type="text" name="TenMaTran" id="tenMaTran" class="form-control bg-light" value="{{ matran.TenMaTran }}" required readonly placeholder="Tên ma trận sẽ tự động tạo sau khi chọn đủ thông tin phía dưới...">
+                </div>
+                
+                <div class="col-md-3">
+                    <label class="form-label">Năm học <span class="text-danger">*</span></label>
+                    <select name="NamHoc" class="form-select" required {% if has_details %}disabled{% endif %}>
+                        <option value="">-- Chọn --</option>
+                        {% for nh in namhocs %}
+                        <option value="{{ nh.pk }}" {% if matran.NamHoc_id|add:"0" == nh.pk|add:"0" %}selected{% endif %}>{{ nh.TenNamHoc }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-3">
+                    <label class="form-label">Học kỳ <span class="text-danger">*</span></label>
+                    <select name="HocKy" class="form-select" required {% if has_details %}disabled{% endif %}>
+                        <option value="">-- Chọn học kỳ --</option>
+                        <option value="Học kỳ 1" {% if matran.HocKy == 'Học kỳ 1' %}selected{% endif %}>Học kỳ I</option>
+                        <option value="Học kỳ 2" {% if matran.HocKy == 'Học kỳ 2' %}selected{% endif %}>Học kỳ II</option>
+                    </select>
+                </div>
+                
+                <div class="col-md-3">
+                    <label class="form-label">Kỳ thi <span class="text-danger">*</span></label>
+                    <select name="KyThi" class="form-select" required {% if has_details %}disabled{% endif %}>
+                        <option value="">-- Chọn --</option>
+                        <option value="Giữa kỳ" {% if matran.KyThi == 'Giữa kỳ' %}selected{% endif %}>Giữa kỳ</option>
+                        <option value="Cuối kỳ" {% if matran.KyThi == 'Cuối kỳ' %}selected{% endif %}>Cuối kỳ</option>
+                    </select>
+                </div>
+                
+                <div class="col-md-3">
+                    <label class="form-label">Khối <span class="text-danger">*</span></label>
+                    <select name="Khoi" class="form-select" required onchange="filterMonHoc()" {% if has_details %}disabled{% endif %}>
+                        <option value="">-- Chọn --</option>
+                        {% for k in khois %}
+                        <option value="{{ k.pk }}" {% if matran.Khoi_id|add:"0" == k.pk|add:"0" %}selected{% endif %}>{{ k.TenKhoi }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-3">
+                    <label class="form-label">Môn học <span class="text-danger">*</span></label>
+                    <select name="MonHoc" class="form-select" required onchange="filterMach()" {% if has_details %}disabled{% endif %}>
+                        <option value="">-- Chọn --</option>
+                        {% for mh in monhocs %}
+                        <option value="{{ mh.pk }}" data-khois="{% for k in mh.KhoiApDung.all %}{{ k.pk }},{% endfor %}" {% if matran.MonHoc_id|add:"0" == mh.pk|add:"0" %}selected{% endif %}>{{ mh.TenMon }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-9">
+                    <label class="form-label">Mô tả</label>
+                    <input type="text" name="MoTa" class="form-control" value="{{ matran.MoTa|default:'' }}">
+                </div>
+            </div>
+            
+            <div class="d-flex justify-content-between align-items-center mb-2 border-bottom pb-2">
+                <h6 class="text-muted mb-0">Chi tiết ma trận</h6>
+                <button type="button" class="btn btn-sm btn-outline-primary" onclick="addRow()"><i class="fas fa-plus me-1"></i>Thêm dòng</button>
+            </div>
+            
+            <div class="table-responsive">
+                <table class="table table-bordered align-middle" id="detailsTable">
+                    <thead class="table-light text-center" style="font-size: 0.85rem;">
+                        <tr>
+                            <th style="min-width: 150px;">Mạch kiến thức</th>
+                            <th style="min-width: 150px;">Nội dung kiến thức</th>
+                            <th style="width: 120px;">Mức độ</th>
+                            <th style="width: 120px;">Loại câu hỏi</th>
+                            <th style="width: 80px;">Số câu</th>
+                            <th style="min-width: 100px;">Câu số</th>
+                            <th style="width: 80px;">Điểm</th>
+                            <th style="width: 80px;">Tỷ lệ (%)</th>
+                            <th style="width: 50px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="detailsBody">
+                        {% if is_post_back %}
+                            {% for ct in posted_details %}
+                            <tr>
+                                <td>
+                                    <select name="MachKienThuc[]" class="form-select form-select-sm mach-select" required onchange="filterNoiDung(this)">
+                                        <option value="">-- Mạch KT --</option>
+                                        {% for m in machs %}
+                                        <option value="{{ m.pk }}" data-monhoc="{{ m.MonHoc_id }}" data-khoi="{{ m.Khoi_id }}" {% if ct.MachKienThuc_id|add:"0" == m.pk|add:"0" %}selected{% endif %}>{{ m.TenMach }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                <td>
+                                    <select name="NoiDung[]" class="form-select form-select-sm noidung-select" required>
+                                        <option value="">-- Nội dung --</option>
+                                        {% for nd in noidungs %}
+                                        <option value="{{ nd.pk }}" data-mach="{{ nd.MachKienThuc_id }}" {% if ct.NoiDung_id|add:"0" == nd.pk|add:"0" %}selected{% endif %}>{{ nd.TenNoidung }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                <td>
+                                    <select name="MucDo[]" class="form-select form-select-sm" required>
+                                        <option value="Mức 1" {% if ct.MucDo == 'Mức 1' %}selected{% endif %}>Mức 1</option>
+                                        <option value="Mức 2" {% if ct.MucDo == 'Mức 2' %}selected{% endif %}>Mức 2</option>
+                                        <option value="Mức 3" {% if ct.MucDo == 'Mức 3' %}selected{% endif %}>Mức 3</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <select name="LoaiCauHoi[]" class="form-select form-select-sm" required>
+                                        <option value="Trắc nghiệm" {% if ct.LoaiCauHoi == 'Trắc nghiệm' %}selected{% endif %}>Trắc nghiệm</option>
+                                        <option value="Tự luận" {% if ct.LoaiCauHoi == 'Tự luận' %}selected{% endif %}>Tự luận</option>
+                                    </select>
+                                </td>
+                                <td><input type="number" name="SoLuongCau[]" class="form-control form-control-sm" min="1" value="{{ ct.SoLuongCau }}" required></td>
+                                <td><input type="text" name="CauSo[]" class="form-control form-control-sm" placeholder="VD: 1,2,3" value="{{ ct.CauSo|default:'' }}" required></td>
+                                <td><input type="number" name="Diem[]" class="form-control form-control-sm" step="0.25" min="0.25" value="{{ ct.Diem }}" required></td>
+                                <td><input type="number" name="TyLe[]" class="form-control form-control-sm" step="0.1" min="0.1" value="{{ ct.TyLe }}" required></td>
+                                <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="fas fa-trash"></i></button></td>
+                            </tr>
+                            {% endfor %}
+                        {% elif matran and matran.chi_tiet.all %}
+                            {% for ct in matran.chi_tiet.all %}
+                            <tr>
+                                <td>
+                                    <select name="MachKienThuc[]" class="form-select form-select-sm mach-select" required onchange="filterNoiDung(this)">
+                                        <option value="">-- Mạch KT --</option>
+                                        {% for m in machs %}
+                                        <option value="{{ m.pk }}" data-monhoc="{{ m.MonHoc_id }}" data-khoi="{{ m.Khoi_id }}" {% if ct.MachKienThuc_id == m.pk %}selected{% endif %}>{{ m.TenMach }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                <td>
+                                    <select name="NoiDung[]" class="form-select form-select-sm noidung-select" required>
+                                        <option value="">-- Nội dung --</option>
+                                        {% for nd in noidungs %}
+                                        <option value="{{ nd.pk }}" data-mach="{{ nd.MachKienThuc_id }}" {% if ct.NoiDung_id == nd.pk %}selected{% endif %}>{{ nd.TenNoidung }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                <td>
+                                    <select name="MucDo[]" class="form-select form-select-sm" required>
+                                        <option value="Mức 1" {% if ct.MucDo == 'Mức 1' %}selected{% endif %}>Mức 1</option>
+                                        <option value="Mức 2" {% if ct.MucDo == 'Mức 2' %}selected{% endif %}>Mức 2</option>
+                                        <option value="Mức 3" {% if ct.MucDo == 'Mức 3' %}selected{% endif %}>Mức 3</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <select name="LoaiCauHoi[]" class="form-select form-select-sm" required>
+                                        <option value="Trắc nghiệm" {% if ct.LoaiCauHoi == 'Trắc nghiệm' %}selected{% endif %}>Trắc nghiệm</option>
+                                        <option value="Tự luận" {% if ct.LoaiCauHoi == 'Tự luận' %}selected{% endif %}>Tự luận</option>
+                                    </select>
+                                </td>
+                                <td><input type="number" name="SoLuongCau[]" class="form-control form-control-sm" min="1" value="{{ ct.SoLuongCau }}" required></td>
+                                <td><input type="text" name="CauSo[]" class="form-control form-control-sm" placeholder="VD: 1,2,3" value="{{ ct.CauSo|default:'' }}" required></td>
+                                <td><input type="number" name="Diem[]" class="form-control form-control-sm" step="0.25" min="0.25" value="{{ ct.Diem }}" required></td>
+                                <td><input type="number" name="TyLe[]" class="form-control form-control-sm" step="0.1" min="0.1" value="{{ ct.TyLe }}" required></td>
+                                <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="fas fa-trash"></i></button></td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <!-- Default Row for New -->
+                            <tr>
+                                <td>
+                                    <select name="MachKienThuc[]" class="form-select form-select-sm mach-select" required onchange="filterNoiDung(this)">
+                                        <option value="">-- Mạch KT --</option>
+                                        {% for m in machs %}
+                                        <option value="{{ m.pk }}" data-monhoc="{{ m.MonHoc_id }}" data-khoi="{{ m.Khoi_id }}">{{ m.TenMach }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                <td>
+                                    <select name="NoiDung[]" class="form-select form-select-sm noidung-select" required>
+                                        <option value="">-- Nội dung --</option>
+                                        {% for nd in noidungs %}
+                                        <option value="{{ nd.pk }}" data-mach="{{ nd.MachKienThuc_id }}">{{ nd.TenNoidung }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                <td>
+                                    <select name="MucDo[]" class="form-select form-select-sm" required>
+                                        <option value="Mức 1">Mức 1</option>
+                                        <option value="Mức 2">Mức 2</option>
+                                        <option value="Mức 3">Mức 3</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <select name="LoaiCauHoi[]" class="form-select form-select-sm" required>
+                                        <option value="Trắc nghiệm">Trắc nghiệm</option>
+                                        <option value="Tự luận">Tự luận</option>
+                                    </select>
+                                </td>
+                                <td><input type="number" name="SoLuongCau[]" class="form-control form-control-sm" min="1" value="1" required></td>
+                                <td><input type="text" name="CauSo[]" class="form-control form-control-sm" placeholder="VD: 1,2" required></td>
+                                <td><input type="number" name="Diem[]" class="form-control form-control-sm" step="0.25" min="0.25" value="0.25" required></td>
+                                <td><input type="number" name="TyLe[]" class="form-control form-control-sm" step="0.1" min="0.1" value="5" required></td>
+                                <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="fas fa-trash"></i></button></td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="mt-4 text-end">
+                <a href="{% url 'matrix_list' %}" class="btn btn-light px-4 me-2" onclick="confirmCancel(event, this.href)">Hủy</a>
+                <button type="submit" name="action" value="draft" class="btn btn-secondary px-4 me-2" onclick="removeDetailsRequired()"><i class="fas fa-save me-1"></i>Lưu Nháp</button>
+                <button type="submit" name="action" value="submit" class="btn btn-primary px-4" onclick="restoreDetailsRequired()"><i class="fas fa-paper-plane me-1"></i>Nộp (Gửi duyệt)</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<template id="rowTemplate">
+    <tr>
+        <td>
+            <select name="MachKienThuc[]" class="form-select form-select-sm mach-select" required onchange="filterNoiDung(this)">
+                <option value="">-- Mạch KT --</option>
+                {% for m in machs %}
+                <option value="{{ m.pk }}" data-monhoc="{{ m.MonHoc_id }}" data-khoi="{{ m.Khoi_id }}">{{ m.TenMach }}</option>
+                {% endfor %}
+            </select>
+        </td>
+        <td>
+            <select name="NoiDung[]" class="form-select form-select-sm noidung-select" required>
+                <option value="">-- Nội dung --</option>
+                {% for nd in noidungs %}
+                <option value="{{ nd.pk }}" data-mach="{{ nd.MachKienThuc_id }}">{{ nd.TenNoidung }}</option>
+                {% endfor %}
+            </select>
+        </td>
+        <td>
+            <select name="MucDo[]" class="form-select form-select-sm" required>
+                <option value="Mức 1">Mức 1</option>
+                <option value="Mức 2">Mức 2</option>
+                <option value="Mức 3">Mức 3</option>
+            </select>
+        </td>
+        <td>
+            <select name="LoaiCauHoi[]" class="form-select form-select-sm" required>
+                <option value="Trắc nghiệm">Trắc nghiệm</option>
+                <option value="Tự luận">Tự luận</option>
+            </select>
+        </td>
+        <td><input type="number" name="SoLuongCau[]" class="form-control form-control-sm" min="1" value="1" required></td>
+        <td><input type="text" name="CauSo[]" class="form-control form-control-sm" placeholder="VD: 1,2" required></td>
+        <td><input type="number" name="Diem[]" class="form-control form-control-sm" step="0.25" min="0.25" value="0.25" required></td>
+        <td><input type="number" name="TyLe[]" class="form-control form-control-sm" step="0.1" min="0.1" value="5" required></td>
+        <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="fas fa-trash"></i></button></td>
+    </tr>
+</template>
+
+<script>
+    function filterMonHoc() {
+        const khoiId = document.querySelector('select[name="Khoi"]').value;
+        const monHocSelect = document.querySelector('select[name="MonHoc"]');
+        let hasSelectedValidOption = false;
+        
+        Array.from(monHocSelect.options).forEach(opt => {
+            if (opt.value === "") return;
+            
+            const khois = opt.getAttribute('data-khois');
+            
+            if (!khoiId || (khois && khois.split(',').includes(khoiId))) {
+                opt.style.display = 'block';
+                if (opt.selected) hasSelectedValidOption = true;
+            } else {
+                opt.style.display = 'none';
+                if (opt.selected) {
+                    monHocSelect.value = "";
+                }
+            }
+        });
+        
+        filterMach();
+    }
+
+    function filterMach() {
+        const monhocId = document.querySelector('select[name="MonHoc"]').value;
+        const khoiId = document.querySelector('select[name="Khoi"]').value;
+        const machSelects = document.querySelectorAll('.mach-select');
+        
+        machSelects.forEach(selectObj => {
+            Array.from(selectObj.options).forEach(opt => {
+                if (opt.value === "") return;
+                
+                const optMonHoc = opt.getAttribute('data-monhoc');
+                const optKhoi = opt.getAttribute('data-khoi');
+                
+                if ((!monhocId || optMonHoc === monhocId) && (!khoiId || optKhoi === khoiId)) {
+                    opt.style.display = 'block';
+                } else {
+                    opt.style.display = 'none';
+                    if (opt.selected) {
+                        selectObj.value = "";
+                    }
+                }
+            });
+            filterNoiDung(selectObj);
+        });
+    }
+
+    function addRow() {
+        const template = document.getElementById('rowTemplate');
+        const clone = template.content.cloneNode(true);
+        document.getElementById('detailsBody').appendChild(clone);
+        
+        // Initial filter for the newly added row
+        filterMach(); // This will filter Mach and subsequently NoiDung
+    }
+    
+    function filterNoiDung(selectObj) {
+        const machId = selectObj.value;
+        const row = selectObj.closest('tr');
+        const ndSelect = row.querySelector('.noidung-select');
+        
+        // Loop through all options in the NoiDung select
+        Array.from(ndSelect.options).forEach(opt => {
+            if (opt.value === "") return; // Skip placeholder
+            
+            if (opt.getAttribute('data-mach') === machId) {
+                opt.style.display = 'block';
+            } else {
+                opt.style.display = 'none';
+                if (opt.selected) {
+                    ndSelect.value = "";
+                }
+            }
+        });
+    }
+
+    let isDirty = false;
+
+    // Run filter initially for all rows in edit mode
+    document.addEventListener('DOMContentLoaded', function() {
+        filterMonHoc();
+        
+        const selects = document.querySelectorAll('.mach-select');
+        selects.forEach(s => {
+            filterNoiDung(s);
+        });
+        
+        setupAutoName();
+
+        // Track if form is modified
+        const form = document.getElementById('matrixForm');
+        form.addEventListener('change', () => isDirty = true);
+        form.addEventListener('input', () => isDirty = true);
+    });
+
+    function confirmCancel(event, url) {
+        event.preventDefault();
+        if (isDirty) {
+            if (confirm('Bạn đã có thông tin chưa lưu. Bạn có chắc chắn muốn rời khỏi trang và hủy các thay đổi này không?')) {
+                window.location.href = url;
+            }
+        } else {
+            window.location.href = url;
+        }
+    }
+
+    function setupAutoName() {
+        const namhoc = document.querySelector('select[name="NamHoc"]');
+        const hocky = document.querySelector('select[name="HocKy"]');
+        const kythi = document.querySelector('select[name="KyThi"]');
+        const khoi = document.querySelector('select[name="Khoi"]');
+        const monhoc = document.querySelector('select[name="MonHoc"]');
+        const tenInput = document.getElementById('tenMaTran');
+        
+        const selects = [namhoc, hocky, kythi, khoi, monhoc];
+        
+        selects.forEach(select => {
+            if(select) {
+                select.addEventListener('change', function() {
+                    // Cập nhật tên nếu chưa bị vô hiệu hóa
+                    if (!namhoc.disabled) {
+                        let allSelected = true;
+                        let parts = [];
+                        
+                        if(monhoc.selectedIndex > 0) parts.push(monhoc.options[monhoc.selectedIndex].text); else allSelected = false;
+                        if(khoi.selectedIndex > 0) parts.push(khoi.options[khoi.selectedIndex].text); else allSelected = false;
+                        if(kythi.selectedIndex > 0) parts.push(kythi.options[kythi.selectedIndex].text); else allSelected = false;
+                        if(namhoc.selectedIndex > 0) parts.push(namhoc.options[namhoc.selectedIndex].text); else allSelected = false;
+                        
+                        if (allSelected) {
+                            tenInput.value = `Ma trận ${parts.join(' - ')}`;
+                        }
+                    }
+                });
+            }
+        });
+    }
+
+    function removeDetailsRequired() {
+        const detailInputs = document.querySelectorAll('#detailsTable select, #detailsTable input');
+        detailInputs.forEach(input => {
+            input.removeAttribute('required');
+        });
+    }
+
+    function restoreDetailsRequired() {
+        const detailInputs = document.querySelectorAll('#detailsTable select, #detailsTable input');
+        detailInputs.forEach(input => {
+            input.setAttribute('required', 'required');
+        });
+    }
+</script>
+{% endblock %}

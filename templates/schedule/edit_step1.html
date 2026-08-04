@@ -1,0 +1,228 @@
+{% extends 'base.html' %}
+{% block page_title %}Sửa lịch thi - Bước 1{% endblock %}
+{% block content %}
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        {# Progress Indicator #}
+        <div class="mb-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="text-center flex-fill">
+                    <div class="bg-primary text-white rounded-circle mx-auto d-flex align-items-center justify-content-center fw-bold" style="width:40px;height:40px">1</div>
+                    <small class="d-block mt-2 fw-semibold text-primary">Thông tin ca thi</small>
+                </div>
+                <div class="flex-fill border-top border-2 border-secondary opacity-25 mx-2" style="margin-top:-35px"></div>
+                <div class="text-center flex-fill">
+                    <div class="bg-light text-muted border rounded-circle mx-auto d-flex align-items-center justify-content-center fw-bold" style="width:40px;height:40px">2</div>
+                    <small class="d-block mt-2 text-muted">Chọn đề thi</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white py-3 border-bottom">
+                <h5 class="fw-bold mb-0 text-primary">
+                    <i class="fas fa-edit me-2"></i>Sửa lịch thi
+                </h5>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST" id="step1Form">
+                    {% csrf_token %}
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Năm học <span class="text-danger">*</span></label>
+                            <select name="nam_hoc" class="form-select">
+                                <option value="">-- Không chọn --</option>
+                                {% for nh in nam_hoc_list %}
+                                <option value="{{ nh.id }}" {% if lich_thi.NamHoc_id == nh.id %}selected{% endif %}>
+                                    {{ nh.TenNamHoc }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Học kỳ <span class="text-danger">*</span></label>
+                            <select name="hoc_ky" class="form-select" required>
+                                <option value="">-- Chọn học kỳ --</option>
+                                <option value="Học kỳ 1" {% if lich_thi.HocKy == 'Học kỳ 1' %}selected{% endif %}>Học kỳ 1</option>
+                                <option value="Học kỳ 2" {% if lich_thi.HocKy == 'Học kỳ 2' %}selected{% endif %}>Học kỳ 2</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Kỳ thi <span class="text-danger">*</span></label>
+                            <select name="ky_thi" class="form-select" required>
+                                <option value="">-- Chọn kỳ thi --</option>
+                                <option value="Giữa kỳ" {% if lich_thi.KyThi == 'Giữa kỳ' %}selected{% endif %}>Giữa kỳ</option>
+                                <option value="Cuối kỳ" {% if lich_thi.KyThi == 'Cuối kỳ' %}selected{% endif %}>Cuối kỳ</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Khối <span class="text-danger">*</span></label>
+                            <select name="khoi" id="khoiSelect" class="form-select" required>
+                                <option value="">-- Chọn khối --</option>
+                                {% for k in khoi_list %}
+                                <option value="{{ k.id }}" {% if lich_thi.Khoi_id == k.id %}selected{% endif %}>
+                                    {{ k.TenKhoi }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-8">
+                            <label class="form-label fw-semibold">
+                                Môn học <span class="text-danger">*</span>
+                                <span id="monLoadingSpinner" class="d-none ms-2">
+                                    <span class="spinner-border spinner-border-sm text-secondary" role="status"></span>
+                                </span>
+                            </label>
+                            <select name="mon" id="monSelect" class="form-select" required>
+                                {# Sẽ được load bằng JS khi trang tải #}
+                                <option value="{{ lich_thi.MonHoc_id }}" selected>{{ lich_thi.MonHoc.TenMon }}</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Buổi <span class="text-danger">*</span></label>
+                            <select name="ca_thi" class="form-select" required>
+                                <option value="">-- Chọn buổi --</option>
+                                <option value="Buổi sáng" {% if lich_thi.CaThi == 'Buổi sáng' %}selected{% endif %}>Buổi sáng</option>
+                                <option value="Buổi chiều" {% if lich_thi.CaThi == 'Buổi chiều' %}selected{% endif %}>Buổi chiều</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Ngày thi <span class="text-danger">*</span></label>
+                            <input type="date" name="ngay_thi" class="form-control"
+                                   value="{{ lich_thi.NgayThi|date:'Y-m-d' }}" required>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Giờ bắt đầu <span class="text-danger">*</span></label>
+                            <input type="time" name="gio_bat_dau" class="form-control"
+                                   value="{{ lich_thi.GioBatDau|time:'H:i' }}" required>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Giờ kết thúc <span class="text-danger">*</span></label>
+                            <input type="time" name="gio_ket_thuc" class="form-control"
+                                   value="{{ lich_thi.GioKetThuc|time:'H:i' }}" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Ghi chú</label>
+                        <textarea name="ghi_chu" class="form-control" rows="2"
+                                  placeholder="Thông tin bổ sung về ca thi...">{{ lich_thi.GhiChu|default:'' }}</textarea>
+                    </div>
+
+                    {% if lich_thi.DeThi %}
+                    <div class="alert alert-info py-2 small mb-4">
+                        <i class="fas fa-file-alt me-1"></i>
+                        Đề thi đang gán: <strong>{{ lich_thi.DeThi.TenDe }}</strong>.
+                        Nếu thay đổi Năm học, Học kỳ, Kỳ thi, Khối hoặc Môn học, hệ thống sẽ yêu cầu chọn lại đề thi.
+                    </div>
+                    {% endif %}
+
+                    <div class="d-flex gap-2 justify-content-end">
+                        <button type="submit" name="action" value="cancel" class="btn btn-light border">
+                            <i class="fas fa-times me-2"></i>Hủy
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-arrow-right me-2"></i>Tiếp theo
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const API_URL = "{% url 'schedule_api_mon_theo_khoi' %}";
+const khoiSelect = document.getElementById('khoiSelect');
+const monSelect = document.getElementById('monSelect');
+const monSpinner = document.getElementById('monLoadingSpinner');
+
+// Giá trị khối và môn hiện tại từ server
+const currentKhoiId = "{{ lich_thi.Khoi_id }}";
+const currentMonId = "{{ lich_thi.MonHoc_id }}";
+
+function loadMon(khoiId, selectedMonId) {
+    monSpinner.classList.remove('d-none');
+    monSelect.disabled = true;
+    
+    fetch(`${API_URL}?khoi_id=${khoiId}`)
+        .then(res => res.json())
+        .then(data => {
+            monSpinner.classList.add('d-none');
+            monSelect.innerHTML = '<option value="">-- Chọn môn học --</option>';
+            
+            if (data.mon_list && data.mon_list.length > 0) {
+                data.mon_list.forEach(mon => {
+                    const opt = document.createElement('option');
+                    opt.value = mon.id;
+                    opt.textContent = mon.TenMon;
+                    if (String(mon.id) === String(selectedMonId)) {
+                        opt.selected = true;
+                    }
+                    monSelect.appendChild(opt);
+                });
+                monSelect.disabled = false;
+            } else {
+                monSelect.innerHTML = '<option value="">-- Không có môn học nào --</option>';
+            }
+        })
+        .catch(() => {
+            monSpinner.classList.add('d-none');
+            monSelect.innerHTML = '<option value="">-- Lỗi tải dữ liệu --</option>';
+        });
+}
+
+// Load môn theo khối khi trang tải (pre-fill)
+if (currentKhoiId) {
+    loadMon(currentKhoiId, currentMonId);
+}
+
+// Load lại khi đổi khối
+khoiSelect.addEventListener('change', function () {
+    const khoiId = this.value;
+    if (!khoiId) {
+        monSelect.innerHTML = '<option value="">-- Chọn khối trước --</option>';
+        monSelect.disabled = true;
+        return;
+    }
+    loadMon(khoiId, null);
+});
+
+// Validate giờ theo ca thi trước khi submit
+document.getElementById('step1Form').addEventListener('submit', function(e) {
+    const caThi = document.querySelector('select[name="ca_thi"]').value;
+    const gioBatDauStr = document.querySelector('input[name="gio_bat_dau"]').value;
+    
+    if (caThi && gioBatDauStr) {
+        const gio = parseInt(gioBatDauStr.split(':')[0], 10);
+        
+        if (caThi === 'Buổi sáng' && gio >= 12) {
+            e.preventDefault();
+            alert('Lỗi: Buổi sáng phải có giờ bắt đầu trước 12:00 trưa.');
+            return false;
+        }
+        
+        if (caThi === 'Buổi chiều' && gio < 12) {
+            e.preventDefault();
+            alert('Lỗi: Buổi chiều phải có giờ bắt đầu từ 12:00 trưa trở đi.');
+            return false;
+        }
+    }
+});
+</script>
+
+{% endblock %}

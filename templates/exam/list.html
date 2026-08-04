@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="text-primary fw-bold mb-0">Quản lý Đề thi</h4>
+    <a href="{% url 'exam_wizard_start' %}" class="btn btn-primary">
+        <i class="fas fa-plus me-1"></i>Thêm đề thi
+    </a>
+</div>
+
+<!-- Lọc & Tìm kiếm -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form method="GET">
+            <div class="row g-3 mb-3">
+                <div class="col-md-4">
+                    <input type="text" name="q" class="form-control" placeholder="Tìm kiếm tên đề..." value="{{ tu_khoa }}">
+                </div>
+                <div class="col-md-2">
+                    <select name="nam" class="form-select">
+                        <option value="">-- Năm học --</option>
+                        {% for n in nam_list %}
+                        <option value="{{ n.id }}" {% if request.GET.nam == n.id|stringformat:"s" %}selected{% endif %}>{{ n.TenNamHoc }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select name="hoc_ky" class="form-select">
+                        <option value="">-- Học kỳ --</option>
+                        <option value="Học kỳ 1" {% if request.GET.hoc_ky == 'Học kỳ 1' %}selected{% endif %}>Học kỳ 1</option>
+                        <option value="Học kỳ 2" {% if request.GET.hoc_ky == 'Học kỳ 2' %}selected{% endif %}>Học kỳ 2</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select name="ky_thi" class="form-select">
+                        <option value="">-- Kỳ thi --</option>
+                        <option value="Giữa kì 1" {% if request.GET.ky_thi == 'Giữa kì 1' %}selected{% endif %}>Giữa kì 1</option>
+                        <option value="Cuối kì 1" {% if request.GET.ky_thi == 'Cuối kì 1' %}selected{% endif %}>Cuối kì 1</option>
+                        <option value="Giữa kì 2" {% if request.GET.ky_thi == 'Giữa kì 2' %}selected{% endif %}>Giữa kì 2</option>
+                        <option value="Cuối kì 2" {% if request.GET.ky_thi == 'Cuối kì 2' %}selected{% endif %}>Cuối kì 2</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select name="khoi" class="form-select">
+                        <option value="">-- Khối --</option>
+                        {% for k in khoi_list %}
+                        <option value="{{ k.id }}" {% if request.GET.khoi == k.id|stringformat:"s" %}selected{% endif %}>{{ k.TenKhoi }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <select name="mon" class="form-select">
+                        <option value="">-- Môn học --</option>
+                        {% for m in mon_list %}
+                        <option value="{{ m.id }}" {% if request.GET.mon == m.id|stringformat:"s" %}selected{% endif %}>{{ m.TenMon }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select name="trang_thai" class="form-select">
+                        <option value="">-- Trạng thái --</option>
+                        <option value="Nháp" {% if request.GET.trang_thai == 'Nháp' %}selected{% endif %}>Nháp</option>
+                        <option value="Đã nộp" {% if request.GET.trang_thai == 'Đã nộp' %}selected{% endif %}>Đã nộp</option>
+                        <option value="Chính thức" {% if request.GET.trang_thai == 'Chính thức' %}selected{% endif %}>Chính thức</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <select name="nguoi_tao" class="form-select">
+                        <option value="">-- Người tạo --</option>
+                        {% for gv in gv_list %}
+                        <option value="{{ gv.id }}" {% if request.GET.nguoi_tao == gv.id|stringformat:"s" %}selected{% endif %}>{{ gv.HoTen }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-outline-primary w-100"><i class="fas fa-search me-1"></i>Tìm kiếm</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Danh sách -->
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th class="ps-4">Tên đề thi</th>
+                        <th>Thông tin</th>
+                        <th>Ma trận</th>
+                        <th>Trạng thái</th>
+                        <th>Người tạo</th>
+                        <th class="text-end pe-4">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for de in danh_sach %}
+                    <tr>
+                        <td class="ps-4">
+                            <strong>{{ de.TenDe }}</strong><br>
+                            <span class="text-muted small"><i class="fas fa-clock me-1"></i>{{ de.CreatedAt|date:"d/m/Y H:i" }}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-info text-dark mb-1">{{ de.KyThi }}</span><br>
+                            <span class="small">{{ de.MonHoc.TenMon }} - {{ de.Khoi.TenKhoi }}</span>
+                        </td>
+                        <td>
+                            <a href="#" class="text-decoration-none">{{ de.MaMaTran.TenMaTran }}</a><br>
+                            <span class="small text-muted">{{ de.TongDiem }} điểm</span>
+                        </td>
+                        <td>
+                            {% if de.TrangThai == 'Nháp' %}
+                                <span class="badge bg-secondary">Nháp</span>
+                            {% elif de.TrangThai == 'Đã nộp' %}
+                                {% if de.TrangThaiDoc == 'Đã đọc' %}
+                                    <span class="badge bg-info text-dark">Đã đọc</span>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark">Đã nộp</span>
+                                {% endif %}
+                            {% elif de.TrangThai == 'Chính thức' %}
+                                <span class="badge bg-success">Chính thức</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ de.NguoiTao.HoTen }}</td>
+                        <td class="text-end pe-4">
+                            {% if de.TrangThai == 'Nháp' %}
+                                <a href="{% url 'exam_editor' de.id %}" class="btn btn-sm btn-outline-primary" title="Sửa đề"><i class="fas fa-edit"></i></a>
+                                {% if request.user.giaovien == de.NguoiTao %}
+                                <form method="POST" action="{% url 'exam_delete' de.id %}" class="d-inline" onsubmit="return confirm('Bạn có chắc chắn muốn xóa đề thi này không?');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Xóa đề"><i class="fas fa-trash"></i></button>
+                                </form>
+                                {% endif %}
+                            {% else %}
+                                <a href="{% url 'exam_editor' de.id %}" class="btn btn-sm btn-outline-info" title="Xem chi tiết"><i class="fas fa-eye"></i></a>
+                            {% endif %}
+                            
+                            <!-- Nút Xuất file -->
+                            <a href="{% url 'exam_export' de.id 'word' %}" class="btn btn-sm btn-outline-secondary" title="Xuất đề thi (Word)"><i class="fas fa-download"></i></a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-muted">
+                            <i class="fas fa-folder-open fa-3x mb-3 opacity-25"></i>
+                            <p>Không tìm thấy đề thi nào.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="card-footer bg-white">
+            {% include 'pagination.html' %}
+        </div>
+    </div>
+{% endblock %}

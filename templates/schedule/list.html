@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+{% block page_title %}Lịch thi{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-end mb-4">
+    <div>
+        <h3 class="fw-bold text-primary mb-1"><i class="fas fa-calendar-alt me-2"></i>Quản lý Lịch thi</h3>
+        <p class="text-muted small mb-0">Danh sách toàn bộ ca thi trong hệ thống</p>
+    </div>
+    {% if is_bgh %}
+    <div>
+        <a href="{% url 'schedule_create_step1' %}" class="btn btn-primary shadow-sm">
+            <i class="fas fa-plus me-1"></i>Tạo lịch thi
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+{# Filter Form #}
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body bg-light p-3">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-md-2">
+                <label class="form-label small text-muted mb-1">Năm học</label>
+                <select name="nam_hoc" class="form-select form-select-sm">
+                    <option value="">-- Tất cả --</option>
+                    {% for nh in nam_hoc_list %}
+                    <option value="{{ nh.id }}" {% if request.GET.nam_hoc == str_nh_id %}selected{% endif %}>{{ nh.TenNamHoc }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small text-muted mb-1">Khối</label>
+                <select name="khoi" class="form-select form-select-sm">
+                    <option value="">-- Tất cả --</option>
+                    {% for k in khoi_list %}
+                    <option value="{{ k.id }}" {% if request.GET.khoi == str_k_id %}selected{% endif %}>{{ k.TenKhoi }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small text-muted mb-1">Môn học</label>
+                <select name="mon" class="form-select form-select-sm">
+                    <option value="">-- Tất cả --</option>
+                    {% for m in mon_list %}
+                    <option value="{{ m.id }}" {% if request.GET.mon == str_m_id %}selected{% endif %}>{{ m.TenMon }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <label class="form-label small text-muted mb-1">Học kỳ</label>
+                <select name="hoc_ky" class="form-select form-select-sm">
+                    <option value="">-- Tất cả --</option>
+                    <option value="Học kỳ 1" {% if request.GET.hoc_ky == 'Học kỳ 1' %}selected{% endif %}>Học kỳ 1</option>
+                    <option value="Học kỳ 2" {% if request.GET.hoc_ky == 'Học kỳ 2' %}selected{% endif %}>Học kỳ 2</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small text-muted mb-1">Kỳ thi</label>
+                <select name="ky_thi" class="form-select form-select-sm">
+                    <option value="">-- Tất cả --</option>
+                    <option value="Giữa kỳ" {% if request.GET.ky_thi == 'Giữa kỳ' %}selected{% endif %}>Giữa kỳ</option>
+                    <option value="Cuối kỳ" {% if request.GET.ky_thi == 'Cuối kỳ' %}selected{% endif %}>Cuối kỳ</option>
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <label class="form-label small text-muted mb-1">Buổi</label>
+                <select name="ca" class="form-select form-select-sm">
+                    <option value="">-- Tất cả --</option>
+                    <option value="Buổi sáng" {% if request.GET.ca == 'Buổi sáng' %}selected{% endif %}>Buổi sáng</option>
+                    <option value="Buổi chiều" {% if request.GET.ca == 'Buổi chiều' %}selected{% endif %}>Buổi chiều</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small text-muted mb-1">Ngày thi</label>
+                <input type="date" name="ngay" class="form-control form-control-sm" value="{{ request.GET.ngay }}">
+            </div>
+            <div class="col-md-2 d-flex gap-1">
+                <button type="submit" class="btn btn-sm btn-primary w-100"><i class="fas fa-filter me-1"></i>Lọc</button>
+                <a href="{% url 'schedule_list' %}" class="btn btn-sm btn-outline-secondary" title="Xóa bộ lọc"><i class="fas fa-sync-alt"></i></a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">Khối / Môn</th>
+                        <th>Buổi</th>
+                        <th>Thời gian</th>
+                        <th>Đề thi</th>
+                        {% if is_bgh %}
+                        <th class="text-end pe-4" style="width: 120px;">Thao tác</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lt in lich_thi_list %}
+                    <tr>
+                        <td class="ps-4">
+                            <div class="fw-bold text-dark">{{ lt.MonHoc.TenMon }}</div>
+                            <span class="badge bg-light text-dark border">{{ lt.Khoi.TenKhoi }}</span>
+                            <span class="badge bg-light text-primary border">{{ lt.HocKy }}</span>
+                            <span class="badge bg-light text-info border">{{ lt.KyThi }}</span>
+                        </td>
+                        <td>
+                            <span class="badge {% if lt.CaThi == 'Buổi sáng' %}bg-warning text-dark{% else %}bg-info text-dark{% endif %}">
+                                <i class="fas {% if lt.CaThi == 'Buổi sáng' %}fa-sun{% else %}fa-moon{% endif %} me-1"></i>{{ lt.CaThi }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="fw-semibold text-primary"><i class="far fa-calendar-alt me-1"></i>{{ lt.NgayThi|date:"d/m/Y" }}</div>
+                            <div class="small text-muted"><i class="far fa-clock me-1"></i>{{ lt.GioBatDau|time:"H:i" }} - {{ lt.GioKetThuc|time:"H:i" }}</div>
+                        </td>
+                        <td>
+                            {% if lt.DeThi %}
+                                <a href="{% url 'exam_editor' lt.DeThi.id %}" class="text-decoration-none fw-semibold">{{ lt.DeThi.TenDe }}</a>
+                            {% else %}
+                                <span class="text-muted fst-italic">Chưa gán</span>
+                            {% endif %}
+                        </td>
+                        {% if is_bgh %}
+                        <td class="text-end pe-4">
+                            {% if lt.can_edit_or_delete %}
+                            <div class="btn-group">
+                                <a href="{% url 'schedule_edit_step1' lt.id %}" class="btn btn-sm btn-outline-primary" title="Sửa">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ lt.id }}" title="Xóa">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+
+                            <!-- Delete Modal -->
+                            <div class="modal fade text-start" id="deleteModal{{ lt.id }}" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog modal-sm modal-dialog-centered">
+                                    <div class="modal-content">
+                                        <div class="modal-body text-center p-4">
+                                            <i class="fas fa-exclamation-circle text-danger fa-3x mb-3"></i>
+                                            <h5 class="mb-2">Xóa ca thi</h5>
+                                            <p class="text-muted mb-4">Bạn có chắc muốn xóa ca thi này?</p>
+                                            <div class="d-flex justify-content-center gap-2">
+                                                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
+                                                <form action="{% url 'schedule_delete' lt.id %}" method="POST">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-danger">Xóa</button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% else %}
+                            <span class="text-muted small fst-italic">Không được sửa/xóa</span>
+                            {% endif %}
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-5 text-muted">
+                            <i class="fas fa-calendar-times fa-3x mb-3 opacity-25"></i>
+                            <p class="mb-0">Không tìm thấy ca thi nào.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="card-footer bg-white">
+            {% include 'pagination.html' %}
+        </div>
+    </div>
+    {% if lich_thi_list %}
+    <div class="card-footer bg-white py-3 border-top-0">
+        <div class="small text-muted">
+            Tổng cộng: <strong>{{ lich_thi_list|length }}</strong> ca thi
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

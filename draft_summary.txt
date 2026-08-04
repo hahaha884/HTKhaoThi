@@ -1,0 +1,215 @@
+1: TRƯỜNG ĐẠI HỌC KINH TẾ
+2: KHOA THỐNG KÊ – TIN HỌC
+3: –––––––––––––––––––––––––––––––
+8: BÁO CÁO THỰC TẬP NGHỀ NGHIỆP
+10: NGÀNH HỆ THỐNG THÔNG TIN QUẢN LÝ
+11: CHUYÊN NGÀNH TIN HỌC QUẢN LÝ
+13: XÂY DỰNG HỆ THỐNG QUẢN LÝ KHẢO THÍ TẠI TRƯỜNG TIỂU HỌC SỐ 1 AN ĐÔNG
+15: Sinh viên thực hiện	:  Nguyễn Xuân Khánh
+16: 		Đặng Nữ Anh Phương
+17: Lớp	:  49K14.2
+18: Đơn vị thực tập	: Công ty Cổ phần HAIBAZO
+19: 	  Công ty TNHH Công nghệ RIKAI
+20: Giảng viên hướng dẫn	: TS. Phan Đình Vấn
+24: Đà Nẵng, 07/2026
+25: NHẬN XÉT CỦA ĐƠN VỊ THỰC TẬP
+26: Họ và tên sinh viên: 	
+27: Lớp: 	Ngành: Hệ thống thông tin quản lý, Trường Đại học Kinh tế, ĐHĐN
+28: Thực tập từ ngày: …./……/ 2025 đến ngày: ........./ .……./ 2026
+29: Tại: 	
+30: Địa chỉ: 	
+31: Sau quá trình thực tập tại đơn vị của sinh viên, chúng tôi có một số nhận xét, đánh giá như sau:
+32: Nhận xét của đơn vị thực tập 
+33: Điểm mạnh của sinh viên:
+38: Những hạn chế/cần cải thiện:
+43: Nhận xét về mức độ phù hợp của chương trình đào tạo và thực tế doanh nghiệp:
+48: Đề xuất/kiến nghị cho nhà trường (nếu có):
+54: 	……….., ngày .......tháng ......năm 2026
+55: 	Xác nhận của đơn vị thực tập
+58: QUY ĐỊNH TRÌNH BÀY BÁO CÁO
+59: Báo cáo 40 – 60 trang (tính từ phần mở đầu đến hết nội dung, không tính phần tài liệu tham khảo và phụ lục)
+60: Phần Lời mở đầu: 1-5				
+61: Phần Giới thiệu / tổng quan giới thiệu doanh nghiệp, [giới thiệu tổng quan]: 5 - 10 trang					
+62: Phần Lý thuyết: 10 - 15 trang						
+63: Phần Triển khai, kết quả, thảo luận… 10 – 20 trang	
+64: Phần Kết luận và hướng phát triển: 1 - 5	
+65: Cấu trúc và tên chương mục trên đây cho báo cáo chỉ là gợi ý, sinh viên trao đổi thêm GVHD và Mentor để thay đổi phù hợp.
+66: Soạn thảo trên trang A4 (trang dọc, lề trái: 3.5cm; trên, phải, dưới: 2.5 cm), Font Times New Roman, canh đều 2 bên, size 13, cách dòng 1.5, cách đoạn trên 6pt, cách đoạn dưới 3pt, hàng đâu tiên lùi vào 1.27 cm; hình và bảng soạn theo caption, chèn trích dẫn chéo (Cross-reference) cho bảng và hình; các danh mục hình, bảng, mục lục làm tự động; đánh số trang như file mẫu (bìa không có số trang, danh mục + mục lục số trang theo i, ii, iii…, nội dung chính theo 1,2,3…) 
+67: (Khi hoàn thiện báo cáo thì xóa trang này) 
+69: LỜI CẢM ƠN
+70: Để hoàn thành được báo cáo thực tập này, chúng em đã nhận được rất nhiều sự hỗ trợ quý báu từ nhà trường, quý thầy cô và các đơn vị thực tập trong suốt quá trình học tập cũng như thực tập. Tất cả sự giúp đỡ đó đã góp phần quan trọng giúp em có thể từng bước hoàn thiện đề tài của mình.
+71: Trước hết, nhóm xin gửi lời cảm ơn chân thành đến quý thầy cô Khoa Thống kê - Tin học, Trường Đại học Kinh tế - Đại học Đà Nẵng đã trang bị cho chúng em những kiến thức nền tảng và chuyên môn cần thiết trong suốt quá trình học tập.
+72: Đặc biệt, nhóm xin bày tỏ lòng biết ơn sâu sắc đến TS. Phan Đình Vấn, giảng viên hướng dẫn, cũng là người đã tận tình định hướng, góp ý và hỗ trợ nhóm trong suốt quá trình thực hiện đề tài. Những ý kiến đóng góp quý báu của thầy đã giúp nhóm hoàn thiện báo cáo một cách tốt nhất.
+73: Nhóm cũng xin chân thành cảm ơn Công ty Cổ phần HAIBAZO và Công ty TNHH Công nghệ RIKAI đã tạo điều kiện thuận lợi cho chúng em được thực tập, tiếp cận môi trường làm việc thực tế và tích lũy những kinh nghiệm quý báu trong lĩnh vực công nghệ thông tin và phân tích nghiệp vụ.
+74: Bên cạnh đó, nhóm xin gửi lời cảm ơn đến Ban Giám hiệu và các thầy cô giáo tại Trường Tiểu học Số 1 An Đông đã nhiệt tình hỗ trợ cung cấp thông tin, chia sẻ quy trình nghiệp vụ và tạo điều kiện để nhóm thực hiện khảo sát phục vụ cho đề tài “Phân tích và Thiết kế Hệ thống Quản lý Khảo thí: Hỗ trợ sinh đề kiểm tra và phân công giám thị tự động tại Trường Tiểu học Số 1 An Đông”.
+75: Mặc dù đã có nhiều cố gắng trong quá trình thực hiện, song do hạn chế về thời gian, kinh nghiệm cũng như là kiến thức thực tiễn, báo cáo khó tránh khỏi những thiếu sót. Nhóm rất mong nhận được những ý kiến đóng góp từ quý thầy cô và các anh chị để báo cáo được hoàn thiện hơn.
+76: Nhóm xin chân thành cảm ơn ạ!
+78: LỜI CAM ĐOAN
+79: Nhóm chúng em xin cam đoan rằng báo cáo thực tập nghề nghiệp với đề tài: “Phân tích và Thiết kế Hệ thống Quản lý Khảo thí: Hỗ trợ sinh đề kiểm tra và phân công giám thị tự động tại Trường Tiểu học Số 1 An Đông” là kết quả của quá trình nghiên cứu, khảo sát và thực hiện của chính nhóm dưới sự hướng dẫn của TS. Phan Đình Vấn.
+80: Chúng em nhận thức được tầm quan trọng của đạo đức học thuật trong quá trình học tập và nghiên cứu. Do đó, nhóm cam kết tuân thủ nghiêm túc các quy định về chuẩn mực học thuật theo quy định của nhà trường.
+81: Các thông tin, số liệu và tài liệu tham khảo được sử dụng trong báo cáo đều có nguồn gốc rõ ràng và được trích dẫn đầy đủ, đúng quy định. Nhóm xin khẳng định rằng toàn bộ nội dung nghiên cứu, phân tích và thiết kế trình bày trong báo cáo là trung thực, khách quan và chưa từng được sử dụng để bảo vệ trong bất kỳ học phần hay công trình nghiên cứu nào khác.
+82: Trong trường hợp phát hiện bất kỳ sai sót hoặc hành vi vi phạm nào liên quan đến tính trung thực học thuật, bao gồm nhưng không giới hạn ở việc sao chép hoặc không tuân thủ quy chế đào tạo, nhóm xin hoàn toàn chịu trách nhiệm và chấp nhận mọi hình thức xử lý theo quy định hiện hành của nhà trường.
+87: MỤC LỤC
+89: NHẬN XÉT CỦA ĐƠN VỊ THỰC TẬP	1
+90: LỜI CẢM ƠN	ii
+91: LỜI CAM ĐOAN	iii
+92: MỤC LỤC	iv
+93: DANH MỤC HÌNH ẢNH	xi
+94: DANH MỤC BẢNG BIỂU	xv
+95: DANH MỤC CÁC TỪ VIẾT TẮT	xx
+96: LỜI MỞ ĐẦU	1
+97: 1. Lý do chọn đề tài	1
+98: 2. Mục tiêu của đề tài	2
+99: 3. Phương pháp nghiên cứu	3
+100: 4. Đối tượng và phạm vi nghiên cứu	4
+101: 4.1. Đối tượng nghiên cứu	4
+102: 4.2. Phạm vi nghiên cứu	4
+103: 5. Nội dung của đề tài	5
+104: CHƯƠNG I. TỔNG QUAN VỀ ĐỀ TÀI VÀ ĐƠN VỊ THỰC TẬP	6
+105: 1.1. Giới thiệu đơn vị thực tập	6
+106: 1.1.1. Công ty cổ phần HAIBAZO	6
+107: 1.1.1.1. Thông tin chung	6
+108: 1.1.1.2. Tầm nhìn, sứ mệnh	6
+109: 1.1.1.3. Lĩnh vực hoạt động	6
+110: 1.1.2. Công ty cổ phần công nghệ RIKAI	6
+111: 1.1.2.1. Thông tin chung	6
+112: 1.1.2.2. Tầm nhìn, sứ mệnh	7
+113: 1.1.2.3. Lĩnh vực hoạt động	7
+114: 1.2. Tổng quan về đề tài và đơn vị khảo sát	7
+115: 1.2.1. Giới thiệu về Trường Tiểu học Số 1 An Đông	7
+116: 1.2.2. Cơ cấu tổ chức của nhà trường	8
+117: 1.2.3. Tổng quan về đề tài	9
+118: CHƯƠNG 2. CƠ SỞ LÝ THUYẾT VỀ PHÂN TÍCH NGHIỆP VỤ	11
+119: 2.1. Tổng quan về hệ thống thông tin	11
+120: 2.1.1. Khái niệm hệ thống thông tin	11
+121: 2.1.2. Vai trò của hệ thống thông tin trong giáo dục	12
+122: 2.2. Tổng quan về phân tích nghiệp vụ	12
+123: 2.2.1. Khái niệm Business Analysis	12
+124: 2.2.2. Quy trình phân tích nghiệp vụ	13
+125: 2.3. Một số khái niệm khác	14
+126: 2.4 Các nền tảng và công cụ khác	15
+127: 2.5. Ngôn ngữ Python	15
+128: 2.6. Ngôn ngữ lập trình HTML, CSS, Java Script	16
+129: 2.6.1. HTML	16
+130: 2.6.2. CSS	16
+131: 2..6.3. Java Script	17
+132: 2.7. SQL Lite	17
+133: CHƯƠNG 3. PHÂN TÍCH NGHIỆP VỤ VÀ THIẾT KẾ HỆ THỐNG QUẢN LÝ KHẢO THÍ	19
+134: 3.1. Sơ đồ luồng nghiệp vụ hệ thống	19
+135: 3.1.1. Sơ đồ luồng As-Is	19
+136: 3.1.2. Sơ đồ luồng Tobe	22
+137: 3.1.3. Use Case Diagram tổng thể	24
+138: 3.2. Đặc tả use case	24
+139: 3.2.1. Đăng nhập	24
+140: 3.2.2. Quản lý Tài khoản	27
+141: 3.2.2.1. Thêm Tài khoản	27
+142: 3.2.2.2. Sửa Tài khoản	30
+143: 3.2.2.3. Xóa Tài khoản	33
+144: 3.2.2.4. Tìm kiếm Tài khoản	35
+145: 3.2.3. Quản lý Giáo viên	38
+146: 3.2.3.1. Thêm Giáo viên	38
+147: 3.2.3.2. Sửa Giáo viên	42
+148: 3.2.3.3. Xóa Giáo viên	45
+149: 3.2.3.4. Tìm kiếm Giáo viên	47
+150: 3.2.4. Quản lý Lớp học	50
+151: 3.2.4.1. Thêm Lớp học	50
+152: 3.2.4.2. Sửa Lớp học	52
+153: 3.2.4.3. Xóa Lớp học	55
+154: 3.2.4.4. Tìm kiếm Lớp học	57
+155: 3.2.5. Quản lý Môn học	60
+156: 3.2.5.1. Thêm Môn học	60
+157: 3.2.5.2. Sửa Môn học	62
+158: 3.2.5.3. Xóa Môn học	64
+159: 3.2.5.4. Tìm kiếm Môn học	66
+160: 3.2.6. Quản lý Năm học	69
+161: 3.2.6.1. Thêm Năm học	69
+162: 3.2.6.2. Sửa Năm học	71
+163: 3.2.6.3. Xóa Năm học	77
+164: 3.2.6.4. Tìm kiếm Năm học	79
+165: 3.2.7. Quản lý Ngân hàng Câu hỏi	82
+166: 3.2.7.1. Thêm Câu hỏi	82
+167: 3.2.7.2. Sửa Câu hỏi	91
+168: 3.2.7.3. Xóa Câu hỏi	97
+169: 3.2.7.4. Tìm kiếm Câu hỏi	100
+170: 3.2.8. Quản lý Đề thi	103
+171: 3.2.8.1. Thêm Đề thi	103
+172: 3.2.8.2. Sửa Đề thi	114
+173: 3.2.8.3. Xóa Đề thi	122
+174: Use case ID	122
+175: 3.2.8.4. Tìm kiếm Đề thi	124
+176: 3.2.8.5. Xuất Đề thi	128
+177: 3.2.8.6. Gửi Đề thi	131
+178: 3.2.8.7. Tạo bản sao Đề thi	135
+179: 3.2.9. Quản lý Ma trận	138
+180: 3.2.9.1. Thêm Ma trận	138
+181: 3.2.9.2. Sửa Ma trận	149
+182: 3.2.9.3. Xóa Ma trận	160
+183: 3.2.9.4. Tìm kiếm Ma trận	163
+184: 3.2.9.5. Xuất Ma trận	166
+185: 3.2.10. Đánh dấu đã đọc Đề thi	169
+186: 3.2.11. Phê duyệt chính thức Đề thi	172
+187: 3.2.12. Phê duyệt Ma trận	176
+188: 3.2.13. Quản lý Lịch thi	179
+189: 3.2.13.1. Thêm Lịch thi	179
+190: 3.2.13.2. Sửa Lịch thi	183
+191: 3.2.13.3. Xóa Lịch thi	188
+192: 3.2.13.4. Tìm kiếm Lịch thi	191
+193: 3.2.14. Quản lý Phân công Giám thị	193
+194: 3.2.14.1. Phân công Giám thị tự động	193
+195: 3.2.14.2. Sửa Phân công Giám thị	198
+196: 3.2.14.3. Xóa Phân công Giám thị	202
+197: 3.2.14.4. Tìm kiếm Phân công Giám thị	204
+198: 3.3. Thiết kế hệ thống	208
+199: 3.3.1. Thiết kế ERD	208
+200: 3.3.2. Mô tả Module	208
+201: 3.3.2.1. Module TaiKhoan	208
+202: 3.3.2.2. Module GiaoVien	209
+203: 3.3.2.3. Module ChucVu	210
+204: 3.3.2.4. Module LichSu_ChucVu	210
+205: 3.3.2.5. Module LopHoc	210
+206: 3.3.2.6. Module Khoi	211
+207: 3.3.2.7. Module NamHoc	211
+208: 3.3.2.8. Module HocKy	212
+209: 3.3.2.9. Module KyThi	212
+210: 3.3.2.10. Module LichThi	213
+211: 3.3.2.11. Module MonHoc	213
+212: 3.3.2.12. Module CT_MonHoc	213
+213: 3.3.2.13. Module PhanCong_GiangDay	214
+214: 3.3.2.14. Module PC_GT	214
+215: 3.3.2.15. Module NhomCauHoi	215
+216: 3.3.2.16. Module CauHoi	216
+217: 3.3.2.17. Module DapAn	216
+218: 3.3.2.18. Module HinhAnh	217
+219: 3.3.2.19. Module MachKienThuc	218
+220: 3.3.2.20. Module NoiDung	218
+221: 3.3.2.21. Module CauSo	218
+222: 3.3.2.22. Module MaTran	219
+223: 3.3.2.23. Module ChiTietMaTran	219
+224: 3.3.2.24. Module LichSuDuyet	220
+225: 3.3.2.25. Module DeThi	221
+226: 3.3.2.26. Module DeThiChiTiet	221
+227: 3.3.2.27. Module LichSuDeThi	222
+228: CHƯƠNG 4. THIẾT KẾ VÀ ĐẶC TẢ GIAO DIỆN	223
+229: 4.1. Thiết kế và đặc tả giao diện	223
+230: 4.1.1. Màn hình Thanh danh mục	223
+231: 4.1.2. Màn hình Trang chủ	226
+232: 4.1.3. Màn hình chính của Quản lý Ngân hàng Câu hỏi	229
+233: 4.1.4. Màn hình Thêm Câu hỏi đơn – Trắc Nghiệm – Một lựa chọn	232
+234: 4.1.5. Màn hình Thêm Câu hỏi đơn – Trắc Nghiệm – Nhiều lựa chọn	236
+235: 4.1.6. Màn hình Thêm Câu hỏi đơn – Trắc Nghiệm – Đúng/Sai	237
+236: 4.1.7. Màn hình Thêm Câu hỏi đơn – Trắc Nghiệm – Ghép nối	239
+237: 4.1.8. Màn hình Thêm Câu hỏi đơn – Trắc Nghiệm – Điền khuyết	240
+238: 4.1.9. Màn hình Thêm Câu hỏi đơn – Tự luận	241
+239: 4.1.10. Màn hình Nhóm Câu hỏi	242
+240: 4.1.11. Popup Xóa Câu hỏi	245
+241: 4.1.12. Toolbar Bộ lọc Tìm kiếm	249
+242: 4.1.13. Màn hình Thêm Ma trận	250
+243: 4.1.14. Màn hình Sửa Ma trận	257
+244: 4.1.15. Popup Xóa Ma trận	258
+245: 4.1.16. Màn hình Xem trước Ma trận Phê duyệt	259
+246: 4.1.17. Popup Từ chối Ma trận	262
+247: 4.1.18. Popup Phê duyệt Ma trận	264
+248: 4.1.19. Màn hình chính của Quản lý Đề thi	265
+249: 4.1.20. Màn hình Kết quả Sinh đề tự động	270
+250: 4.1.21. Popup Xóa Đề thi	274
+251: 4.1.22. Màn hình chính của Quản lý Phân công	275

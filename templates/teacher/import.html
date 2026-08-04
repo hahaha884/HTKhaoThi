@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block page_title %}Import Giáo viên{% endblock %}
+{% block content %}
+<div class="card border-0 shadow-sm mt-3" style="max-width: 600px; margin: 0 auto;">
+    <div class="card-body">
+        <h5 class="card-title text-primary mb-4"><i class="fas fa-file-excel me-2"></i>Import danh sách Giáo viên</h5>
+        
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-danger py-2">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <div class="alert alert-info py-2">
+            <strong><i class="fas fa-info-circle me-1"></i> Định dạng file Excel bắt buộc:</strong>
+            <ul class="mb-0 mt-1">
+                <li>Dòng 1 là tiêu đề cột.</li>
+                <li>Tên các cột (chính xác): <strong>HoTen, GioiTinh, NgaySinh, Email, SDT, ChucVu, NgayBatDau</strong></li>
+                <li>Định dạng ngày tháng: <strong>YYYY-MM-DD</strong></li>
+            </ul>
+        </div>
+
+        <form method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="mb-4 mt-4">
+                <label class="form-label fw-bold">Chọn file Excel (.xlsx, .xls) <span class="text-danger">*</span></label>
+                <input class="form-control" type="file" name="file" accept=".xlsx, .xls" required>
+            </div>
+            
+            <div class="border-top pt-3 text-end">
+                <a href="{% url 'teacher_list' %}" class="btn btn-light px-4">Hủy</a>
+                <button type="submit" class="btn btn-primary px-4 ms-2"><i class="fas fa-upload me-2"></i>Tải lên & Xem trước</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
