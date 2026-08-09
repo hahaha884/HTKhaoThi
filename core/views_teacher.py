@@ -11,7 +11,7 @@ from .decorators import admin_required
 
 @login_required
 def teacher_list(request):
-    teachers = GiaoVien.objects.all().order_by('-id')
+    teachers = GiaoVien.objects.all().prefetch_related('MonGiangDay', 'KhoiPhuTrach').order_by('-id')
     
     search_query = request.GET.get('search', '')
     status_filter = request.GET.get('status', '')

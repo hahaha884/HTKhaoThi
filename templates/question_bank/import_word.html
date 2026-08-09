@@ -5,6 +5,44 @@
 {% block page_title %}Import Đề thi từ Word{% endblock %}
 
 {% block content %}
+<style>
+    .ai-badge {
+        background: linear-gradient(135deg, #fd7e14, #f76707);
+        color: white;
+        font-weight: 600;
+        animation: pulse-glow 2s infinite;
+    }
+    @keyframes pulse-glow {
+        0% { box-shadow: 0 0 0 0 rgba(253, 126, 20, 0.7); }
+        70% { box-shadow: 0 0 0 6px rgba(253, 126, 20, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(253, 126, 20, 0); }
+    }
+    .validation-warning {
+        border-left: 4px solid #dc3545;
+        background-color: #fff8f8;
+    }
+    .editable-area {
+        border: 1px dashed #ccc;
+        padding: 8px;
+        border-radius: 4px;
+        min-height: 38px;
+        background-color: #fafafa;
+        transition: all 0.2s ease;
+    }
+    .editable-area:focus {
+        border-color: #0d6efd;
+        background-color: #fff;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        outline: none;
+    }
+    .preview-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .preview-card:hover {
+        box-shadow: 0 8px 24px rgba(0,0,0,0.08) !important;
+    }
+</style>
+
 <div class="row">
     <!-- Cột trái: Form cấu hình & Upload -->
     <div class="col-md-4">
@@ -33,7 +71,7 @@
                         </small>
                     </div>
 
-                    <button type="submit" class="btn btn-primary w-100" onclick="if(document.querySelector('input[type=file]').value) { this.innerHTML='<i class=\'fas fa-spinner fa-spin me-2\'></i>AI đang phân tích (10-15s)...'; this.classList.add('disabled'); }">
+                    <button type="submit" class="btn btn-primary w-100" id="btnSubmitUpload">
                         <i class="fas fa-file-import me-2"></i>Tiến hành trích xuất
                     </button>
                 </form>
@@ -63,12 +101,26 @@
 </div>
 
 <script>
+    // Nhận dữ liệu phân loại từ Django Context
     const parsedData = {{ parsed_groups|safe }};
     const parsedGroups = (parsedData && parsedData.groups) ? parsedData.groups : (Array.isArray(parsedData) ? parsedData : []);
     
+    const khoisList = {{ khois_data|safe }};
+    const monsList = {{ mons_data|safe }};
+    const machsList = {{ machs_data|safe }};
+    const noidungsList = {{ noidungs_data|safe }};
+
     const previewContainer = document.getElementById('previewContainer');
     const emptyState = document.getElementById('emptyState');
     const btnSaveAll = document.getElementById('btnSaveAll');
+    const importForm = document.getElementById('importForm');
+    const btnSubmitUpload = document.getElementById('btnSubmitUpload');
+
+    // Chặn submit form để tạo hiệu ứng spinner loading đẹp mắt
+    importForm.addEventListener('submit', function() {
+        btnSubmitUpload.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>AI đang phân tích (10-15s)...';
+        btnSubmitUpload.classList.add('disabled');
+    });
 
     function renderQuestions() {
         if (!parsedGroups || parsedGroups.length === 0) {
@@ -81,7 +133,7 @@
         btnSaveAll.style.display = 'inline-block';
         previewContainer.innerHTML = '';
         
-        // Cảnh báo phạm vi kiến thức
+        // Cảnh báo ngoài phạm vi chương trình
         if (parsedData && parsedData.is_out_of_scope) {
             const warningAlert = document.createElement('div');
             warningAlert.className = 'alert alert-danger shadow-sm border-danger border-2 mb-4';
@@ -94,162 +146,754 @@
 
         parsedGroups.forEach((group, gIndex) => {
             const groupCard = document.createElement('div');
-            groupCard.className = 'card mb-4 border-2 border-primary';
+            groupCard.className = 'card mb-4 border-2 border-primary shadow-sm';
             
             let html = '';
-            if (group.group_content) {
+            if (group.group_content !== undefined && group.group_content !== null) {
                 html += `
-                    <div class="card-header bg-light text-dark fw-bold">
-                        <i class="fas fa-layer-group me-2"></i>Đoạn văn chung
+                    <div class="card-header bg-light text-dark fw-bold border-bottom">
+                        <i class="fas fa-layer-group me-2"></i>Đoạn văn chung / Ngữ cảnh
                     </div>
-                    <div class="card-body bg-light border-bottom fst-italic" contenteditable="true" onblur="parsedGroups[${gIndex}].group_content = this.innerText" title="Click để sửa đoạn văn chung" style="outline: none;">
-                        ${group.group_content.replace(/\n/g, '<br>')}
+                    <div class="card-body bg-light border-bottom fst-italic editable-area" contenteditable="true" onblur="parsedGroups[${gIndex}].group_content = this.innerHTML" title="Click để sửa đoạn văn chung" style="outline: none;">
+                        ${group.group_content}
                     </div>
                 `;
             }
             
             html += '<div class="card-body">';
-            
-            group.questions.forEach((q, qIndex) => {
-                let answersHtml = '';
-                const qType = q.question_type || (q.answers && q.answers.length > 0 ? 'MCQ' : 'EssayShort');
-                
-                if ((qType === 'MCQ' || qType === 'MSQ') && q.answers && q.answers.length > 0) {
-                    const isRadio = (qType === 'MCQ');
-                    q.answers.forEach((ans, ansIdx) => {
-                        let isCorrect = false;
-                        if (isRadio) {
-                            isCorrect = (q.correct === ansIdx);
-                        } else {
-                            isCorrect = (Array.isArray(q.correct) && q.correct.includes(ansIdx));
-                        }
-                        const ansText = (typeof ans === 'object') ? (ans.text || '') : ans;
-                        const ansImage = (typeof ans === 'object' && ans.image && ans.image.startsWith('data:image/')) ? ans.image : null;
-                        
-                        answersHtml += `
-                            <div class="form-check mb-2">
-                                <input class="form-check-input" type="${isRadio ? 'radio' : 'checkbox'}" ${isCorrect ? 'checked' : ''} onchange="updateCorrect(${gIndex}, ${qIndex}, ${ansIdx}, this.checked, '${qType}')" name="g_${gIndex}_q_${qIndex}_correct" value="${ansIdx}">
-                                <label class="form-check-label ${isCorrect ? 'fw-bold text-success' : ''}" contenteditable="true" onblur="updateAnswerText(${gIndex}, ${qIndex}, ${ansIdx}, this.innerText)" style="outline: none;" title="Click để sửa đáp án">
-                                    ${ansText}
-                                </label>
-                                ${ansImage ? `<div class="mt-1"><img src="${ansImage}" style="max-height: 100px;" class="img-thumbnail rounded" onerror="this.outerHTML='<span class=\\'text-danger small\\'><i class=\\'fas fa-exclamation-circle\\'></i> Lỗi ảnh công thức (MathType/WMF) không hỗ trợ trên Web.</span>'"></div>` : ''}
-                            </div>
-                        `;
-                    });
-                } else if (qType === 'TF' && q.answers && q.answers.length > 0) {
-                    answersHtml += `<table class="table table-sm table-bordered mt-2"><tbody>`;
-                    q.answers.forEach((ans, idx) => {
-                        const ansImage = (ans.image && ans.image.startsWith('data:image/')) ? ans.image : null;
-                        answersHtml += `<tr>
-                            <td class="align-middle" contenteditable="true" onblur="parsedGroups[${gIndex}].questions[${qIndex}].answers[${idx}].statement = this.innerText" style="outline: none;" title="Click để sửa mệnh đề">
-                                ${ans.statement}
-                                ${ansImage ? `<br><img src="${ansImage}" style="max-height: 100px;" class="img-thumbnail mt-1" onerror="this.outerHTML='<span class=\\'text-danger small\\'><i class=\\'fas fa-exclamation-circle\\'></i> Lỗi ảnh công thức (MathType/WMF) không hỗ trợ trên Web.</span>'">` : ''}
-                            </td>
-                            <td class="text-center align-middle fw-bold text-success" style="width: 80px;" contenteditable="true" onblur="parsedGroups[${gIndex}].questions[${qIndex}].answers[${idx}].correct_label = this.innerText" title="Click để sửa nhãn Đúng/Sai">${ans.correct_label}</td>
-                        </tr>`;
-                    });
-                    answersHtml += `</tbody></table>`;
-                } else if (qType === 'Matching' && q.answers && q.answers.length > 0) {
-                    answersHtml += `<table class="table table-sm table-bordered mt-2"><tbody>`;
-                    q.answers.forEach((ans, idx) => {
-                        const leftImage = (ans.left_image && ans.left_image.startsWith('data:image/')) ? ans.left_image : null;
-                        const rightImage = (ans.right_image && ans.right_image.startsWith('data:image/')) ? ans.right_image : null;
-                        answersHtml += `<tr>
-                            <td class="bg-light text-center align-middle" contenteditable="true" onblur="parsedGroups[${gIndex}].questions[${qIndex}].answers[${idx}].left = this.innerText" style="outline: none;" title="Click để sửa vế trái">
-                                ${ans.left}
-                                ${leftImage ? `<br><img src="${leftImage}" style="max-height: 100px;" class="img-thumbnail mt-1" onerror="this.outerHTML='<span class=\\'text-danger small\\'><i class=\\'fas fa-exclamation-circle\\'></i> Lỗi ảnh công thức (MathType/WMF) không hỗ trợ trên Web.</span>'">` : ''}
-                            </td>
-                            <td class="text-center align-middle"><i class="fas fa-arrow-right text-muted"></i></td>
-                            <td class="bg-light text-center align-middle" contenteditable="true" onblur="parsedGroups[${gIndex}].questions[${qIndex}].answers[${idx}].right = this.innerText" style="outline: none;" title="Click để sửa vế phải">
-                                ${ans.right}
-                                ${rightImage ? `<br><img src="${rightImage}" style="max-height: 100px;" class="img-thumbnail mt-1" onerror="this.outerHTML='<span class=\\'text-danger small\\'><i class=\\'fas fa-exclamation-circle\\'></i> Lỗi ảnh công thức (MathType/WMF) không hỗ trợ trên Web.</span>'">` : ''}
-                            </td>
-                        </tr>`;
-                    });
-                    answersHtml += `</tbody></table>`;
-                } else if (qType === 'FIB' && q.answers && q.answers.length > 0) {
-                    answersHtml += `<ul class="list-unstyled mt-2">`;
-                    q.answers.forEach((ans, idx) => {
-                        answersHtml += `<li class="mb-1"><span class="badge bg-secondary me-2">Chỗ trống ${idx+1}</span> <strong contenteditable="true" onblur="parsedGroups[${gIndex}].questions[${qIndex}].answers[${idx}] = this.innerText" style="outline: none; border-bottom: 1px dashed #ccc;" class="px-1" title="Click để sửa đáp án điền khuyết">${ans}</strong></li>`;
-                    });
-                    answersHtml += `</ul>`;
-                } else {
-                    answersHtml = `<div class="text-muted fst-italic"><i class="fas fa-pen-nib me-1"></i> (Chưa bóc tách được đáp án riêng lẻ. Đang xử lý dưới dạng Tự luận.)</div>`;
-                }
+            groupCard.innerHTML = html;
+            const cardBody = groupCard.querySelector('.card-body') || groupCard;
 
-                let badges = '';
-                if (q.khoi_name) badges += `<span class="badge bg-secondary me-1">${q.khoi_name}</span>`;
-                if (q.mon_name) badges += `<span class="badge bg-info text-dark me-1">${q.mon_name}</span>`;
-                if (q.mach_name) badges += `<span class="badge bg-success me-1">${q.mach_name}</span>`;
-                if (q.noidung_name) badges += `<span class="badge bg-warning text-dark mb-2">${q.noidung_name}</span>`;
+            group.questions.forEach((q, qIndex) => {
+                const qCard = document.createElement('div');
+                qCard.className = 'card mb-3 border-secondary border-opacity-25 shadow-none preview-card';
+                qCard.id = `q_card_${gIndex}_${qIndex}`;
                 
-                if (q.is_ai_solved) {
-                    badges += `<span class="badge bg-danger ms-2 mb-2"><i class="fas fa-robot me-1"></i>AI tự giải (Hãy kiểm tra)</span>`;
-                }
-                
-                let explanationHtml = '';
-                if (q.explanation) {
-                    explanationHtml = `
-                        <div class="alert alert-success mt-3 mb-0 p-2" style="font-size: 0.9rem;">
-                            <strong><i class="fas fa-check-circle me-1"></i>Đáp án/Hướng dẫn chấm:</strong><br>
-                            <div contenteditable="true" onblur="parsedGroups[${gIndex}].questions[${qIndex}].explanation = this.innerText" style="outline: none;" title="Click để sửa hướng dẫn chấm">
-                                ${q.explanation.replace(/\n/g, '<br>')}
-                            </div>
-                        </div>
-                    `;
-                }
-                
-                html += `
-                    <div class="card mb-3 border-secondary border-opacity-25 shadow-none">
-                        <div class="card-body">
-                            <div class="fw-bold mb-2 p-1" contenteditable="true" onblur="parsedGroups[${gIndex}].questions[${qIndex}].content = this.innerText" style="outline: none; border: 1px dashed transparent;" onmouseover="this.style.border='1px dashed #ccc'" onmouseout="this.style.border='1px dashed transparent'" title="Click để sửa nội dung câu hỏi">${q.content}</div>
-                            ${q.image && q.image.startsWith('data:image/') ? `<div class="mb-2 text-center"><img src="${q.image}" class="img-fluid rounded border" style="max-height: 200px;" alt="Hình ảnh câu hỏi" onerror="this.outerHTML='<div class=\\'alert alert-danger p-2 small text-start\\'><i class=\\'fas fa-exclamation-triangle me-1\\'></i> Hình ảnh này chứa công thức (MathType/WMF) không hỗ trợ trên Web.</div>'"></div>` : ''}
-                            ${badges}
-                            <div class="mt-2 ms-2">
-                                ${answersHtml}
-                            </div>
-                            ${explanationHtml}
-                        </div>
-                    </div>
-                `;
+                // Vẽ giao diện cho từng câu hỏi
+                renderSingleQuestionCard(qCard, q, gIndex, qIndex);
+                cardBody.appendChild(qCard);
             });
             
-            html += '</div>';
-            groupCard.innerHTML = html;
             previewContainer.appendChild(groupCard);
         });
     }
 
-    window.updateAnswerText = function(gIndex, qIndex, aIndex, newText) {
-        const ans = parsedGroups[gIndex].questions[qIndex].answers[aIndex];
-        if (typeof ans === 'object') {
-            ans.text = newText;
-        } else {
-            parsedGroups[gIndex].questions[qIndex].answers[aIndex] = newText;
+    // Render nội dung bên trong Card Câu hỏi
+    function renderSingleQuestionCard(container, q, gIndex, qIndex) {
+        // Chạy kiểm tra dữ liệu lỗi/cảnh báo
+        const warnings = runQualityCheck(q);
+
+        // Tạo giao diện lựa chọn
+        let khoiOptions = `<option value="">-- Chọn Khối --</option>`;
+        khoisList.forEach(k => {
+            khoiOptions += `<option value="${k.id}" ${q.khoi_id == k.id ? 'selected' : ''}>${k.TenKhoi}</option>`;
+        });
+
+        let monOptions = `<option value="">-- Chọn Môn học --</option>`;
+        monsList.forEach(m => {
+            monOptions += `<option value="${m.id}" ${q.mon_id == m.id ? 'selected' : ''}>${m.TenMon}</option>`;
+        });
+
+        // Lọc mạch và nội dung theo môn/khối được chọn
+        const filteredMachs = machsList.filter(m => !q.mon_id || m.MonHoc_id == q.mon_id);
+        let machOptions = `<option value="">-- Chọn Mạch kiến thức --</option>`;
+        filteredMachs.forEach(m => {
+            machOptions += `<option value="${m.id}" ${q.mach_id == m.id ? 'selected' : ''}>${m.TenMach}</option>`;
+        });
+
+        const filteredNoidungs = noidungsList.filter(n => !q.mach_id || n.MachKienThuc_id == q.mach_id);
+        let noidungOptions = `<option value="">-- Chọn Nội dung kiến thức --</option>`;
+        filteredNoidungs.forEach(n => {
+            noidungOptions += `<option value="${n.id}" ${q.noidung_id == n.id ? 'selected' : ''}>${n.TenNoidung}</option>`;
+        });
+
+        const qTypeOptions = `
+            <option value="MCQ" ${q.question_type === 'MCQ' ? 'selected' : ''}>Trắc nghiệm 1 đáp án (MCQ)</option>
+            <option value="MSQ" ${q.question_type === 'MSQ' ? 'selected' : ''}>Trắc nghiệm nhiều đáp án (MSQ)</option>
+            <option value="TF" ${q.question_type === 'TF' ? 'selected' : ''}>Đúng / Sai (TF)</option>
+            <option value="Matching" ${q.question_type === 'Matching' ? 'selected' : ''}>Ghép nối (Matching)</option>
+            <option value="FIB" ${q.question_type === 'FIB' ? 'selected' : ''}>Điền khuyết (FIB)</option>
+            <option value="Order" ${q.question_type === 'Order' ? 'selected' : ''}>Sắp xếp thứ tự (Order)</option>
+            <option value="EssayShort" ${q.question_type === 'EssayShort' ? 'selected' : ''}>Tự luận ngắn</option>
+            <option value="EssayLong" ${q.question_type === 'EssayLong' ? 'selected' : ''}>Tự luận dài</option>
+        `;
+
+        const difficultyOptions = `
+            <option value="Mức 1" ${q.muc_do === 'Mức 1' ? 'selected' : ''}>Mức 1</option>
+            <option value="Mức 2" ${q.muc_do === 'Mức 2' ? 'selected' : ''}>Mức 2</option>
+            <option value="Mức 3" ${q.muc_do === 'Mức 3' ? 'selected' : ''}>Mức 3</option>
+        `;
+
+        // Render các cảnh báo chất lượng
+        let warningsHtml = '';
+        if (warnings.length > 0) {
+            warningsHtml += `
+                <div class="validation-warning alert alert-danger p-2 mb-3 small">
+                    <h6 class="fw-bold mb-1"><i class="fas fa-exclamation-triangle me-1"></i> Cảnh báo chất lượng dữ liệu:</h6>
+                    <ul class="mb-0 ps-3">
+                        ${warnings.map(w => `<li>${w}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
         }
+
+        // Render khu vực hình ảnh
+        let imagesHtml = '';
+        if (q.image) {
+            imagesHtml += `
+                <div class="position-relative d-inline-block m-1">
+                    <img src="${q.image}" class="img-thumbnail rounded" style="max-height: 120px;" onerror="this.outerHTML='<span class=\\'text-danger small\\'>Lỗi ảnh</span>'">
+                    <button class="btn btn-sm btn-danger position-absolute top-0 end-0 p-1" onclick="deleteQuestionImage(${gIndex}, ${qIndex})" style="font-size: 0.7rem; line-height: 1;"><i class="fas fa-times"></i></button>
+                </div>
+            `;
+        }
+
+        // Render giao diện đáp án
+        let answersAreaHtml = renderAnswersEditor(q, gIndex, qIndex);
+
+        // Khởi dựng HTML hoàn chỉnh
+        container.innerHTML = `
+            <div class="card-body">
+                <!-- Header câu hỏi -->
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="fs-6 fw-bold text-dark">Câu hỏi ${qIndex + 1}</span>
+                    <div class="d-flex align-items-center">
+                        ${q.is_ai_solved ? '<span class="ai-badge badge me-2"><i class="fas fa-robot me-1"></i>AI Suggested</span>' : ''}
+                        <span class="badge bg-secondary me-2"><i class="fas fa-magic me-1"></i>AI Classified</span>
+                        ${q.is_duplicate ? '<span class="badge bg-danger"><i class="fas fa-copy me-1"></i>Trùng câu hỏi</span>' : ''}
+                        <button class="btn btn-sm btn-outline-danger ms-2" onclick="deleteQuestion(${gIndex}, ${qIndex})" title="Xóa câu hỏi"><i class="fas fa-trash-alt"></i></button>
+                    </div>
+                </div>
+
+                <!-- Cảnh báo lỗi -->
+                ${warningsHtml}
+
+                <!-- Nội dung câu hỏi -->
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Nội dung câu hỏi:</label>
+                    <div class="editable-area" contenteditable="true" onblur="updateQuestionContent(${gIndex}, ${qIndex}, this.innerHTML)" style="outline: none;">
+                        ${q.content}
+                    </div>
+                </div>
+
+                <!-- Tải ảnh câu hỏi -->
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Hình ảnh đính kèm:</label>
+                    <div class="mb-2">
+                        ${imagesHtml}
+                    </div>
+                    <input type="file" class="form-control form-control-sm w-auto d-inline-block" accept="image/*" onchange="uploadQuestionImage(${gIndex}, ${qIndex}, this)">
+                </div>
+
+                <!-- Phân loại metadata -->
+                <div class="row g-2 mb-3 bg-light p-2 rounded">
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold">Khối <span class="badge bg-warning text-dark small" style="font-size:0.65rem;">AI Prediction</span></label>
+                        <select class="form-select form-select-sm" onchange="updateClassification(${gIndex}, ${qIndex}, 'khoi_id', this.value)">
+                            ${khoiOptions}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold">Môn học <span class="badge bg-warning text-dark small" style="font-size:0.65rem;">AI Prediction</span></label>
+                        <select class="form-select form-select-sm" onchange="updateClassification(${gIndex}, ${qIndex}, 'mon_id', this.value)">
+                            ${monOptions}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold">Độ khó</label>
+                        <select class="form-select form-select-sm" onchange="updateClassification(${gIndex}, ${qIndex}, 'muc_do', this.value)">
+                            ${difficultyOptions}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold">Mạch kiến thức</label>
+                        <select class="form-select form-select-sm" onchange="updateClassification(${gIndex}, ${qIndex}, 'mach_id', this.value)">
+                            ${machOptions}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold">Nội dung kiến thức</label>
+                        <select class="form-select form-select-sm" onchange="updateClassification(${gIndex}, ${qIndex}, 'noidung_id', this.value)">
+                            ${noidungOptions}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold">Loại câu hỏi</label>
+                        <select class="form-select form-select-sm" onchange="updateQuestionType(${gIndex}, ${qIndex}, this.value)">
+                            ${qTypeOptions}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Khu vực đáp án tương tác -->
+                <div class="border p-3 rounded mb-3 bg-white">
+                    <h6 class="fw-bold mb-3 border-bottom pb-2"><i class="fas fa-list-ol me-2 text-primary"></i>Phương án trả lời</h6>
+                    ${answersAreaHtml}
+                </div>
+
+                <!-- Giải thích / Đáp án chi tiết -->
+                <div class="mb-0">
+                    <label class="form-label fw-semibold text-success"><i class="fas fa-check-circle me-1"></i>Đáp án / Hướng dẫn chấm chi tiết:</label>
+                    <textarea class="form-control form-control-sm" rows="2" onblur="parsedGroups[${gIndex}].questions[${qIndex}].explanation = this.value" placeholder="Nhập đáp án tự luận hoặc giải thích chi tiết...">${q.explanation || ''}</textarea>
+                </div>
+            </div>
+        `;
+    }
+
+    // Vẽ giao diện đáp án động tùy thuộc vào loại câu hỏi
+    function renderAnswersEditor(q, gIndex, qIndex) {
+        let html = '';
+        const qType = q.question_type || 'MCQ';
+
+        if (qType === 'MCQ' || qType === 'MSQ') {
+            const isRadio = (qType === 'MCQ');
+            if (!q.answers || q.answers.length === 0) q.answers = [];
+
+            q.answers.forEach((ans, idx) => {
+                const ansText = (typeof ans === 'object') ? (ans.text || '') : ans;
+                const ansImage = (typeof ans === 'object' && ans.image) ? ans.image : null;
+                
+                let isCorrect = false;
+                if (isRadio) {
+                    isCorrect = (q.correct === idx);
+                } else {
+                    isCorrect = (Array.isArray(q.correct) && q.correct.includes(idx));
+                }
+
+                html += `
+                    <div class="d-flex align-items-start mb-2 g-2">
+                        <div class="form-check pt-2">
+                            <input class="form-check-input" type="${isRadio ? 'radio' : 'checkbox'}" 
+                                   ${isCorrect ? 'checked' : ''} 
+                                   onchange="updateCorrectAnswer(${gIndex}, ${qIndex}, ${idx}, this.checked, '${qType}')" 
+                                   name="correct_${gIndex}_${qIndex}" value="${idx}">
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="editable-area mb-1" contenteditable="true" onblur="updateAnswerField(${gIndex}, ${qIndex}, ${idx}, 'text', this.innerHTML)">
+                                ${ansText}
+                            </div>
+                            <!-- Khu vực ảnh phương án -->
+                            ${ansImage ? `
+                                <div class="position-relative d-inline-block m-1">
+                                    <img src="${ansImage}" class="img-thumbnail" style="max-height: 80px;">
+                                    <button class="btn btn-sm btn-danger position-absolute top-0 end-0 p-1" onclick="deleteAnswerImage(${gIndex}, ${qIndex}, ${idx}, 'image')" style="font-size: 0.6rem;"><i class="fas fa-times"></i></button>
+                                </div>
+                            ` : ''}
+                            <input type="file" class="form-control form-control-sm w-auto d-inline-block" accept="image/*" onchange="uploadAnswerImage(${gIndex}, ${qIndex}, ${idx}, 'image', this)">
+                        </div>
+                        <button class="btn btn-sm btn-outline-danger mt-1" onclick="deleteAnswerOption(${gIndex}, ${qIndex}, ${idx})"><i class="fas fa-times"></i></button>
+                    </div>
+                `;
+            });
+            html += `
+                <button class="btn btn-sm btn-outline-primary mt-2" onclick="addAnswerOption(${gIndex}, ${qIndex})">
+                    <i class="fas fa-plus me-1"></i>Thêm phương án
+                </button>
+            `;
+        } 
+        else if (qType === 'TF') {
+            if (!q.answers || q.answers.length === 0) q.answers = [];
+
+            html += `<table class="table table-sm table-bordered mb-2">
+                <thead>
+                    <tr class="table-light">
+                        <th>Mệnh đề / Nhận định</th>
+                        <th style="width: 150px;" class="text-center">Đúng / Sai</th>
+                        <th style="width: 50px;" class="text-center">Xóa</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+            q.answers.forEach((ans, idx) => {
+                const isTrue = (ans.correct_label === 'Đúng');
+                const ansImage = ans.image || null;
+
+                html += `
+                    <tr>
+                        <td>
+                            <div class="editable-area mb-1" contenteditable="true" onblur="updateAnswerField(${gIndex}, ${qIndex}, ${idx}, 'statement', this.innerHTML)">
+                                ${ans.statement || ''}
+                            </div>
+                            <!-- Ảnh đính kèm cho mệnh đề -->
+                            ${ansImage ? `
+                                <div class="position-relative d-inline-block m-1">
+                                    <img src="${ansImage}" class="img-thumbnail" style="max-height: 80px;">
+                                    <button class="btn btn-sm btn-danger position-absolute top-0 end-0 p-1" onclick="deleteAnswerImage(${gIndex}, ${qIndex}, ${idx}, 'image')" style="font-size: 0.6rem;"><i class="fas fa-times"></i></button>
+                                </div>
+                            ` : ''}
+                            <input type="file" class="form-control form-control-sm w-auto d-inline-block" accept="image/*" onchange="uploadAnswerImage(${gIndex}, ${qIndex}, ${idx}, 'image', this)">
+                        </td>
+                        <td class="text-center align-middle">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn ${isTrue ? 'btn-success' : 'btn-outline-success'}" onclick="updateTFLabel(${gIndex}, ${qIndex}, ${idx}, 'Đúng')">Đúng</button>
+                                <button type="button" class="btn ${!isTrue ? 'btn-danger' : 'btn-outline-danger'}" onclick="updateTFLabel(${gIndex}, ${qIndex}, ${idx}, 'Sai')">Sai</button>
+                            </div>
+                        </td>
+                        <td class="text-center align-middle">
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteAnswerOption(${gIndex}, ${qIndex}, ${idx})"><i class="fas fa-trash-alt"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+            html += `</tbody></table>
+                <button class="btn btn-sm btn-outline-primary" onclick="addTFStatement(${gIndex}, ${qIndex})">
+                    <i class="fas fa-plus me-1"></i>Thêm nhận định
+                </button>
+            `;
+        } 
+        else if (qType === 'Matching') {
+            if (!q.answers || q.answers.length === 0) q.answers = [];
+
+            html += `<table class="table table-sm table-bordered mb-2">
+                <thead>
+                    <tr class="table-light">
+                        <th class="text-center">Vế trái</th>
+                        <th style="width: 30px;"></th>
+                        <th class="text-center">Vế phải (Khớp đúng)</th>
+                        <th style="width: 50px;" class="text-center">Xóa</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+            
+            q.answers.forEach((ans, idx) => {
+                const leftImg = ans.left_image || null;
+                const rightImg = ans.right_image || null;
+
+                html += `
+                    <tr>
+                        <td>
+                            <div class="editable-area mb-1" contenteditable="true" onblur="updateAnswerField(${gIndex}, ${qIndex}, ${idx}, 'left', this.innerHTML)">
+                                ${ans.left || ''}
+                            </div>
+                            ${leftImg ? `
+                                <div class="position-relative d-inline-block m-1">
+                                    <img src="${leftImg}" class="img-thumbnail" style="max-height: 80px;">
+                                    <button class="btn btn-sm btn-danger position-absolute top-0 end-0 p-1" onclick="deleteAnswerImage(${gIndex}, ${qIndex}, ${idx}, 'left_image')" style="font-size: 0.6rem;"><i class="fas fa-times"></i></button>
+                                </div>
+                            ` : ''}
+                            <input type="file" class="form-control form-control-sm" accept="image/*" onchange="uploadAnswerImage(${gIndex}, ${qIndex}, ${idx}, 'left_image', this)">
+                        </td>
+                        <td class="text-center align-middle"><i class="fas fa-link text-muted"></i></td>
+                        <td>
+                            <div class="editable-area mb-1" contenteditable="true" onblur="updateAnswerField(${gIndex}, ${qIndex}, ${idx}, 'right', this.innerHTML)">
+                                ${ans.right || ''}
+                            </div>
+                            ${rightImg ? `
+                                <div class="position-relative d-inline-block m-1">
+                                    <img src="${rightImg}" class="img-thumbnail" style="max-height: 80px;">
+                                    <button class="btn btn-sm btn-danger position-absolute top-0 end-0 p-1" onclick="deleteAnswerImage(${gIndex}, ${qIndex}, ${idx}, 'right_image')" style="font-size: 0.6rem;"><i class="fas fa-times"></i></button>
+                                </div>
+                            ` : ''}
+                            <input type="file" class="form-control form-control-sm" accept="image/*" onchange="uploadAnswerImage(${gIndex}, ${qIndex}, ${idx}, 'right_image', this)">
+                        </td>
+                        <td class="text-center align-middle">
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteAnswerOption(${gIndex}, ${qIndex}, ${idx})"><i class="fas fa-trash-alt"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += `</tbody></table>
+                <button class="btn btn-sm btn-outline-primary" onclick="addMatchingPair(${gIndex}, ${qIndex})">
+                    <i class="fas fa-plus me-1"></i>Thêm cặp ghép nối
+                </button>
+            `;
+        } 
+        else if (qType === 'FIB') {
+            if (!q.answers || q.answers.length === 0) q.answers = [];
+
+            html += `<ul class="list-group list-group-flush mb-2">`;
+            q.answers.forEach((ans, idx) => {
+                const ansText = (typeof ans === 'object') ? (ans.text || '') : ans;
+                html += `
+                    <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <div class="d-flex align-items-center w-100 me-2">
+                            <span class="badge bg-secondary me-2">Chỗ trống ${idx + 1}</span>
+                            <div class="editable-area flex-grow-1" contenteditable="true" onblur="updateFIBAnswer(${gIndex}, ${qIndex}, ${idx}, this.innerText)" style="border-bottom: 1px dashed #ccc;">
+                                ${ansText}
+                            </div>
+                        </div>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteAnswerOption(${gIndex}, ${qIndex}, ${idx})"><i class="fas fa-times"></i></button>
+                    </li>
+                `;
+            });
+            html += `</ul>
+                <button class="btn btn-sm btn-outline-primary" onclick="addFIBBlank(${gIndex}, ${qIndex})">
+                    <i class="fas fa-plus me-1"></i>Thêm chỗ trống
+                </button>
+            `;
+        }
+        else if (qType === 'Order') {
+            if (!q.answers || q.answers.length === 0) q.answers = [];
+
+            html += `<div class="alert alert-light py-2 small mb-2"><i class="fas fa-info-circle me-1"></i> Nhập các phương án theo đúng thứ tự đúng từ trên xuống dưới.</div>`;
+            html += `<ul class="list-group mb-2">`;
+            q.answers.forEach((ans, idx) => {
+                const ansText = (typeof ans === 'object') ? (ans.text || '') : ans;
+                const ansImage = (typeof ans === 'object' && ans.image) ? ans.image : null;
+
+                html += `
+                    <li class="list-group-item d-flex align-items-center justify-content-between p-2">
+                        <div class="d-flex align-items-center me-2">
+                            <span class="badge bg-secondary me-2">${idx + 1}</span>
+                            <div class="btn-group-vertical btn-group-sm me-2" role="group">
+                                <button type="button" class="btn btn-outline-secondary p-1" onclick="moveOrderItem(${gIndex}, ${qIndex}, ${idx}, -1)" ${idx === 0 ? 'disabled' : ''}><i class="fas fa-chevron-up"></i></button>
+                                <button type="button" class="btn btn-outline-secondary p-1" onclick="moveOrderItem(${gIndex}, ${qIndex}, ${idx}, 1)" ${idx === q.answers.length - 1 ? 'disabled' : ''}><i class="fas fa-chevron-down"></i></button>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 me-2">
+                            <div class="editable-area mb-1" contenteditable="true" onblur="updateAnswerField(${gIndex}, ${qIndex}, ${idx}, 'text', this.innerHTML)">
+                                ${ansText}
+                            </div>
+                            ${ansImage ? `
+                                <div class="position-relative d-inline-block m-1">
+                                    <img src="${ansImage}" class="img-thumbnail" style="max-height: 60px;">
+                                    <button class="btn btn-sm btn-danger position-absolute top-0 end-0 p-1" onclick="deleteAnswerImage(${gIndex}, ${qIndex}, ${idx}, 'image')" style="font-size: 0.6rem;"><i class="fas fa-times"></i></button>
+                                </div>
+                            ` : ''}
+                            <input type="file" class="form-control form-control-sm w-auto d-inline-block" accept="image/*" onchange="uploadAnswerImage(${gIndex}, ${qIndex}, ${idx}, 'image', this)">
+                        </div>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteAnswerOption(${gIndex}, ${qIndex}, ${idx})"><i class="fas fa-times"></i></button>
+                    </li>
+                `;
+            });
+            html += `</ul>
+                <button class="btn btn-sm btn-outline-primary" onclick="addOrderOption(${gIndex}, ${qIndex})">
+                    <i class="fas fa-plus me-1"></i>Thêm mục sắp xếp
+                </button>
+            `;
+        }
+        else {
+            html = `<div class="text-muted fst-italic"><i class="fas fa-pen-nib me-1"></i> (Câu hỏi tự luận. Giáo viên xem cấu trúc hướng dẫn chấm chi tiết bên dưới.)</div>`;
+        }
+
+        return html;
+    }
+
+    // KIỂM TRA CHẤT LƯỢNG CÂU HỎI THỜI GIAN THỰC
+    function runQualityCheck(q) {
+        const warnings = [];
+        const qType = q.question_type || 'MCQ';
+
+        // 1. Thiếu nội dung câu hỏi
+        if (!q.content || q.content.trim() === '' || q.content.trim() === '<br>') {
+            warnings.push("Thiếu nội dung câu hỏi.");
+        }
+
+        // 2. Kiểm tra các dạng trắc nghiệm MCQ / MSQ
+        if (qType === 'MCQ' || qType === 'MSQ') {
+            if (!q.answers || q.answers.length === 0) {
+                warnings.push("Câu hỏi trắc nghiệm chưa có phương án lựa chọn.");
+            } else {
+                // Kiểm tra đáp án rỗng hoặc trùng nhau
+                const texts = [];
+                let hasEmpty = false;
+                q.answers.forEach((ans, idx) => {
+                    const text = ((typeof ans === 'object') ? (ans.text || '') : ans).trim();
+                    if (text === '') hasEmpty = true;
+                    if (text !== '') texts.push(text);
+                });
+                if (hasEmpty) warnings.push("Có phương án lựa chọn để trống.");
+                
+                // Kiểm tra trùng lắp text
+                const uniqueTexts = new Set(texts);
+                if (uniqueTexts.size < texts.length) {
+                    warnings.push("Có các phương án lựa chọn bị trùng lặp nội dung.");
+                }
+
+                // Kiểm tra chọn đáp án đúng
+                if (qType === 'MCQ') {
+                    if (q.correct === undefined || q.correct === null || q.correct < 0 || q.correct >= q.answers.length) {
+                        warnings.push("Chưa chỉ định đáp án đúng cho câu hỏi trắc nghiệm.");
+                    }
+                } else {
+                    if (!Array.isArray(q.correct) || q.correct.length === 0) {
+                        warnings.push("Chưa chỉ định ít nhất 1 đáp án đúng cho câu trắc nghiệm nhiều đáp án.");
+                    }
+                }
+            }
+        }
+
+        // 3. Đúng Sai (TF)
+        if (qType === 'TF') {
+            if (!q.answers || q.answers.length === 0) {
+                warnings.push("Câu hỏi Đúng/Sai chưa có nhận định nào.");
+            } else {
+                let hasEmpty = false;
+                q.answers.forEach(ans => {
+                    if (!ans.statement || ans.statement.trim() === '') hasEmpty = true;
+                });
+                if (hasEmpty) warnings.push("Có mệnh đề nhận định để trống.");
+            }
+        }
+
+        // 4. Ghép nối (Matching)
+        if (qType === 'Matching') {
+            if (!q.answers || q.answers.length === 0) {
+                warnings.push("Câu hỏi ghép nối chưa có các cặp giá trị.");
+            } else {
+                let hasEmpty = false;
+                q.answers.forEach(ans => {
+                    if (!ans.left || ans.left.trim() === '' || !ans.right || ans.right.trim() === '') hasEmpty = true;
+                });
+                if (hasEmpty) warnings.push("Có vế trái hoặc vế phải của cặp ghép nối đang để trống.");
+            }
+        }
+
+        // 5. Điền khuyết (FIB)
+        if (qType === 'FIB') {
+            if (!q.answers || q.answers.length === 0) {
+                warnings.push("Câu hỏi điền khuyết chưa có từ điền khuyết làm đáp án.");
+            } else {
+                let hasEmpty = false;
+                q.answers.forEach(ans => {
+                    const text = ((typeof ans === 'object') ? (ans.text || '') : ans).trim();
+                    if (text === '') hasEmpty = true;
+                });
+                if (hasEmpty) warnings.push("Có chỗ trống chưa nhập đáp án điền khuyết.");
+            }
+        }
+
+        // 6. Sắp xếp thứ tự (Order)
+        if (qType === 'Order') {
+            if (!q.answers || q.answers.length < 2) {
+                warnings.push("Câu hỏi sắp xếp thứ tự phải có ít nhất 2 mục để sắp xếp.");
+            }
+        }
+
+        return warnings;
+    }
+
+    // HÀM CẬP NHẬT CÁC THAY ĐỔI
+    window.updateQuestionContent = function(gIndex, qIndex, newHtml) {
+        parsedGroups[gIndex].questions[qIndex].content = newHtml;
+        refreshCard(gIndex, qIndex);
     };
 
-    window.updateCorrect = function(gIndex, qIndex, aIndex, isChecked, qType) {
+    window.updateClassification = function(gIndex, qIndex, field, value) {
+        const q = parsedGroups[gIndex].questions[qIndex];
+        q[field] = value ? parseInt(value) || value : null;
+        
+        // Lọc động tầng tiếp theo nếu thay đổi môn/khối/mạch
+        if (field === 'mon_id') {
+            q.mach_id = null;
+            q.noidung_id = null;
+        } else if (field === 'mach_id') {
+            q.noidung_id = null;
+        }
+        refreshCard(gIndex, qIndex);
+    };
+
+    window.updateQuestionType = function(gIndex, qIndex, newType) {
+        const q = parsedGroups[gIndex].questions[qIndex];
+        q.question_type = newType;
+        // Reset/Khởi tạo cấu trúc answers phù hợp
+        if (newType === 'MCQ' || newType === 'MSQ') {
+            q.answers = [
+                { text: 'Phương án A', image: null },
+                { text: 'Phương án B', image: null }
+            ];
+            q.correct = (newType === 'MCQ') ? 0 : [0];
+        } else if (newType === 'TF') {
+            q.answers = [
+                { statement: 'Nhận định 1', image: null, correct_label: 'Đúng' }
+            ];
+            q.correct = null;
+        } else if (newType === 'Matching') {
+            q.answers = [
+                { left: 'Vế trái 1', left_image: null, right: 'Vế phải 1', right_image: null }
+            ];
+            q.correct = null;
+        } else if (newType === 'FIB') {
+            q.answers = ['Đáp án điền khuyết 1'];
+            q.correct = null;
+        } else if (newType === 'Order') {
+            q.answers = [
+                { text: 'Mục thứ nhất', image: null },
+                { text: 'Mục thứ hai', image: null }
+            ];
+            q.correct = null;
+        } else {
+            q.answers = [];
+            q.correct = null;
+        }
+        refreshCard(gIndex, qIndex);
+    };
+
+    window.updateAnswerField = function(gIndex, qIndex, ansIdx, subField, newHtml) {
+        const q = parsedGroups[gIndex].questions[qIndex];
+        const ans = q.answers[ansIdx];
+        if (typeof ans === 'object') {
+            ans[subField] = newHtml;
+        } else {
+            q.answers[ansIdx] = newHtml; // Cho trường hợp mảng chuỗi đơn
+        }
+        refreshCard(gIndex, qIndex);
+    };
+
+    window.updateFIBAnswer = function(gIndex, qIndex, ansIdx, text) {
+        const q = parsedGroups[gIndex].questions[qIndex];
+        q.answers[ansIdx] = text;
+        refreshCard(gIndex, qIndex);
+    };
+
+    window.updateCorrectAnswer = function(gIndex, qIndex, ansIdx, isChecked, qType) {
         const q = parsedGroups[gIndex].questions[qIndex];
         if (qType === 'MCQ') {
-            q.correct = aIndex;
+            q.correct = ansIdx;
         } else if (qType === 'MSQ') {
             if (!Array.isArray(q.correct)) q.correct = [];
             if (isChecked) {
-                if (!q.correct.includes(aIndex)) q.correct.push(aIndex);
+                if (!q.correct.includes(ansIdx)) q.correct.push(ansIdx);
             } else {
-                q.correct = q.correct.filter(idx => idx !== aIndex);
+                q.correct = q.correct.filter(idx => idx !== ansIdx);
             }
         }
-        renderQuestions();
+        refreshCard(gIndex, qIndex);
     };
 
-    // Bỏ tính năng Gợi ý tương tự hoặc tự bạn có thể thêm lại sau.
+    window.updateTFLabel = function(gIndex, qIndex, ansIdx, label) {
+        parsedGroups[gIndex].questions[qIndex].answers[ansIdx].correct_label = label;
+        refreshCard(gIndex, qIndex);
+    };
 
+    // QUẢN LÝ THÊM / XÓA PHƯƠNG ÁN
+    window.addAnswerOption = function(gIndex, qIndex) {
+        const q = parsedGroups[gIndex].questions[qIndex];
+        q.answers.push({ text: 'Phương án mới', image: null });
+        refreshCard(gIndex, qIndex);
+    };
 
+    window.addTFStatement = function(gIndex, qIndex) {
+        const q = parsedGroups[gIndex].questions[qIndex];
+        q.answers.push({ statement: 'Nhận định mới', image: null, correct_label: 'Đúng' });
+        refreshCard(gIndex, qIndex);
+    };
+
+    window.addMatchingPair = function(gIndex, qIndex) {
+        const q = parsedGroups[gIndex].questions[qIndex];
+        q.answers.push({ left: 'Vế trái mới', left_image: null, right: 'Vế phải mới', right_image: null });
+        refreshCard(gIndex, qIndex);
+    };
+
+    window.addFIBBlank = function(gIndex, qIndex) {
+        const q = parsedGroups[gIndex].questions[qIndex];
+        q.answers.push('Đáp án điền khuyết mới');
+        refreshCard(gIndex, qIndex);
+    };
+
+    window.addOrderOption = function(gIndex, qIndex) {
+        const q = parsedGroups[gIndex].questions[qIndex];
+        q.answers.push({ text: 'Mục mới', image: null });
+        refreshCard(gIndex, qIndex);
+    };
+
+    window.deleteAnswerOption = function(gIndex, qIndex, ansIdx) {
+        const q = parsedGroups[gIndex].questions[qIndex];
+        q.answers.splice(ansIdx, 1);
+        
+        // Reset đáp án đúng nếu bị xóa mất
+        if (q.question_type === 'MCQ') {
+            if (q.correct === ansIdx) q.correct = 0;
+            else if (q.correct > ansIdx) q.correct--;
+        } else if (q.question_type === 'MSQ' && Array.isArray(q.correct)) {
+            q.correct = q.correct.filter(idx => idx !== ansIdx).map(idx => idx > ansIdx ? idx - 1 : idx);
+        }
+        refreshCard(gIndex, qIndex);
+    };
+
+    window.moveOrderItem = function(gIndex, qIndex, ansIdx, direction) {
+        const q = parsedGroups[gIndex].questions[qIndex];
+        const targetIdx = ansIdx + direction;
+        if (targetIdx >= 0 && targetIdx < q.answers.length) {
+            // Tráo đổi vị trí
+            const temp = q.answers[ansIdx];
+            q.answers[ansIdx] = q.answers[targetIdx];
+            q.answers[targetIdx] = temp;
+            refreshCard(gIndex, qIndex);
+        }
+    };
+
+    // QUẢN LÝ HÌNH ẢNH (UPLOAD VÀ XÓA QUA BASE64)
+    window.uploadQuestionImage = function(gIndex, qIndex, input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                parsedGroups[gIndex].questions[qIndex].image = e.target.result;
+                refreshCard(gIndex, qIndex);
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    };
+
+    window.deleteQuestionImage = function(gIndex, qIndex) {
+        parsedGroups[gIndex].questions[qIndex].image = null;
+        refreshCard(gIndex, qIndex);
+    };
+
+    window.uploadAnswerImage = function(gIndex, qIndex, ansIdx, field, input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const ans = parsedGroups[gIndex].questions[qIndex].answers[ansIdx];
+                if (typeof ans === 'object') {
+                    ans[field] = e.target.result;
+                } else {
+                    // Nếu là chuỗi, chuyển đổi sang Object có ảnh
+                    parsedGroups[gIndex].questions[qIndex].answers[ansIdx] = { text: ans, image: e.target.result };
+                }
+                refreshCard(gIndex, qIndex);
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    };
+
+    window.deleteAnswerImage = function(gIndex, qIndex, ansIdx, field) {
+        const ans = parsedGroups[gIndex].questions[qIndex].answers[ansIdx];
+        if (typeof ans === 'object') {
+            ans[field] = null;
+        }
+        refreshCard(gIndex, qIndex);
+    };
+
+    // XÓA TOÀN BỘ CÂU HỎI
+    window.deleteQuestion = function(gIndex, qIndex) {
+        if (confirm("Bạn có chắc chắn muốn xóa câu hỏi này khỏi danh sách xem trước?")) {
+            parsedGroups[gIndex].questions.splice(qIndex, 1);
+            
+            // Xóa cả group nếu không còn câu nào
+            if (parsedGroups[gIndex].questions.length === 0) {
+                parsedGroups.splice(gIndex, 1);
+            }
+            renderQuestions();
+        }
+    };
+
+    // Rerender lại card câu hỏi khi có thay đổi cục bộ
+    function refreshCard(gIndex, qIndex) {
+        const card = document.getElementById(`q_card_${gIndex}_${qIndex}`);
+        if (card) {
+            const q = parsedGroups[gIndex].questions[qIndex];
+            renderSingleQuestionCard(card, q, gIndex, qIndex);
+        }
+    }
+
+    // GỬI DỮ LIỆU ĐỂ LƯU VÀO CƠ SỞ DỮ LIỆU
     btnSaveAll.addEventListener('click', function() {
+        // Kiểm duyệt dữ liệu trước khi lưu xem có lỗi không
+        let totalWarnings = 0;
+        parsedGroups.forEach(group => {
+            group.questions.forEach(q => {
+                totalWarnings += runQualityCheck(q).length;
+            });
+        });
 
-        this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Đang lưu...';
+        if (totalWarnings > 0) {
+            if (!confirm(`Hệ thống phát hiện có ${totalWarnings} lỗi/cảnh báo về chất lượng câu hỏi. Bạn vẫn muốn tiếp tục lưu?`)) {
+                return;
+            }
+        }
+
+        this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Đang lưu vào CSDL...';
         this.disabled = true;
 
         fetch('{% url "save_imported" %}', {
@@ -280,12 +924,11 @@
         });
     });
 
-    // Initial render
+    // Tự động render khi vừa tải trang
     document.addEventListener("DOMContentLoaded", function() {
         if(parsedGroups && parsedGroups.length > 0) {
             renderQuestions();
         }
     });
 </script>
-
 {% endblock %}

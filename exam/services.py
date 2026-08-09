@@ -88,7 +88,9 @@ class ExamGeneratorService:
                         .filter(
                             NoiDungKienThuc=ct.NoiDung,
                             MucDo=ct.MucDo,
-                            HinhThuc=ct.LoaiCauHoi
+                            HinhThuc=ct.LoaiCauHoi,
+                            MonHoc_id=thong_tin_de.get('mon_hoc'),
+                            Khoi_id=thong_tin_de.get('khoi')
                         )
                         .values_list('id', flat=True)
                     )

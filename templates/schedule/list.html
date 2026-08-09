@@ -25,7 +25,7 @@
                 <select name="nam_hoc" class="form-select form-select-sm">
                     <option value="">-- Tất cả --</option>
                     {% for nh in nam_hoc_list %}
-                    <option value="{{ nh.id }}" {% if request.GET.nam_hoc == str_nh_id %}selected{% endif %}>{{ nh.TenNamHoc }}</option>
+                    <option value="{{ nh.id }}" {% if request.GET.nam_hoc == nh.id|stringformat:"s" %}selected{% endif %}>{{ nh.TenNamHoc }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -34,7 +34,7 @@
                 <select name="khoi" class="form-select form-select-sm">
                     <option value="">-- Tất cả --</option>
                     {% for k in khoi_list %}
-                    <option value="{{ k.id }}" {% if request.GET.khoi == str_k_id %}selected{% endif %}>{{ k.TenKhoi }}</option>
+                    <option value="{{ k.id }}" {% if request.GET.khoi == k.id|stringformat:"s" %}selected{% endif %}>{{ k.TenKhoi }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -43,7 +43,7 @@
                 <select name="mon" class="form-select form-select-sm">
                     <option value="">-- Tất cả --</option>
                     {% for m in mon_list %}
-                    <option value="{{ m.id }}" {% if request.GET.mon == str_m_id %}selected{% endif %}>{{ m.TenMon }}</option>
+                    <option value="{{ m.id }}" {% if request.GET.mon == m.id|stringformat:"s" %}selected{% endif %}>{{ m.TenMon }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -185,5 +185,65 @@
     </div>
     {% endif %}
 </div>
+
+<script>
+const API_URL = "{% url 'schedule_api_mon_theo_khoi' %}";
+const filterKhoiSelect = document.querySelector('select[name="khoi"]');
+const filterMonSelect = document.querySelector('select[name="mon"]');
+const currentMon = "{{ request.GET.mon }}"; 
+
+const allMonOptions = Array.from(filterMonSelect.options).map(opt => ({
+    value: opt.value,
+    text: opt.text,
+    selected: opt.value === currentMon
+}));
+
+filterKhoiSelect.addEventListener('change', function () {
+    const khoiId = this.value;
+    
+    if (!khoiId) {
+        filterMonSelect.innerHTML = '';
+        allMonOptions.forEach(optData => {
+            const opt = document.createElement('option');
+            opt.value = optData.value;
+            opt.textContent = optData.text;
+            if(optData.selected) opt.selected = true;
+            filterMonSelect.appendChild(opt);
+        });
+        return;
+    }
+    
+    filterMonSelect.innerHTML = '<option value="">-- Đang tải... --</option>';
+    
+    fetch(`${API_URL}?khoi_id=${khoiId}`)
+        .then(res => res.json())
+        .then(data => {
+            filterMonSelect.innerHTML = '<option value="">-- Tất cả --</option>';
+            
+            if (data.mon_list && data.mon_list.length > 0) {
+                data.mon_list.forEach(mon => {
+                    const opt = document.createElement('option');
+                    opt.value = mon.id;
+                    opt.textContent = mon.TenMon;
+                    
+                    if (currentMon === mon.id.toString()) {
+                        opt.selected = true;
+                    }
+                    
+                    filterMonSelect.appendChild(opt);
+                });
+            } else {
+                filterMonSelect.innerHTML = '<option value="">-- Không có môn học --</option>';
+            }
+        })
+        .catch(() => {
+            filterMonSelect.innerHTML = '<option value="">-- Lỗi tải dữ liệu --</option>';
+        });
+});
+
+if (filterKhoiSelect.value) {
+    filterKhoiSelect.dispatchEvent(new Event('change'));
+}
+</script>
 
 {% endblock %}

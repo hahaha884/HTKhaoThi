@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -16,40 +17,80 @@
             align-items: center;
             justify-content: center;
         }
+
         .login-box {
             background: white;
-            padding: 3rem;
-            border-radius: 20px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            padding: 60px;
+            border-radius: 30px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
             width: 100%;
-            max-width: 420px;
+            max-width: 800px;
         }
+
+        .login-box i.fa-school {
+            font-size: 80px !important;
+        }
+
+        .login-box h2 {
+            font-size: 48px;
+            margin-top: 20px !important;
+        }
+
+        .login-box p.fs-5 {
+            font-size: 24px !important;
+            margin-bottom: 40px !important;
+        }
+
         .btn-primary {
             background-color: #4f46e5;
             border: none;
-            padding: 12px;
+            padding: 20px;
             font-weight: 600;
+            font-size: 28px;
+            border-radius: 40px !important;
         }
+
         .btn-primary:hover {
             background-color: #4338ca;
         }
+
+        .form-label {
+            font-size: 24px;
+            margin-bottom: 12px;
+        }
+
+        .form-control {
+            font-size: 28px !important;
+            padding: 20px 25px;
+            height: auto;
+        }
+
+        .input-group-text {
+            font-size: 28px;
+            padding: 20px 25px;
+        }
+
+        .input-group-text i {
+            font-size: 28px !important;
+        }
     </style>
 </head>
+
 <body>
     <div class="login-box">
         <div class="text-center mb-4">
-            <i class="fas fa-school text-primary" style="font-size: 3rem;"></i>
-            <h3 class="fw-bold text-dark mt-3">MyAnDong</h3>
-            <p class="text-muted">Hệ thống Quản lý Khảo thí Tiểu học</p>
+            <i class="fas fa-school text-primary" style="font-size: 3.5rem;"></i>
+            <h2 class="fw-bold text-dark mt-3">MyAnDong</h2>
+            <p class="text-muted fs-5">Hệ thống Quản lý Khảo thí Tiểu học</p>
         </div>
 
         {% if messages %}
-            {% for message in messages %}
-                <div class="alert alert-danger d-flex align-items-center" role="alert">
-                    <i class="fas fa-exclamation-circle me-2"></i>
-                    <div>{{ message }}</div>
-                </div>
-            {% endfor %}
+        {% for message in messages %}
+        <div class="alert alert-danger d-flex align-items-center" role="alert">
+            <i class="fas fa-exclamation-circle me-2"></i>
+            <div>{{ message }}</div>
+        </div>
+        {% endfor %}
         {% endif %}
 
         <form method="POST">
@@ -58,18 +99,21 @@
                 <label class="form-label fw-semibold text-secondary">Số điện thoại</label>
                 <div class="input-group">
                     <span class="input-group-text bg-light border-end-0"><i class="fas fa-phone text-muted"></i></span>
-                    <input type="text" name="sdt" class="form-control border-start-0 bg-light" placeholder="Nhập số điện thoại (VD: 0912345678)" required>
+                    <input type="text" name="sdt" class="form-control border-start-0 bg-light"
+                        placeholder="Nhập số điện thoại" required>
                 </div>
             </div>
             <div class="mb-4">
                 <label class="form-label fw-semibold text-secondary">Mật khẩu</label>
                 <div class="input-group">
                     <span class="input-group-text bg-light border-end-0"><i class="fas fa-lock text-muted"></i></span>
-                    <input type="password" name="password" class="form-control border-start-0 bg-light" placeholder="Nhập mật khẩu" required>
+                    <input type="password" name="password" class="form-control border-start-0 bg-light"
+                        placeholder="Nhập mật khẩu" required>
                 </div>
             </div>
             <button type="submit" class="btn btn-primary w-100 rounded-pill mb-3">Đăng nhập</button>
         </form>
     </div>
 </body>
+
 </html>

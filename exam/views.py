@@ -514,8 +514,17 @@ def exam_editor(request, pk):
                 
         elif action == 'mark_as_read':
             gv_reader = getattr(request.user, 'giaovien', None)
-            # Kiểm tra quyền: chỉ người được phân công (NguoiDuyet) mới được đánh dấu đã đọc
-            if gv_reader and de_thi.TrangThai == 'Đã nộp' and de_thi.TrangThaiDoc == 'Chưa đọc' and gv_reader.pk == de_thi.NguoiDuyet_id:
+            
+            is_authorized = False
+            if gv_reader:
+                # 1. Người được phân công trực tiếp
+                if gv_reader.pk == de_thi.NguoiDuyet_id:
+                    is_authorized = True
+                # 2. Nếu đề gửi cho BGH, thì bất kỳ BGH nào cũng được duyệt/đọc
+                elif de_thi.NguoiDuyet and de_thi.NguoiDuyet.ChucVu in ['Hiệu trưởng', 'Phó hiệu trưởng'] and gv_reader.ChucVu in ['Hiệu trưởng', 'Phó hiệu trưởng']:
+                    is_authorized = True
+            
+            if is_authorized and de_thi.TrangThai == 'Đã nộp' and de_thi.TrangThaiDoc == 'Chưa đọc':
                 de_thi.TrangThaiDoc = 'Đã đọc'
                 de_thi.NguoiDoc = gv_reader
                 # Không ghi đè ThoiGianDuyet — trường đó dành cho phê duyệt chính thức
@@ -733,11 +742,14 @@ def api_get_matching_questions(request):
         # Lấy danh sách ID các câu hỏi đã có trong đề thi này
         existing_q_ids = DeThi_CT.objects.filter(MaDe_id=exam_id).values_list('MaCauHoi_id', flat=True)
         
-        # Tìm các câu hỏi phù hợp trong ngân hàng
+        # Tìm các câu hỏi phù hợp trong ngân hàng (strictly filter by MonHoc and Khoi)
+        de_thi = get_object_or_404(DeThi, pk=exam_id)
         cau_hois = CauHoi.objects.filter(
             NoiDungKienThuc=target_noidung,
             MucDo=target_muc_do,
-            HinhThuc=target_loai_cau_hoi
+            HinhThuc=target_loai_cau_hoi,
+            MonHoc=de_thi.MonHoc,
+            Khoi=de_thi.Khoi
         ).exclude(id__in=existing_q_ids).order_by('-id')[:50]
         
         results = []
@@ -788,24 +800,25 @@ def exam_delete(request, pk):
 def exam_export(request, pk, format):
     """ UC 3.5: Xuất đề thi (PDF, Word) """
     de_thi = get_object_or_404(DeThi, pk=pk)
-    
     # 1. Phân quyền xem và xuất
-    from core.models import GiaoVien
-    gv = GiaoVien.objects.filter(user=request.user).first()
-    has_permission = False
-    if gv:
-        if gv.ChucVu in ['Hiệu trưởng', 'Phó hiệu trưởng']:
-            has_permission = True
-        elif gv.ChucVu in ['Tổ trưởng chuyên môn', 'Tổ phó chuyên môn']:
-            mon_ids = gv.MonGiangDay.values_list('id', flat=True)
-            khoi_ids = gv.KhoiPhuTrach.values_list('id', flat=True)
-            if de_thi.NguoiTao == gv or de_thi.NguoiDuyet == gv or gv.has_tcm_permission(de_thi.Khoi_id, de_thi.MonHoc_id):
+    if request.user.is_superuser:
+        has_permission = True
+    else:
+        from core.models import GiaoVien
+        gv = GiaoVien.objects.filter(user=request.user).first()
+        has_permission = False
+        if gv:
+            if gv.ChucVu in ['Hiệu trưởng', 'Phó hiệu trưởng']:
                 has_permission = True
-        else:
-            mon_ids = gv.MonGiangDay.values_list('id', flat=True)
-            if de_thi.NguoiTao == gv or (de_thi.TrangThai == 'Chính thức' and de_thi.MonHoc_id in mon_ids):
+            elif de_thi.TrangThai == 'Chính thức':
                 has_permission = True
-                
+            elif gv.ChucVu in ['Tổ trưởng chuyên môn', 'Tổ phó chuyên môn']:
+                if de_thi.NguoiTao == gv or de_thi.NguoiDuyet == gv or gv.has_tcm_permission(de_thi.Khoi_id, de_thi.MonHoc_id):
+                    has_permission = True
+            else:
+                mon_ids = gv.MonGiangDay.values_list('id', flat=True)
+                if de_thi.NguoiTao == gv or (de_thi.TrangThai == 'Chính thức' and de_thi.MonHoc_id in mon_ids):
+                    has_permission = True
     if not has_permission:
         messages.error(request, "Bạn không có quyền xuất đề thi này.")
         return redirect('exam_list')
@@ -827,6 +840,133 @@ def exam_export(request, pk, format):
     # Tạo hoc_ky_text (vd: HỌC KỲ 1 -> HỌC KỲ I)
     hoc_ky_text = (de_thi.HocKy or "").upper().replace("1", "I").replace("2", "II")
     
+    from django.utils.html import strip_tags
+    is_tieng_viet = (de_thi.MonHoc.TenMon.strip().lower() == 'tiếng việt') if de_thi.MonHoc else False
+    
+    def process_single_ct(ct):
+        noidung_text = strip_tags(ct.MaCauHoi.NoiDungCauHoi).replace('&nbsp;', ' ')
+        ans_text = ""
+        dap_an_dung = ""
+        if ct.MaCauHoi.dap_ans.exists():
+            dap_ans = ct.MaCauHoi.dap_ans.all().order_by('ThuTu')
+            labels = ['A', 'B', 'C', 'D', 'E', 'F']
+            ans_texts = []
+            correct_texts = []
+            for idx, da in enumerate(dap_ans):
+                label = labels[idx] if idx < len(labels) else str(idx+1)
+                da_text = strip_tags(da.NoiDung).replace('&nbsp;', ' ')
+                ans_texts.append(f"{label}. {da_text}")
+                if da.LaDapAnDung:
+                    correct_texts.append(f"{label}. {da_text}")
+            ans_text = "    ".join(ans_texts)
+            dap_an_dung = " ; ".join(correct_texts) if correct_texts else "........................................"
+        else:
+            dap_an_dung = strip_tags(ct.MaCauHoi.DapAnMau).replace('&nbsp;', ' ') if ct.MaCauHoi.DapAnMau else "........................................"
+            
+        return {
+            'thu_tu': ct.ThuTuCau,
+            'diem': ct.DiemSo,
+            'noi_dung': noidung_text,
+            'dap_ans': ans_text,
+            'dap_an_dung': dap_an_dung,
+            'cau_hoi': ct.MaCauHoi,
+            'noi_dung_html': ct.MaCauHoi.NoiDungCauHoi,
+            'hinh_anh_url': ct.MaCauHoi.HinhAnh.path if ct.MaCauHoi.HinhAnh else None
+        }
+
+    questions = []
+    
+    if is_tieng_viet:
+        mach_dict = {}
+        mach_order = []
+        for ct in chi_tiet:
+            mach = ct.MaCauHoi.MachKienThuc
+            if mach not in mach_dict:
+                mach_dict[mach] = []
+                mach_order.append(mach)
+            mach_dict[mach].append(ct)
+            
+        alpha_chars = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
+        mach_idx = 0
+        main_cau_so = 1
+        
+        for mach in mach_order:
+            ct_list = mach_dict[mach]
+            char = alpha_chars[mach_idx] if mach_idx < len(alpha_chars) else str(mach_idx + 1)
+            mach_name = mach.TenMach if mach else 'Khác'
+            questions.append({
+                'tieu_de': f"{char}. {mach_name}",
+                'diem': '', 'noi_dung': '', 'dap_ans': '', 'dap_an_dung': '', 
+                'cau_hoi': None, 'noi_dung_html': '', 'hinh_anh_url': None
+            })
+            mach_idx += 1
+            
+            processed_groups = set()
+            for ct in ct_list:
+                if ct.MaCauHoi.NhomCauHoi:
+                    nhom = ct.MaCauHoi.NhomCauHoi
+                    if nhom.id not in processed_groups:
+                        group_cts = [c for c in ct_list if c.MaCauHoi.NhomCauHoi_id == nhom.id]
+                        tong_diem_nhom = sum(c.DiemSo for c in group_cts)
+                        
+                        questions.append({
+                            'tieu_de': f"Câu {main_cau_so} ({tong_diem_nhom} điểm).",
+                            'noi_dung': strip_tags(nhom.NoiDungChung or '').replace('&nbsp;', ' '),
+                            'noi_dung_html': nhom.NoiDungChung or '',
+                            'hinh_anh_url': nhom.HinhAnh.path if nhom.HinhAnh else None,
+                            'cau_hoi': None, 'dap_ans': '', 'dap_an_dung': ''
+                        })
+                        
+                        sub_idx = 0
+                        sub_chars = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
+                        for g_ct in group_cts:
+                            sub_char = sub_chars[sub_idx] if sub_idx < len(sub_chars) else str(sub_idx+1)
+                            q_dict = process_single_ct(g_ct)
+                            q_dict['tieu_de'] = f"{sub_char}."
+                            questions.append(q_dict)
+                            sub_idx += 1
+                        processed_groups.add(nhom.id)
+                        main_cau_so += 1
+                else:
+                    if not ct.MaCauHoi.NhomCauHoi_id or ct.MaCauHoi.NhomCauHoi_id not in processed_groups:
+                        q_dict = process_single_ct(ct)
+                        q_dict['tieu_de'] = f"Câu {main_cau_so} ({ct.DiemSo} điểm)."
+                        questions.append(q_dict)
+                        main_cau_so += 1
+    else:
+        main_cau_so = 1
+        processed_groups = set()
+        for ct in chi_tiet:
+            if ct.MaCauHoi.NhomCauHoi:
+                nhom = ct.MaCauHoi.NhomCauHoi
+                if nhom.id not in processed_groups:
+                    group_cts = [c for c in chi_tiet if c.MaCauHoi.NhomCauHoi_id == nhom.id]
+                    tong_diem_nhom = sum(c.DiemSo for c in group_cts)
+                    questions.append({
+                        'tieu_de': f"Câu {main_cau_so} ({tong_diem_nhom} điểm).",
+                        'noi_dung': strip_tags(nhom.NoiDungChung or '').replace('&nbsp;', ' '),
+                        'noi_dung_html': nhom.NoiDungChung or '',
+                        'hinh_anh_url': nhom.HinhAnh.path if nhom.HinhAnh else None,
+                        'cau_hoi': None, 'dap_ans': '', 'dap_an_dung': ''
+                    })
+                    
+                    sub_idx = 0
+                    sub_chars = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
+                    for g_ct in group_cts:
+                        sub_char = sub_chars[sub_idx] if sub_idx < len(sub_chars) else str(sub_idx+1)
+                        q_dict = process_single_ct(g_ct)
+                        q_dict['tieu_de'] = f"{sub_char}."
+                        questions.append(q_dict)
+                        sub_idx += 1
+                    processed_groups.add(nhom.id)
+                    main_cau_so += 1
+            else:
+                if not ct.MaCauHoi.NhomCauHoi_id or ct.MaCauHoi.NhomCauHoi_id not in processed_groups:
+                    q_dict = process_single_ct(ct)
+                    q_dict['tieu_de'] = f"Câu {main_cau_so} ({ct.DiemSo} điểm)."
+                    questions.append(q_dict)
+                    main_cau_so += 1
+
     if format == 'pdf':
         try:
             pdfmetrics.registerFont(TTFont('Times New Roman', 'C:\\Windows\\Fonts\\times.ttf'))
@@ -836,7 +976,7 @@ def exam_export(request, pk, format):
             template_path = 'exam/export_pdf.html'
             context = {
                 'de_thi': de_thi, 
-                'chi_tiet': chi_tiet,
+                'questions': questions,
                 'thoi_gian': thoi_gian,
                 'ngay_thi_str': ngay_thi_str,
                 'hoc_ky_text': hoc_ky_text
@@ -858,7 +998,6 @@ def exam_export(request, pk, format):
         try:
             import os
             from django.conf import settings
-            from django.utils.html import strip_tags
             from docxtpl import DocxTemplate
             
             # Load template
@@ -872,44 +1011,11 @@ def exam_export(request, pk, format):
             ky_thi = de_thi.KyThi.upper() if de_thi.KyThi else ""
             nam_hoc = de_thi.NamHoc.TenNamHoc if de_thi.NamHoc else ""
             mon_hoc = de_thi.MonHoc.TenMon.upper() if de_thi.MonHoc else ""
-            khoi_text = de_thi.Khoi.TenKhoi.upper() if de_thi.Khoi else ""
             
-            questions = []
-            for ct in chi_tiet:
-                noidung_text = strip_tags(ct.MaCauHoi.NoiDungCauHoi).replace('&nbsp;', ' ')
-                
-                ans_text = ""
-                dap_an_dung = ""
-                
-                if ct.MaCauHoi.dap_ans.exists():
-                    dap_ans = ct.MaCauHoi.dap_ans.all().order_by('ThuTu')
-                    labels = ['A', 'B', 'C', 'D', 'E', 'F']
-                    
-                    ans_texts = []
-                    correct_texts = []
-                    
-                    for idx, da in enumerate(dap_ans):
-                        label = labels[idx] if idx < len(labels) else str(idx+1)
-                        da_text = strip_tags(da.NoiDung).replace('&nbsp;', ' ')
-                        ans_texts.append(f"{label}. {da_text}")
-                        if da.LaDapAnDung:
-                            correct_texts.append(f"{label}. {da_text}")
-                            
-                    ans_text = "    ".join(ans_texts)
-                    dap_an_dung = " ; ".join(correct_texts) if correct_texts else "........................................"
-                else:
-                    # Tự luận
-                    ans_text = ""
-                    dap_an_dung = strip_tags(ct.MaCauHoi.DapAnMau).replace('&nbsp;', ' ') if ct.MaCauHoi.DapAnMau else "........................................"
-                
-                questions.append({
-                    'thu_tu': ct.ThuTuCau,
-                    'diem': ct.DiemSo,
-                    'noi_dung': noidung_text,
-                    'dap_ans': ans_text,
-                    'dap_an_dung': dap_an_dung
-                })
-                
+            khoi_text = de_thi.Khoi.TenKhoi.upper() if de_thi.Khoi else ""
+            if khoi_text.startswith("KHỐI"):
+                khoi_text = khoi_text.replace("KHỐI", "").strip()
+            
             context = {
                 'ky_thi': ky_thi + ' ' + hoc_ky_text,
                 'nam_hoc': nam_hoc,

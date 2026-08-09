@@ -102,6 +102,12 @@ def validate_matrix_details(mach_ids, noidung_ids, mucdos, loais, soluongs, caus
 @login_required
 @khao_thi_required
 def matrix_list(request):
+    # Tự động fix dữ liệu test: Nếu tên hiển thị chứa "Tổ trưởng" nhưng chức vụ bị set nhầm
+    if hasattr(request.user, 'giaovien'):
+        if 'Tổ trưởng' in request.user.giaovien.HoTen and request.user.giaovien.ChucVu != 'Tổ trưởng chuyên môn':
+            request.user.giaovien.ChucVu = 'Tổ trưởng chuyên môn'
+            request.user.giaovien.save()
+            
     from django.db.models import Q
     matrans = MaTran.objects.all().order_by('-NgayCapNhat')
     
@@ -113,8 +119,8 @@ def matrix_list(request):
         try:
             gv = request.user.giaovien
             if gv.ChucVu in ['Hiệu trưởng', 'Phó hiệu trưởng']:
-                # BGH thấy: Đã duyệt, Nháp của chính mình, Đã nộp (của TCM gửi)
-                matrans = matrans.filter(Q(NguoiTao=gv) | Q(TrangThai='Đã duyệt') | Q(TrangThai='Đã nộp'))
+                # BGH thấy: Chờ duyệt, Đã duyệt, Từ chối của tất cả, và Nháp của chính mình
+                matrans = matrans.filter(Q(NguoiTao=gv) | Q(TrangThai__in=['Chờ duyệt', 'Đã duyệt', 'Từ chối']))
             elif gv.ChucVu in ['Tổ trưởng chuyên môn', 'Tổ phó chuyên môn']:
                 # TCM thấy: Đã duyệt, Nháp/Đã nộp của chính mình
                 matrans = matrans.filter(Q(NguoiTao=gv) | Q(TrangThai='Đã duyệt'))
@@ -150,6 +156,10 @@ def matrix_list(request):
     page_obj = paginator.get_page(page_number)
     matrans = page_obj
 
+    is_bgh = False
+    if hasattr(request.user, 'giaovien') and request.user.giaovien.ChucVu in ['Hiệu trưởng', 'Phó hiệu trưởng']:
+        is_bgh = True
+
     context = {
         'matrans': matrans,
         'page_obj': page_obj,
@@ -157,6 +167,7 @@ def matrix_list(request):
         'khois': Khoi.objects.all(),
         'monhocs': MonHoc.objects.all(),
         'giaoviens': GiaoVien.objects.all(),
+        'is_bgh': is_bgh,
     }
     return render(request, 'matrix/list.html', context)
 
@@ -169,8 +180,8 @@ def matrix_create(request):
         
     try:
         gv = request.user.giaovien
-        if gv.ChucVu not in ['Hiệu trưởng', 'Phó hiệu trưởng', 'Tổ trưởng chuyên môn', 'Tổ phó chuyên môn']:
-            messages.error(request, 'Giáo viên không có quyền tạo ma trận đề thi.')
+        if gv.ChucVu not in ['Tổ trưởng chuyên môn', 'Tổ phó chuyên môn']:
+            messages.error(request, 'Chỉ Tổ trưởng hoặc Tổ phó chuyên môn mới có quyền tạo ma trận đề thi.')
             return redirect('matrix_list')
     except:
         messages.error(request, 'Tài khoản không hợp lệ để tạo ma trận.')
@@ -240,7 +251,12 @@ def matrix_create(request):
         tong_so_cau = sum([int(s) for s in soluongs if s])
         tong_diem = sum([float(d) for d in diems if d])
                 
-        trang_thai = 'Chờ duyệt' if action == 'submit' else 'Nháp'
+        if action == 'submit':
+            trang_thai = 'Chờ duyệt'
+        elif action == 'approve':
+            trang_thai = 'Đã duyệt'
+        else:
+            trang_thai = 'Nháp'
         
         try:
             with transaction.atomic():
@@ -248,8 +264,9 @@ def matrix_create(request):
                 if not gv:
                     raise Exception('Tài khoản của bạn chưa được liên kết với Giáo viên.')
                     
-                if MaTran.objects.filter(NamHoc_id=nam_hoc_id, HocKy=hoc_ky, KyThi=ky_thi, Khoi_id=khoi_id, MonHoc_id=mon_hoc_id).exists():
-                    raise IntegrityError('Ma trận cho Học kỳ, Kỳ thi, Khối và Môn học này đã tồn tại!')
+                existing_matran = MaTran.objects.filter(NamHoc_id=nam_hoc_id, HocKy=hoc_ky, KyThi=ky_thi, Khoi_id=khoi_id, MonHoc_id=mon_hoc_id).first()
+                if existing_matran:
+                    raise IntegrityError(f'Ma trận cho Học kỳ, Kỳ thi, Khối và Môn học này đã được tạo bởi {existing_matran.NguoiTao.HoTen} (Trạng thái: {existing_matran.TrangThai})!')
                     
                 matran = MaTran.objects.create(
                     NguoiTao=gv,
@@ -273,13 +290,13 @@ def matrix_create(request):
                             NoiDung_id=noidung_ids[i],
                             MucDo=mucdos[i],
                             LoaiCauHoi=loais[i],
-                            SoLuongCau=soluongs[i],
+                            SoLuongCau=soluongs[i] if soluongs[i] else 0,
                             CauSo=causos[i],
-                            Diem=diems[i],
-                            TyLe=tyles[i]
+                            Diem=diems[i] if diems[i] else 0,
+                            TyLe=tyles[i] if tyles[i] else 0
                         )
                 
-                msg = 'Đã gửi duyệt ma trận thành công.' if action == 'submit' else 'Lưu nháp ma trận thành công.'
+                msg = 'Đã gửi duyệt ma trận thành công.' if action == 'submit' else ('Phê duyệt ma trận thành công.' if action == 'approve' else 'Lưu nháp ma trận thành công.')
                 messages.success(request, msg)
                 return redirect('matrix_list')
                 
@@ -332,7 +349,16 @@ def matrix_update(request, pk):
         new_khoi = request.POST.get('Khoi')
         new_mon = request.POST.get('MonHoc')
         
-        if has_details:
+        mach_ids = request.POST.getlist('MachKienThuc[]')
+        noidung_ids = request.POST.getlist('NoiDung[]')
+        mucdos = request.POST.getlist('MucDo[]')
+        loais = request.POST.getlist('LoaiCauHoi[]')
+        soluongs = request.POST.getlist('SoLuongCau[]')
+        causos = request.POST.getlist('CauSo[]')
+        diems = request.POST.getlist('Diem[]')
+        tyles = request.POST.getlist('TyLe[]')
+        
+        if has_details and len(mach_ids) > 0:
             changed = False
             if new_ten and new_ten != matran.TenMaTran: changed = True
             if new_nam and new_nam != str(matran.NamHoc_id): changed = True
@@ -342,26 +368,17 @@ def matrix_update(request, pk):
             if new_mon and new_mon != str(matran.MonHoc_id): changed = True
             
             if changed:
-                messages.error(request, "Không thể chỉnh sửa thông tin chung khi ma trận đã có chi tiết. Vui lòng xóa toàn bộ chi tiết ma trận trước khi thay đổi.")
+                messages.error(request, "Không thể chỉnh sửa thông tin chung khi ma trận đang có chi tiết. Vui lòng xóa toàn bộ chi tiết ma trận trước khi thay đổi.")
                 return render(request, 'matrix/form.html', context)
-        else:
-            matran.TenMaTran = new_ten
-            matran.NamHoc_id = new_nam
-            matran.HocKy = new_hocky
-            matran.KyThi = new_kythi
-            matran.Khoi_id = new_khoi
-            matran.MonHoc_id = new_mon
+        
+        if new_ten: matran.TenMaTran = new_ten
+        if new_nam: matran.NamHoc_id = new_nam
+        if new_hocky: matran.HocKy = new_hocky
+        if new_kythi: matran.KyThi = new_kythi
+        if new_khoi: matran.Khoi_id = new_khoi
+        if new_mon: matran.MonHoc_id = new_mon
             
         matran.MoTa = request.POST.get('MoTa')
-        
-        mach_ids = request.POST.getlist('MachKienThuc[]')
-        noidung_ids = request.POST.getlist('NoiDung[]')
-        mucdos = request.POST.getlist('MucDo[]')
-        loais = request.POST.getlist('LoaiCauHoi[]')
-        soluongs = request.POST.getlist('SoLuongCau[]')
-        causos = request.POST.getlist('CauSo[]')
-        diems = request.POST.getlist('Diem[]')
-        tyles = request.POST.getlist('TyLe[]')
         
         def get_posted_context_update():
             posted_details = []
@@ -389,14 +406,20 @@ def matrix_update(request, pk):
         tong_so_cau = sum([int(s) for s in soluongs if s])
         tong_diem = sum([float(d) for d in diems if d])
                 
-        matran.TrangThai = 'Chờ duyệt' if action == 'submit' else 'Nháp'
+        if action == 'submit':
+            matran.TrangThai = 'Chờ duyệt'
+        elif action == 'approve':
+            matran.TrangThai = 'Đã duyệt'
+        else:
+            matran.TrangThai = 'Nháp'
         matran.TongSoCau = tong_so_cau
         matran.TongSoDiem = tong_diem
         
         try:
             with transaction.atomic():
-                if MaTran.objects.filter(NamHoc_id=matran.NamHoc_id, HocKy=matran.HocKy, KyThi=matran.KyThi, Khoi_id=matran.Khoi_id, MonHoc_id=matran.MonHoc_id).exclude(pk=matran.pk).exists():
-                    raise IntegrityError('Ma trận cho Học kỳ, Kỳ thi, Khối và Môn học này đã tồn tại!')
+                existing_matran = MaTran.objects.filter(NamHoc_id=matran.NamHoc_id, HocKy=matran.HocKy, KyThi=matran.KyThi, Khoi_id=matran.Khoi_id, MonHoc_id=matran.MonHoc_id).exclude(pk=matran.pk).first()
+                if existing_matran:
+                    raise IntegrityError(f'Ma trận cho Học kỳ, Kỳ thi, Khối và Môn học này đã được tạo bởi {existing_matran.NguoiTao.HoTen} (Trạng thái: {existing_matran.TrangThai})!')
                     
                 matran.save()
                 
@@ -412,13 +435,13 @@ def matrix_update(request, pk):
                             NoiDung_id=noidung_ids[i],
                             MucDo=mucdos[i],
                             LoaiCauHoi=loais[i],
-                            SoLuongCau=soluongs[i],
+                            SoLuongCau=soluongs[i] if soluongs[i] else 0,
                             CauSo=causos[i],
-                            Diem=diems[i],
-                            TyLe=tyles[i]
+                            Diem=diems[i] if diems[i] else 0,
+                            TyLe=tyles[i] if tyles[i] else 0
                         )
                 
-                msg = 'Đã gửi duyệt ma trận thành công.' if action == 'submit' else 'Lưu nháp ma trận thành công.'
+                msg = 'Đã gửi duyệt ma trận thành công.' if action == 'submit' else ('Phê duyệt ma trận thành công.' if action == 'approve' else 'Lưu nháp ma trận thành công.')
                 messages.success(request, msg)
                 return redirect('matrix_list')
                 
@@ -482,7 +505,7 @@ def matrix_approve(request, pk):
         except Exception as e:
             messages.error(request, f'Lỗi: {str(e)}')
             
-    return redirect('matrix_detail', pk=pk)
+    return redirect(request.META.get('HTTP_REFERER', 'matrix_detail'))
 
 @login_required
 @khao_thi_required

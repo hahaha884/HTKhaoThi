@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preview Câu hỏi</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background-color: #fff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; padding: 15px; }
+        .answer-row { margin-bottom: 8px; padding: 8px; border-radius: 4px; background-color: #f8f9fa; }
+        .answer-row.correct { background-color: #d1e7dd; border: 1px solid #badbcc; }
+    </style>
+</head>
+<body>
+    <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+        <h5 class="mb-0 fw-bold text-primary">Chi tiết Câu hỏi ID: {{ cau_hoi.id }}</h5>
+        <div>
+            <span class="badge bg-secondary">{{ cau_hoi.DangCauHoi }}</span>
+            <span class="badge bg-info text-dark">{{ cau_hoi.MucDo }}</span>
+        </div>
+    </div>
+    
+    <div class="mb-4" style="font-size: 1.1rem; color: #333;">
+        {{ cau_hoi.NoiDungCauHoi|safe }}
+        {% if cau_hoi.HinhAnh %}
+        <div class="mt-2 text-center">
+            <img src="{{ cau_hoi.HinhAnh.url }}" alt="Hình ảnh câu hỏi" class="img-fluid rounded border" style="max-height: 250px;">
+        </div>
+        {% endif %}
+    </div>
+
+    <h6 class="fw-bold text-secondary mb-3 border-bottom pb-2">Đáp án:</h6>
+    <div>
+        {% with dang=cau_hoi.DangCauHoi dap_ans=cau_hoi.dap_ans.all %}
+        
+        {% if dang == 'MCQ' or dang == 'MSQ' %}
+            {% for da in dap_ans %}
+            <div class="d-flex align-items-start answer-row {% if da.LaDapAnDung %}correct{% endif %}">
+                <strong class="me-3 text-primary" style="min-width: 20px;">{{ da.NoiDungTrai }}.</strong>
+                <div class="flex-grow-1">{{ da.NoiDung|safe }}</div>
+                {% if da.HinhAnh %}
+                <img src="{{ da.HinhAnh.url }}" alt="Ảnh đáp án" class="img-fluid ms-2 rounded" style="max-height: 60px;">
+                {% endif %}
+                {% if da.LaDapAnDung %}<i class="fas fa-check-circle text-success ms-3 mt-1"></i>{% endif %}
+            </div>
+            {% endfor %}
+            
+        {% elif dang == 'TF' %}
+            {% for da in dap_ans %}
+            <div class="d-flex align-items-center answer-row bg-light">
+                <strong class="me-2 text-secondary">{{ forloop.counter }}.</strong>
+                <div class="flex-grow-1">{{ da.NoiDung|safe }}</div>
+                {% if da.HinhAnh %}
+                <img src="{{ da.HinhAnh.url }}" alt="Ảnh đáp án" class="img-fluid ms-2 rounded" style="max-height: 60px;">
+                {% endif %}
+                <span class="ms-3 fw-bold {% if da.NoiDungTrai == 'Đúng' %}text-success{% else %}text-danger{% endif %}">
+                    <i class="fas {% if da.NoiDungTrai == 'Đúng' %}fa-check{% else %}fa-times{% endif %} me-1"></i>{{ da.NoiDungTrai }}
+                </span>
+            </div>
+            {% endfor %}
+            
+        {% elif dang == 'Matching' %}
+            {% for da in dap_ans %}
+            <div class="d-flex align-items-center answer-row">
+                <strong class="me-2 text-secondary">{{ forloop.counter }}.</strong>
+                <div class="flex-grow-1 d-flex align-items-center">
+                    <span class="text-primary fw-bold flex-grow-1 text-end">{{ da.NoiDungTrai|safe }}</span>
+                    {% if da.HinhAnhTrai %}
+                    <img src="{{ da.HinhAnhTrai.url }}" class="img-fluid mx-2 rounded" style="max-height: 40px;">
+                    {% endif %}
+                    
+                    <i class="fas fa-arrow-right mx-3 text-muted"></i>
+                    
+                    <span class="text-success fw-bold flex-grow-1">{{ da.NoiDung|safe }}</span>
+                    {% if da.HinhAnh %}
+                    <img src="{{ da.HinhAnh.url }}" class="img-fluid mx-2 rounded" style="max-height: 40px;">
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+            
+        {% elif dang == 'FIB' %}
+            {% for da in dap_ans %}
+            <div class="d-flex align-items-center answer-row correct mb-1 py-1">
+                {% if dap_ans|length > 1 %}<strong class="me-2 text-secondary">{{ forloop.counter }}.</strong>{% endif %}
+                <span class="fw-bold text-success">{{ da.NoiDung|safe }}</span>
+            </div>
+            {% endfor %}
+            
+        {% else %}
+            {% if cau_hoi.DapAnMau %}
+            <div class="p-3 bg-light border rounded text-dark">
+                {{ cau_hoi.DapAnMau|safe }}
+            </div>
+            {% endif %}
+            {% for da in dap_ans %}
+                {% if da.HinhAnh %}
+                <div class="mt-2 text-center">
+                    <img src="{{ da.HinhAnh.url }}" class="img-fluid rounded border" style="max-height: 300px;">
+                </div>
+                {% endif %}
+            {% endfor %}
+            
+        {% endif %}
+        
+        {% endwith %}
+    </div>
+</body>
+</html>

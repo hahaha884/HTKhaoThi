@@ -79,7 +79,7 @@ def schedule_list(request):
         'page_obj': page_obj,
         'tu_khoa': tu_khoa,
         'khoi_list': Khoi.objects.all(),
-        'mon_list': MonHoc.objects.filter(TrangThai='Đang hoạt động'),
+        'mon_list': MonHoc.objects.filter(TrangThai__in=['Đang hoạt động', 'Đang áp dụng']),
         'nam_hoc_list': NamHoc.objects.all(),
         'is_bgh': is_bgh,
     }
@@ -164,16 +164,7 @@ def schedule_create_step1(request):
                     messages.error(request, f"Ngày thi không hợp lệ! Khoảng thời gian thi {ky_thi} - {hoc_ky} là: {khoang_thoi_gian}")
                     return redirect('schedule_create_step1')
         
-        # Exception 6a: Trùng ca thi cùng khối
-        exists = LichThi.objects.filter(
-            Khoi_id=khoi_id,
-            CaThi=ca_thi,
-            NgayThi=ngay_thi
-        ).exists()
-        if exists:
-            messages.error(request, f"Đã tồn tại lịch thi cho Khối này, {ca_thi} vào ngày {ngay_thi}. Vui lòng chọn ca thi hoặc ngày khác.")
-            return redirect('schedule_create_step1')
-        
+        # Bỏ kiểm tra trùng Buổi (CaThi) vì 1 buổi có thể thi nhiều môn, chỉ cần không trùng giờ (đã kiểm tra bên dưới)
         # Business rule: Kiểm tra tối đa 3 ca/ngày cho 1 khối
         ca_count = LichThi.objects.filter(Khoi_id=khoi_id, NgayThi=ngay_thi).count()
         if ca_count >= 3:

@@ -8,6 +8,7 @@ urlpatterns = [
     path('them/', views.question_create, name='question_create'),
     path('<int:pk>/sua/', views.question_update, name='question_update'),
     path('<int:pk>/xoa/', views.question_delete, name='question_delete'),
+    path('<int:pk>/preview/', views.question_preview, name='question_preview'),
     
     # Nhóm câu hỏi
     path('nhom/them/', views.group_create, name='group_create'),
@@ -22,5 +23,7 @@ urlpatterns = [
     # Import Word & AI
     path('import-word/', views.import_word_preview, name='import_word_preview'),
     path('api/ai-suggest/', views.api_generate_ai_variations, name='api_ai_suggest'),
+    path('api/ai-suggest-question/', views.api_suggest_question, name='api_suggest_question'),
+    path('api/ai-suggest-group-content/', views.api_suggest_group_content, name='api_suggest_group_content'),
     path('save-imported/', views.save_imported_questions, name='save_imported'),
 ]

@@ -1,7 +1,10 @@
 {% extends 'base.html' %}
+
+{% block title %}Quản lý Đề thi{% endblock %}
+{% block page_title %}Quản lý Đề thi{% endblock %}
+
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="text-primary fw-bold mb-0">Quản lý Đề thi</h4>
+<div class="d-flex justify-content-end align-items-center mb-4">
     <a href="{% url 'exam_wizard_start' %}" class="btn btn-primary">
         <i class="fas fa-plus me-1"></i>Thêm đề thi
     </a>
@@ -33,10 +36,8 @@
                 <div class="col-md-2">
                     <select name="ky_thi" class="form-select">
                         <option value="">-- Kỳ thi --</option>
-                        <option value="Giữa kì 1" {% if request.GET.ky_thi == 'Giữa kì 1' %}selected{% endif %}>Giữa kì 1</option>
-                        <option value="Cuối kì 1" {% if request.GET.ky_thi == 'Cuối kì 1' %}selected{% endif %}>Cuối kì 1</option>
-                        <option value="Giữa kì 2" {% if request.GET.ky_thi == 'Giữa kì 2' %}selected{% endif %}>Giữa kì 2</option>
-                        <option value="Cuối kì 2" {% if request.GET.ky_thi == 'Cuối kì 2' %}selected{% endif %}>Cuối kì 2</option>
+                        <option value="Giữa kỳ" {% if request.GET.ky_thi == 'Giữa kỳ' %}selected{% endif %}>Giữa kỳ</option>
+                        <option value="Cuối kỳ" {% if request.GET.ky_thi == 'Cuối kỳ' %}selected{% endif %}>Cuối kỳ</option>
                     </select>
                 </div>
                 <div class="col-md-2">
@@ -104,7 +105,7 @@
                             <span class="text-muted small"><i class="fas fa-clock me-1"></i>{{ de.CreatedAt|date:"d/m/Y H:i" }}</span>
                         </td>
                         <td>
-                            <span class="badge bg-info text-dark mb-1">{{ de.KyThi }}</span><br>
+                            <span class="badge bg-info text-dark mb-1">{{ de.KyThi }} {% if de.HocKy == 'Học kỳ 1' %}I{% elif de.HocKy == 'Học kỳ 2' %}II{% endif %}</span><br>
                             <span class="small">{{ de.MonHoc.TenMon }} - {{ de.Khoi.TenKhoi }}</span>
                         </td>
                         <td>

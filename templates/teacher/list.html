@@ -55,7 +55,7 @@
                 <thead class="table-light">
                     <tr>
                         <th>Họ và Tên</th>
-                        <th>Chức vụ</th>
+                        <th>Chức vụ / Chuyên môn</th>
                         <th>Số điện thoại</th>
                         <th>Email</th>
                         <th>Trạng thái</th>
@@ -69,7 +69,46 @@
                             {{ teacher.HoTen }}<br>
                             <small class="text-muted">{{ teacher.GioiTinh }} - {{ teacher.NgaySinh|date:"d/m/Y" }}</small>
                         </td>
-                        <td>{{ teacher.ChucVu }}</td>
+                        <td>
+                            <span class="fw-medium text-dark">{{ teacher.ChucVu }}</span>
+                            <div class="mt-1" style="font-size: 0.85rem;">
+                                {% if teacher.ChucVu == 'Giáo viên chủ nhiệm' %}
+                                    {% with lop=teacher.lophoc_set.first %}
+                                        {% if lop %}
+                                        <div class="text-muted mb-1">
+                                            <i class="fas fa-chalkboard fa-fw opacity-75"></i> Chủ nhiệm:
+                                            <span class="badge bg-light text-primary border border-primary-subtle">{{ lop.TenLop }} ({{ lop.MaKhoi.TenKhoi }})</span>
+                                        </div>
+                                        {% endif %}
+                                    {% endwith %}
+                                {% endif %}
+                                
+                                {% if teacher.MonGiangDay.all %}
+                                <div class="text-muted mb-1">
+                                    <i class="fas fa-book fa-fw opacity-75"></i> Môn dạy:
+                                    {% for m in teacher.MonGiangDay.all %}
+                                        <span class="badge bg-light text-dark border">{{ m.TenMon }}</span>{% if not forloop.last %} {% endif %}
+                                    {% endfor %}
+                                </div>
+                                {% elif teacher.ChucVu == 'Tổ trưởng chuyên môn' or teacher.ChucVu == 'Tổ phó chuyên môn' %}
+                                    {% if teacher.KhoiPhuTrach.all %}
+                                    <div class="text-muted mb-1">
+                                        <i class="fas fa-tasks fa-fw opacity-75"></i> Chuyên môn:
+                                        <span class="badge bg-light text-primary border border-primary-subtle">Toàn bộ môn GVCN (Theo khối)</span>
+                                    </div>
+                                    {% endif %}
+                                {% endif %}
+                                
+                                {% if teacher.KhoiPhuTrach.all %}
+                                <div class="text-muted">
+                                    <i class="fas fa-layer-group fa-fw opacity-75"></i> Khối:
+                                    {% for k in teacher.KhoiPhuTrach.all %}
+                                        <span class="badge bg-light text-dark border">{{ k.TenKhoi }}</span>{% if not forloop.last %} {% endif %}
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </td>
                         <td>{{ teacher.SDT }}</td>
                         <td>{{ teacher.Email }}</td>
                         <td>

@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load l10n %}
 {% block page_title %}{% if matran %}Cập nhật Ma trận{% else %}Thêm Ma trận{% endif %}{% endblock %}
 
 {% block content %}
@@ -25,7 +26,7 @@
                 
                 <div class="col-md-3">
                     <label class="form-label">Năm học <span class="text-danger">*</span></label>
-                    <select name="NamHoc" class="form-select" required {% if has_details %}disabled{% endif %}>
+                    <select name="NamHoc" class="form-select" required {% if has_details %}style="pointer-events: none; background-color: #e9ecef;"{% endif %}>
                         <option value="">-- Chọn --</option>
                         {% for nh in namhocs %}
                         <option value="{{ nh.pk }}" {% if matran.NamHoc_id|add:"0" == nh.pk|add:"0" %}selected{% endif %}>{{ nh.TenNamHoc }}</option>
@@ -35,7 +36,7 @@
                 
                 <div class="col-md-3">
                     <label class="form-label">Học kỳ <span class="text-danger">*</span></label>
-                    <select name="HocKy" class="form-select" required {% if has_details %}disabled{% endif %}>
+                    <select name="HocKy" class="form-select" required {% if has_details %}style="pointer-events: none; background-color: #e9ecef;"{% endif %}>
                         <option value="">-- Chọn học kỳ --</option>
                         <option value="Học kỳ 1" {% if matran.HocKy == 'Học kỳ 1' %}selected{% endif %}>Học kỳ I</option>
                         <option value="Học kỳ 2" {% if matran.HocKy == 'Học kỳ 2' %}selected{% endif %}>Học kỳ II</option>
@@ -44,7 +45,7 @@
                 
                 <div class="col-md-3">
                     <label class="form-label">Kỳ thi <span class="text-danger">*</span></label>
-                    <select name="KyThi" class="form-select" required {% if has_details %}disabled{% endif %}>
+                    <select name="KyThi" class="form-select" required {% if has_details %}style="pointer-events: none; background-color: #e9ecef;"{% endif %}>
                         <option value="">-- Chọn --</option>
                         <option value="Giữa kỳ" {% if matran.KyThi == 'Giữa kỳ' %}selected{% endif %}>Giữa kỳ</option>
                         <option value="Cuối kỳ" {% if matran.KyThi == 'Cuối kỳ' %}selected{% endif %}>Cuối kỳ</option>
@@ -53,7 +54,7 @@
                 
                 <div class="col-md-3">
                     <label class="form-label">Khối <span class="text-danger">*</span></label>
-                    <select name="Khoi" class="form-select" required onchange="filterMonHoc()" {% if has_details %}disabled{% endif %}>
+                    <select name="Khoi" class="form-select" required onchange="filterMonHoc()" {% if has_details %}style="pointer-events: none; background-color: #e9ecef;"{% endif %}>
                         <option value="">-- Chọn --</option>
                         {% for k in khois %}
                         <option value="{{ k.pk }}" {% if matran.Khoi_id|add:"0" == k.pk|add:"0" %}selected{% endif %}>{{ k.TenKhoi }}</option>
@@ -63,7 +64,7 @@
                 
                 <div class="col-md-3">
                     <label class="form-label">Môn học <span class="text-danger">*</span></label>
-                    <select name="MonHoc" class="form-select" required onchange="filterMach()" {% if has_details %}disabled{% endif %}>
+                    <select name="MonHoc" class="form-select" required onchange="filterMach()" {% if has_details %}style="pointer-events: none; background-color: #e9ecef;"{% endif %}>
                         <option value="">-- Chọn --</option>
                         {% for mh in monhocs %}
                         <option value="{{ mh.pk }}" data-khois="{% for k in mh.KhoiApDung.all %}{{ k.pk }},{% endfor %}" {% if matran.MonHoc_id|add:"0" == mh.pk|add:"0" %}selected{% endif %}>{{ mh.TenMon }}</option>
@@ -132,9 +133,9 @@
                                 </td>
                                 <td><input type="number" name="SoLuongCau[]" class="form-control form-control-sm" min="1" value="{{ ct.SoLuongCau }}" required></td>
                                 <td><input type="text" name="CauSo[]" class="form-control form-control-sm" placeholder="VD: 1,2,3" value="{{ ct.CauSo|default:'' }}" required></td>
-                                <td><input type="number" name="Diem[]" class="form-control form-control-sm" step="0.25" min="0.25" value="{{ ct.Diem }}" required></td>
-                                <td><input type="number" name="TyLe[]" class="form-control form-control-sm" step="0.1" min="0.1" value="{{ ct.TyLe }}" required></td>
-                                <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="fas fa-trash"></i></button></td>
+                                <td><input type="number" name="Diem[]" class="form-control form-control-sm" step="0.25" min="0.25" value="{{ ct.Diem|unlocalize }}" required></td>
+                                <td><input type="number" name="TyLe[]" class="form-control form-control-sm" step="0.1" min="0.1" value="{{ ct.TyLe|unlocalize }}" required></td>
+                                <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRow(this)"><i class="fas fa-trash"></i></button></td>
                             </tr>
                             {% endfor %}
                         {% elif matran and matran.chi_tiet.all %}
@@ -171,9 +172,9 @@
                                 </td>
                                 <td><input type="number" name="SoLuongCau[]" class="form-control form-control-sm" min="1" value="{{ ct.SoLuongCau }}" required></td>
                                 <td><input type="text" name="CauSo[]" class="form-control form-control-sm" placeholder="VD: 1,2,3" value="{{ ct.CauSo|default:'' }}" required></td>
-                                <td><input type="number" name="Diem[]" class="form-control form-control-sm" step="0.25" min="0.25" value="{{ ct.Diem }}" required></td>
-                                <td><input type="number" name="TyLe[]" class="form-control form-control-sm" step="0.1" min="0.1" value="{{ ct.TyLe }}" required></td>
-                                <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="fas fa-trash"></i></button></td>
+                                <td><input type="number" name="Diem[]" class="form-control form-control-sm" step="0.25" min="0.25" value="{{ ct.Diem|unlocalize }}" required></td>
+                                <td><input type="number" name="TyLe[]" class="form-control form-control-sm" step="0.1" min="0.1" value="{{ ct.TyLe|unlocalize }}" required></td>
+                                <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRow(this)"><i class="fas fa-trash"></i></button></td>
                             </tr>
                             {% endfor %}
                         {% else %}
@@ -212,7 +213,7 @@
                                 <td><input type="text" name="CauSo[]" class="form-control form-control-sm" placeholder="VD: 1,2" required></td>
                                 <td><input type="number" name="Diem[]" class="form-control form-control-sm" step="0.25" min="0.25" value="0.25" required></td>
                                 <td><input type="number" name="TyLe[]" class="form-control form-control-sm" step="0.1" min="0.1" value="5" required></td>
-                                <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="fas fa-trash"></i></button></td>
+                                <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRow(this)"><i class="fas fa-trash"></i></button></td>
                             </tr>
                         {% endif %}
                     </tbody>
@@ -222,7 +223,11 @@
             <div class="mt-4 text-end">
                 <a href="{% url 'matrix_list' %}" class="btn btn-light px-4 me-2" onclick="confirmCancel(event, this.href)">Hủy</a>
                 <button type="submit" name="action" value="draft" class="btn btn-secondary px-4 me-2" onclick="removeDetailsRequired()"><i class="fas fa-save me-1"></i>Lưu Nháp</button>
+                {% if request.user.giaovien.ChucVu == 'Hiệu trưởng' or request.user.giaovien.ChucVu == 'Phó hiệu trưởng' %}
+                <button type="submit" name="action" value="approve" class="btn btn-success px-4" onclick="restoreDetailsRequired()"><i class="fas fa-check-circle me-1"></i>Phê duyệt</button>
+                {% else %}
                 <button type="submit" name="action" value="submit" class="btn btn-primary px-4" onclick="restoreDetailsRequired()"><i class="fas fa-paper-plane me-1"></i>Nộp (Gửi duyệt)</button>
+                {% endif %}
             </div>
         </form>
     </div>
@@ -263,7 +268,7 @@
         <td><input type="text" name="CauSo[]" class="form-control form-control-sm" placeholder="VD: 1,2" required></td>
         <td><input type="number" name="Diem[]" class="form-control form-control-sm" step="0.25" min="0.25" value="0.25" required></td>
         <td><input type="number" name="TyLe[]" class="form-control form-control-sm" step="0.1" min="0.1" value="5" required></td>
-        <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="fas fa-trash"></i></button></td>
+        <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRow(this)"><i class="fas fa-trash"></i></button></td>
     </tr>
 </template>
 
@@ -324,6 +329,24 @@
         
         // Initial filter for the newly added row
         filterMach(); // This will filter Mach and subsequently NoiDung
+        checkIfCanEditGeneralInfo();
+    }
+
+    function removeRow(btn) {
+        btn.closest('tr').remove();
+        checkIfCanEditGeneralInfo();
+    }
+
+    function checkIfCanEditGeneralInfo() {
+        const rowCount = document.querySelectorAll('#detailsBody tr').length;
+        const selects = document.querySelectorAll('select[name="NamHoc"], select[name="HocKy"], select[name="KyThi"], select[name="Khoi"], select[name="MonHoc"]');
+        if (rowCount === 0) {
+            selects.forEach(s => s.removeAttribute('disabled'));
+        } else {
+            // Note: we only disable if they were originally disabled (has_details) or if we just want to lock it down again.
+            // Actually, if they add a row back, it should be disabled to prevent changing after adding.
+            selects.forEach(s => s.setAttribute('disabled', 'disabled'));
+        }
     }
     
     function filterNoiDung(selectObj) {
@@ -396,7 +419,16 @@
                         
                         if(monhoc.selectedIndex > 0) parts.push(monhoc.options[monhoc.selectedIndex].text); else allSelected = false;
                         if(khoi.selectedIndex > 0) parts.push(khoi.options[khoi.selectedIndex].text); else allSelected = false;
-                        if(kythi.selectedIndex > 0) parts.push(kythi.options[kythi.selectedIndex].text); else allSelected = false;
+                        
+                        if(kythi.selectedIndex > 0 && hocky.selectedIndex > 0) {
+                            let kt = kythi.options[kythi.selectedIndex].text;
+                            let hk = hocky.options[hocky.selectedIndex].text; // e.g. "Học kỳ I"
+                            let suffix = hk.replace("Học kỳ ", ""); // "I" or "II"
+                            parts.push(`${kt} ${suffix}`);
+                        } else {
+                            allSelected = false;
+                        }
+                        
                         if(namhoc.selectedIndex > 0) parts.push(namhoc.options[namhoc.selectedIndex].text); else allSelected = false;
                         
                         if (allSelected) {

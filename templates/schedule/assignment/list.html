@@ -1,8 +1,8 @@
 {% extends 'base.html' %}
+{% block page_title %}Quản lý phân công giám thị{% endblock %}
 {% block content %}
 <div class="container-fluid py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h4 class="mb-0 text-primary fw-bold">Quản lý phân công giám thị</h4>
+    <div class="d-flex justify-content-end align-items-center mb-4">
         {% if is_bgh %}
         <a href="{% url 'assignment_auto_config' %}" class="btn btn-primary rounded-pill px-4 shadow-sm">
             <i class="fas fa-magic me-2"></i>Phân công tự động
@@ -28,7 +28,8 @@
                     <select name="hoc_ky" class="form-select rounded-3">
                         <option value="">Tất cả</option>
                         {% for hk in hoc_ky_choices %}
-                        <option value="{{ hk.0 }}" {% if request.GET.hoc_ky == hk.0 %}selected{% endif %}>{{ hk.1 }}</option>
+                        <option value="{{ hk.0 }}" {% if request.GET.hoc_ky == hk.0 %}selected{% endif %}>{{ hk.1 }}
+                        </option>
                         {% endfor %}
                     </select>
                 </div>
@@ -37,7 +38,8 @@
                     <select name="ky_thi" class="form-select rounded-3">
                         <option value="">Tất cả</option>
                         {% for kt in ky_thi_choices %}
-                        <option value="{{ kt.0 }}" {% if request.GET.ky_thi == kt.0 %}selected{% endif %}>{{ kt.1 }}</option>
+                        <option value="{{ kt.0 }}" {% if request.GET.ky_thi == kt.0 %}selected{% endif %}>{{ kt.1 }}
+                        </option>
                         {% endfor %}
                     </select>
                 </div>
@@ -46,16 +48,19 @@
                     <select name="khoi" class="form-select rounded-3">
                         <option value="">Tất cả</option>
                         {% for k in khoi_list %}
-                        <option value="{{ k.id }}" {% if request.GET.khoi == k.id|stringformat:"s" %}selected{% endif %}>{{ k.TenKhoi }}</option>
+                        <option value="{{ k.id }}" {% if request.GET.khoi == k.id|stringformat:"s" %}selected{% endif %}>
+                            {{ k.TenKhoi }}</option>
                         {% endfor %}
                     </select>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label text-muted small fw-bold">Từ khóa</label>
-                    <input type="text" name="q" class="form-control rounded-3" placeholder="Tên lớp, tên giám thị, tên môn..." value="{{ request.GET.q }}">
+                    <input type="text" name="q" class="form-control rounded-3"
+                        placeholder="Tên lớp, tên giám thị, tên môn..." value="{{ request.GET.q }}">
                 </div>
                 <div class="col-md-1">
-                    <button type="submit" class="btn btn-primary w-100 rounded-3"><i class="fas fa-search"></i> Lọc</button>
+                    <button type="submit" class="btn btn-primary w-100 rounded-3"><i class="fas fa-search"></i>
+                        Lọc</button>
                 </div>
             </form>
         </div>
@@ -79,7 +84,7 @@
                             {% endif %}
                         </tr>
                     </thead>
-                    
+
                     {% for nam_hoc, sub_groups in grouped_data.items %}
                     {% with g_idx=forloop.counter %}
                     <!-- LEVEL 1: Năm học -->
@@ -90,56 +95,63 @@
                             </td>
                         </tr>
                     </tbody>
-                    
+
                     <!-- LEVEL 2: Học kỳ - Kỳ thi -->
                     {% for hk_kt, khoi_groups in sub_groups.items %}
                     {% with hk_idx=forloop.counter %}
                     <tbody data-node-parent="g{{ g_idx }}" data-node-id="hk{{ g_idx }}-{{ hk_idx }}">
                         <tr class="table-secondary cursor-pointer toggle-row" data-node-id="hk{{ g_idx }}-{{ hk_idx }}">
-                            <td colspan="{% if is_bgh %}7{% else %}6{% endif %}" class="py-2 fw-bold text-secondary-emphasis" style="padding-left: 3rem;">
+                            <td colspan="{% if is_bgh %}7{% else %}6{% endif %}"
+                                class="py-2 fw-bold text-secondary-emphasis" style="padding-left: 3rem;">
                                 <i class="fas fa-caret-down me-2 text-muted"></i> {{ hk_kt }}
                             </td>
                         </tr>
                     </tbody>
-                    
+
                     <!-- LEVEL 3: Khối -->
                     {% for khoi, pc_list in khoi_groups.items %}
                     {% with k_idx=forloop.counter %}
-                    <tbody data-node-parent="hk{{ g_idx }}-{{ hk_idx }}" data-node-id="k{{ g_idx }}-{{ hk_idx }}-{{ k_idx }}">
-                        <tr class="cursor-pointer toggle-row" data-node-id="k{{ g_idx }}-{{ hk_idx }}-{{ k_idx }}" style="background-color: #f8f9fa;">
-                            <td colspan="{% if is_bgh %}7{% else %}6{% endif %}" class="py-2 fw-bold text-dark" style="padding-left: 5rem;">
-                                <i class="fas fa-caret-down me-2 text-muted"></i> {{ khoi }} <span class="badge bg-white border text-muted ms-2 rounded-pill">{{ pc_list|length }}</span>
+                    <tbody data-node-parent="hk{{ g_idx }}-{{ hk_idx }}"
+                        data-node-id="k{{ g_idx }}-{{ hk_idx }}-{{ k_idx }}">
+                        <tr class="cursor-pointer toggle-row" data-node-id="k{{ g_idx }}-{{ hk_idx }}-{{ k_idx }}"
+                            style="background-color: #f8f9fa;">
+                            <td colspan="{% if is_bgh %}7{% else %}6{% endif %}" class="py-2 fw-bold text-dark"
+                                style="padding-left: 5rem;">
+                                <i class="fas fa-caret-down me-2 text-muted"></i> {{ khoi }} <span
+                                    class="badge bg-white border text-muted ms-2 rounded-pill">{{ pc_list|length }}</span>
                             </td>
                         </tr>
                     </tbody>
-                    
+
                     <!-- LEVEL 4: Dữ liệu thực tế -->
                     <tbody data-node-parent="k{{ g_idx }}-{{ hk_idx }}-{{ k_idx }}">
                         {% for pc in pc_list %}
                         <tr class="bg-white">
                             <td class="py-3" style="padding-left: 7rem;">
                                 {% if is_bgh %}
-                                    <div class="fw-bold text-dark fs-6">{{ pc.LopHoc.TenLop }}</div>
-                                    <div class="text-danger small mt-1">GVCN: {{ pc.LopHoc.GVCN.HoTen|default:"Không có" }}</div>
+                                <div class="fw-bold text-dark fs-6">{{ pc.LopHoc.TenLop }}</div>
+                                <div class="text-danger small mt-1">GVCN: {{ pc.LopHoc.GVCN.HoTen|default:"Không có" }}
+                                </div>
                                 {% else %}
-                                    <span class="text-muted fst-italic small">Phòng thi bị ẩn</span>
+                                <span class="text-muted fst-italic small">Phòng thi bị ẩn</span>
                                 {% endif %}
                             </td>
-                            
+
                             <td class="py-3">
                                 <span class="badge bg-soft-primary text-primary px-2 py-1">{{ pc.LichThi.MonHoc.TenMon }}</span>
                             </td>
-                            
+
                             <td class="py-3 text-nowrap">{{ pc.LichThi.NgayThi|date:"d/m/Y" }}</td>
-                            
+
                             <td class="py-3 text-nowrap">
                                 <small class="text-muted"><i class="far fa-clock me-1"></i>{{ pc.LichThi.GioBatDau|time:"H:i" }} - {{ pc.LichThi.GioKetThuc|time:"H:i" }}</small>
                             </td>
-                            
+
                             <td class="py-3">
                                 {% if pc.GiamThi1 %}
                                 <div class="d-flex align-items-center">
-                                    <div class="avatar avatar-sm me-2 bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 28px; height: 28px; font-size: 12px;">
+                                    <div class="avatar avatar-sm me-2 bg-primary text-white rounded-circle d-flex align-items-center justify-content-center"
+                                        style="width: 28px; height: 28px; font-size: 12px;">
                                         {{ pc.GiamThi1.HoTen|slice:":1" }}
                                     </div>
                                     <span class="text-dark">{{ pc.GiamThi1.HoTen }}</span>
@@ -148,68 +160,78 @@
                                 <span class="text-danger small fst-italic">Thiếu giám thị</span>
                                 {% endif %}
                             </td>
-                            
+
                             <td class="py-3">
                                 {% if '5' in pc.LichThi.Khoi.TenKhoi and pc.LichThi.MonHoc.TenMon in 'Toán, Tiếng Việt' %}
-                                    {% if pc.GiamThiTHCS %}
-                                    <div class="d-flex align-items-center">
-                                        <div class="avatar avatar-sm me-2 bg-info text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 28px; height: 28px; font-size: 12px;">
-                                            <i class="fas fa-user-graduate"></i>
-                                        </div>
-                                        <span class="text-dark">{{ pc.GiamThiTHCS }} <small class="text-muted">(THCS)</small></span>
+                                {% if pc.GiamThiTHCS %}
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar avatar-sm me-2 bg-info text-white rounded-circle d-flex align-items-center justify-content-center"
+                                        style="width: 28px; height: 28px; font-size: 12px;">
+                                        <i class="fas fa-user-graduate"></i>
                                     </div>
-                                    {% else %}
-                                    <span class="text-warning small fst-italic">Thiếu giám thị THCS</span>
-                                    {% endif %}
+                                    <span class="text-dark">{{ pc.GiamThiTHCS }} <small
+                                            class="text-muted">(THCS)</small></span>
+                                </div>
                                 {% else %}
-                                    {% if pc.GiamThi2 %}
-                                    <div class="d-flex align-items-center">
-                                        <div class="avatar avatar-sm me-2 bg-success text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 28px; height: 28px; font-size: 12px;">
-                                            {{ pc.GiamThi2.HoTen|slice:":1" }}
-                                        </div>
-                                        <span class="text-dark">{{ pc.GiamThi2.HoTen }}</span>
+                                <span class="text-warning small fst-italic">Thiếu giám thị THCS</span>
+                                {% endif %}
+                                {% else %}
+                                {% if pc.GiamThi2 %}
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar avatar-sm me-2 bg-success text-white rounded-circle d-flex align-items-center justify-content-center"
+                                        style="width: 28px; height: 28px; font-size: 12px;">
+                                        {{ pc.GiamThi2.HoTen|slice:":1" }}
                                     </div>
-                                    {% else %}
-                                    <span class="text-danger small fst-italic">Thiếu giám thị</span>
-                                    {% endif %}
+                                    <span class="text-dark">{{ pc.GiamThi2.HoTen }}</span>
+                                </div>
+                                {% else %}
+                                <span class="text-danger small fst-italic">Thiếu giám thị</span>
+                                {% endif %}
                                 {% endif %}
                             </td>
-                            
+
                             {% if is_bgh %}
                             <td class="px-4 py-3 text-end text-nowrap">
                                 {% if pc.can_edit %}
-                                    <button type="button" class="btn btn-sm btn-light rounded-circle shadow-sm me-1" data-bs-toggle="modal" data-bs-target="#editModal-{{ pc.id }}" title="Sửa">
-                                        <i class="fas fa-edit text-primary"></i>
-                                    </button>
-                                    
-                                    {% if pc.can_delete %}
-                                    <button type="button" class="btn btn-sm btn-light rounded-circle shadow-sm" data-bs-toggle="modal" data-bs-target="#deleteModal-{{ pc.id }}" title="Xóa">
-                                        <i class="fas fa-trash-alt text-danger"></i>
-                                    </button>
-                                    {% else %}
-                                    <button type="button" class="btn btn-sm btn-light rounded-circle shadow-sm" disabled title="Không được xóa trong vòng 5 ngày trước ngày thi">
-                                        <i class="fas fa-trash-alt text-muted"></i>
-                                    </button>
-                                    {% endif %}
+                                <button type="button" class="btn btn-sm btn-light rounded-circle shadow-sm me-1"
+                                    data-bs-toggle="modal" data-bs-target="#editModal-{{ pc.id }}" title="Sửa">
+                                    <i class="fas fa-edit text-primary"></i>
+                                </button>
+
+                                {% if pc.can_delete %}
+                                <button type="button" class="btn btn-sm btn-light rounded-circle shadow-sm"
+                                    data-bs-toggle="modal" data-bs-target="#deleteModal-{{ pc.id }}" title="Xóa">
+                                    <i class="fas fa-trash-alt text-danger"></i>
+                                </button>
                                 {% else %}
-                                    <span class="text-muted small fst-italic">Không được sửa/xóa</span>
+                                <button type="button" class="btn btn-sm btn-light rounded-circle shadow-sm" disabled
+                                    title="Không được xóa trong vòng 5 ngày trước ngày thi">
+                                    <i class="fas fa-trash-alt text-muted"></i>
+                                </button>
+                                {% endif %}
+                                {% else %}
+                                <span class="text-muted small fst-italic">Không được sửa/xóa</span>
                                 {% endif %}
                             </td>
-                            
+
                             <!-- Delete Modal for this assignment -->
                             {% if pc.can_delete %}
-                            <div class="modal fade text-start" id="deleteModal-{{ pc.id }}" tabindex="-1" aria-hidden="true">
+                            <div class="modal fade text-start" id="deleteModal-{{ pc.id }}" tabindex="-1"
+                                aria-hidden="true">
                                 <div class="modal-dialog modal-sm modal-dialog-centered">
                                     <div class="modal-content border-0 shadow-lg rounded-4">
                                         <div class="modal-body text-center p-4">
                                             <i class="fas fa-exclamation-circle text-danger fa-3x mb-3"></i>
                                             <h5 class="mb-2 fw-bold text-dark">Xóa phân công</h5>
-                                            <p class="text-muted mb-4">Bạn có chắc muốn xóa phân công giám thị của lớp {{ pc.LopHoc.TenLop }}?</p>
+                                            <p class="text-muted mb-4">Bạn có chắc muốn xóa phân công giám thị của lớp
+                                                {{ pc.LopHoc.TenLop }}?</p>
                                             <div class="d-flex justify-content-center gap-2">
-                                                <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Hủy</button>
+                                                <button type="button" class="btn btn-light rounded-pill px-3"
+                                                    data-bs-dismiss="modal">Hủy</button>
                                                 <form action="{% url 'assignment_delete' pc.id %}" method="POST">
                                                     {% csrf_token %}
-                                                    <button type="submit" class="btn btn-danger rounded-pill px-3">Xóa</button>
+                                                    <button type="submit"
+                                                        class="btn btn-danger rounded-pill px-3">Xóa</button>
                                                 </form>
                                             </div>
                                         </div>
@@ -217,14 +239,16 @@
                                 </div>
                             </div>
                             {% endif %}
-                            
+
                             <!-- Edit Modal for this assignment -->
                             <div class="modal fade" id="editModal-{{ pc.id }}" tabindex="-1" aria-hidden="true">
                                 <div class="modal-dialog modal-lg modal-dialog-centered">
                                     <div class="modal-content border-0 shadow-lg rounded-4">
                                         <div class="modal-header bg-primary text-white p-4">
-                                            <h5 class="modal-title fw-bold"><i class="fas fa-edit me-2"></i>Sửa phân công giám thị</h5>
-                                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            <h5 class="modal-title fw-bold"><i class="fas fa-edit me-2"></i>Sửa phân
+                                                công giám thị</h5>
+                                            <button type="button" class="btn-close btn-close-white"
+                                                data-bs-dismiss="modal" aria-label="Close"></button>
                                         </div>
                                         <form action="{% url 'assignment_edit' pc.id %}" method="POST">
                                             {% csrf_token %}
@@ -232,46 +256,65 @@
                                                 <!-- Read-only info -->
                                                 <div class="row mb-4">
                                                     <div class="col-md-6 mb-3">
-                                                        <label class="form-label text-muted small fw-bold">Phòng thi</label>
-                                                        <input type="text" class="form-control bg-light" value="{{ pc.LopHoc.TenLop }}" disabled>
+                                                        <label class="form-label text-muted small fw-bold">Phòng
+                                                            thi</label>
+                                                        <input type="text" class="form-control bg-light"
+                                                            value="{{ pc.LopHoc.TenLop }}" disabled>
                                                     </div>
                                                     <div class="col-md-6 mb-3">
-                                                        <label class="form-label text-muted small fw-bold">GVCN lớp</label>
-                                                        <input type="text" class="form-control bg-light text-danger" value="{{ pc.LopHoc.GVCN.HoTen|default:'Không có' }}" disabled>
+                                                        <label class="form-label text-muted small fw-bold">GVCN
+                                                            lớp</label>
+                                                        <input type="text" class="form-control bg-light text-danger"
+                                                            value="{{ pc.LopHoc.GVCN.HoTen|default:'Không có' }}"
+                                                            disabled>
                                                     </div>
                                                     <div class="col-md-6 mb-3">
-                                                        <label class="form-label text-muted small fw-bold">Lịch thi</label>
-                                                        <input type="text" class="form-control bg-light" value="{{ pc.LichThi.Khoi.TenKhoi }} - Môn {{ pc.LichThi.MonHoc.TenMon }}" disabled>
+                                                        <label class="form-label text-muted small fw-bold">Lịch
+                                                            thi</label>
+                                                        <input type="text" class="form-control bg-light"
+                                                            value="{{ pc.LichThi.Khoi.TenKhoi }} - Môn {{ pc.LichThi.MonHoc.TenMon }}"
+                                                            disabled>
                                                     </div>
                                                     <div class="col-md-6 mb-3">
-                                                        <label class="form-label text-muted small fw-bold">Thời gian</label>
-                                                        <input type="text" class="form-control bg-light" value="{{ pc.LichThi.NgayThi|date:'d/m/Y' }} | {{ pc.LichThi.GioBatDau|time:'H:i' }} - {{ pc.LichThi.GioKetThuc|time:'H:i' }}" disabled>
+                                                        <label class="form-label text-muted small fw-bold">Thời
+                                                            gian</label>
+                                                        <input type="text" class="form-control bg-light"
+                                                            value="{{ pc.LichThi.NgayThi|date:'d/m/Y' }} | {{ pc.LichThi.GioBatDau|time:'H:i' }} - {{ pc.LichThi.GioKetThuc|time:'H:i' }}"
+                                                            disabled>
                                                     </div>
                                                 </div>
-                                                
+
                                                 <hr class="mb-4">
-                                                
+
                                                 <!-- Editable fields -->
                                                 <div class="mb-4">
                                                     <label class="form-label fw-bold text-dark">Giám thị 1</label>
-                                                    <select name="giam_thi_1" class="form-select form-select-lg rounded-3">
+                                                    <select name="giam_thi_1"
+                                                        class="form-select form-select-lg rounded-3">
                                                         <option value="">--- Chọn Giám thị 1 ---</option>
                                                         {% for gv in giao_vien_list %}
                                                         <option value="{{ gv.id }}" {% if pc.GiamThi1_id == gv.id %}selected{% endif %}>{{ gv.HoTen }}</option>
                                                         {% endfor %}
                                                     </select>
                                                 </div>
-                                                
+
                                                 {% if '5' in pc.LichThi.Khoi.TenKhoi and pc.LichThi.MonHoc.TenMon in 'Toán, Tiếng Việt' %}
                                                 <div class="mb-3">
-                                                    <label class="form-label fw-bold text-dark">Giám thị 2 (Giáo viên THCS)</label>
-                                                    <input type="text" name="giam_thi_thcs" class="form-control form-control-lg rounded-3" value="{{ pc.GiamThiTHCS }}" placeholder="Nhập tên giáo viên THCS">
-                                                    <small class="text-muted mt-2 d-block"><i class="fas fa-info-circle me-1"></i>Do là lớp 5 thi Toán/Tiếng Việt, Giám thị 2 được mời từ THCS.</small>
+                                                    <label class="form-label fw-bold text-dark">Giám thị 2 (Giáo viên
+                                                        THCS)</label>
+                                                    <input type="text" name="giam_thi_thcs"
+                                                        class="form-control form-control-lg rounded-3"
+                                                        value="{{ pc.GiamThiTHCS }}"
+                                                        placeholder="Nhập tên giáo viên THCS">
+                                                    <small class="text-muted mt-2 d-block"><i
+                                                            class="fas fa-info-circle me-1"></i>Do là lớp 5 thi
+                                                        Toán/Tiếng Việt, Giám thị 2 được mời từ THCS.</small>
                                                 </div>
                                                 {% else %}
                                                 <div class="mb-3">
                                                     <label class="form-label fw-bold text-dark">Giám thị 2</label>
-                                                    <select name="giam_thi_2" class="form-select form-select-lg rounded-3">
+                                                    <select name="giam_thi_2"
+                                                        class="form-select form-select-lg rounded-3">
                                                         <option value="">--- Chọn Giám thị 2 ---</option>
                                                         {% for gv in giao_vien_list %}
                                                         <option value="{{ gv.id }}" {% if pc.GiamThi2_id == gv.id %}selected{% endif %}>{{ gv.HoTen }}</option>
@@ -281,8 +324,10 @@
                                                 {% endif %}
                                             </div>
                                             <div class="modal-footer bg-light p-3">
-                                                <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Hủy</button>
-                                                <button type="submit" class="btn btn-primary rounded-pill px-4"><i class="fas fa-save me-2"></i>Lưu thay đổi</button>
+                                                <button type="button" class="btn btn-secondary rounded-pill px-4"
+                                                    data-bs-dismiss="modal">Hủy</button>
+                                                <button type="submit" class="btn btn-primary rounded-pill px-4"><i
+                                                        class="fas fa-save me-2"></i>Lưu thay đổi</button>
                                             </div>
                                         </form>
                                     </div>
@@ -310,70 +355,130 @@
                 </table>
             </div>
         </div>
+        <div class="card-footer bg-white border-top-0 py-3">
+            {% include 'pagination.html' %}
+        </div>
     </div>
 </div>
 
 <style>
-    .bg-soft-primary { background-color: rgba(13, 110, 253, 0.1); }
-    .cursor-pointer { cursor: pointer; }
-    .cursor-pointer:hover { filter: brightness(0.95); }
-    .toggle-row { user-select: none; }
+    .bg-soft-primary {
+        background-color: rgba(13, 110, 253, 0.1);
+    }
+
+    .cursor-pointer {
+        cursor: pointer;
+    }
+
+    .cursor-pointer:hover {
+        filter: brightness(0.95);
+    }
+
+    .toggle-row {
+        user-select: none;
+    }
 </style>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    function hideDescendants(parentId) {
-        const children = document.querySelectorAll(`tbody[data-node-parent="${parentId}"]`);
-        children.forEach(child => {
-            child.classList.add('d-none');
-            // If this child is also a toggler group, recursively hide its descendants
-            const childId = child.getAttribute('data-node-id');
-            if (childId) {
-                hideDescendants(childId);
-            }
-        });
-    }
-
-    function showChildren(parentId) {
-        const children = document.querySelectorAll(`tbody[data-node-parent="${parentId}"]`);
-        children.forEach(child => {
-            child.classList.remove('d-none');
-            // If this child is a toggler AND its icon is pointing down (meaning it was previously expanded), show its children too
-            const childToggler = child.querySelector('.toggle-row');
-            if (childToggler) {
-                const isExpanded = childToggler.querySelector('.fa-caret-down') !== null;
-                if (isExpanded) {
-                    const childId = childToggler.getAttribute('data-node-id');
-                    showChildren(childId);
+    document.addEventListener('DOMContentLoaded', function () {
+        function hideDescendants(parentId) {
+            const children = document.querySelectorAll(`tbody[data-node-parent="${parentId}"]`);
+            children.forEach(child => {
+                child.classList.add('d-none');
+                const childId = child.getAttribute('data-node-id');
+                if (childId) {
+                    const childToggler = child.querySelector('.toggle-row');
+                    if (childToggler) {
+                        const icon = childToggler.querySelector('.fa-caret-down, .fa-caret-right');
+                        if (icon) {
+                            icon.classList.remove('fa-caret-down');
+                            icon.classList.add('fa-caret-right');
+                        }
+                    }
+                    hideDescendants(childId);
                 }
-            }
+            });
+        }
+
+        function showChildren(parentId) {
+            const children = document.querySelectorAll(`tbody[data-node-parent="${parentId}"]`);
+            children.forEach(child => {
+                child.classList.remove('d-none');
+                const childToggler = child.querySelector('.toggle-row');
+                if (childToggler) {
+                    const isExpanded = childToggler.querySelector('.fa-caret-down') !== null;
+                    if (isExpanded) {
+                        const childId = childToggler.getAttribute('data-node-id');
+                        showChildren(childId);
+                    }
+                }
+            });
+        }
+
+        // Collapse all by default on load
+        document.querySelectorAll('tbody[data-node-parent]').forEach(tbody => {
+            tbody.classList.add('d-none');
         });
-    }
+        document.querySelectorAll('.toggle-row .fa-caret-down').forEach(icon => {
+            icon.classList.remove('fa-caret-down');
+            icon.classList.add('fa-caret-right');
+        });
 
-    // Collapse all by default on load (optional, but requested behavior implies we want to see it collapsed initially)
-    // Actually, let's keep them expanded by default and let user collapse, or collapse all except top level.
-    // To make it look like a real tree, let's just make the JS work cleanly first.
+        document.querySelectorAll('.toggle-row').forEach(row => {
+            row.addEventListener('click', function () {
+                const nodeId = this.getAttribute('data-node-id');
+                const icon = this.querySelector('.fa-caret-down, .fa-caret-right');
 
-    document.querySelectorAll('.toggle-row').forEach(row => {
-        row.addEventListener('click', function() {
-            const nodeId = this.getAttribute('data-node-id');
-            const icon = this.querySelector('.fa-caret-down, .fa-caret-right');
-            
-            const isExpanded = icon.classList.contains('fa-caret-down');
-            
-            if (isExpanded) {
-                // Collapse
-                icon.classList.remove('fa-caret-down');
-                icon.classList.add('fa-caret-right');
-                hideDescendants(nodeId);
-            } else {
-                // Expand
-                icon.classList.remove('fa-caret-right');
-                icon.classList.add('fa-caret-down');
-                showChildren(nodeId);
-            }
+                const isExpanded = icon.classList.contains('fa-caret-down');
+
+                if (isExpanded) {
+                    icon.classList.remove('fa-caret-down');
+                    icon.classList.add('fa-caret-right');
+                    hideDescendants(nodeId);
+                } else {
+                    const tbody = this.closest('tbody');
+                    const parentId = tbody.getAttribute('data-node-parent');
+                    
+                    if (parentId) {
+                        const siblings = document.querySelectorAll(`tbody[data-node-parent="${parentId}"]`);
+                        siblings.forEach(sib => {
+                            if (sib !== tbody) {
+                                const sibToggler = sib.querySelector('.toggle-row');
+                                if (sibToggler) {
+                                    const sibIcon = sibToggler.querySelector('.fa-caret-down, .fa-caret-right');
+                                    if (sibIcon && sibIcon.classList.contains('fa-caret-down')) {
+                                        sibIcon.classList.remove('fa-caret-down');
+                                        sibIcon.classList.add('fa-caret-right');
+                                        const sibId = sibToggler.getAttribute('data-node-id');
+                                        hideDescendants(sibId);
+                                    }
+                                }
+                            }
+                        });
+                    } else {
+                        const allTbodys = document.querySelectorAll('tbody');
+                        allTbodys.forEach(tb => {
+                            if (tb !== tbody && !tb.hasAttribute('data-node-parent') && tb.hasAttribute('data-node-id')) {
+                                const tbToggler = tb.querySelector('.toggle-row');
+                                if (tbToggler) {
+                                    const tbIcon = tbToggler.querySelector('.fa-caret-down, .fa-caret-right');
+                                    if (tbIcon && tbIcon.classList.contains('fa-caret-down')) {
+                                        tbIcon.classList.remove('fa-caret-down');
+                                        tbIcon.classList.add('fa-caret-right');
+                                        const tbId = tbToggler.getAttribute('data-node-id');
+                                        hideDescendants(tbId);
+                                    }
+                                }
+                            }
+                        });
+                    }
+
+                    icon.classList.remove('fa-caret-right');
+                    icon.classList.add('fa-caret-down');
+                    showChildren(nodeId);
+                }
+            });
         });
     });
-});
 </script>
 {% endblock %}

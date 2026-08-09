@@ -103,27 +103,41 @@
         </tr>
     </table>
 
-    {% for ct in chi_tiet %}
+    {% for q in questions %}
         <div class="question">
-            <span class="question-title">Câu {{ ct.ThuTuCau }} ({{ ct.DiemSo }} điểm).</span> 
-            {{ ct.MaCauHoi.NoiDungCauHoi|safe }}
-            
-            {% if ct.MaCauHoi.HinhAnh %}
-                <div style="margin-top: 10px; text-align: center;">
-                    <img src="{{ ct.MaCauHoi.HinhAnh.path }}" style="max-width: 300px; max-height: 200px;">
-                </div>
-            {% endif %}
-            
-            {% if ct.MaCauHoi.DangCauHoi == 'MCQ' %}
-                <div class="answers">
-                    {% for da in ct.MaCauHoi.dap_ans.all|dictsort:"ThuTu" %}
-                        <div class="answer-item">
-                            {% if forloop.counter == 1 %}A.{% elif forloop.counter == 2 %}B.{% elif forloop.counter == 3 %}C.{% else %}D.{% endif %}
-                            {{ da.NoiDung|safe }}
+            {% if 'PHẦN' in q.tieu_de %}
+                <div class="question-title" style="text-align: center; text-transform: uppercase; font-size: 14pt; margin-top: 20px; margin-bottom: 10px;">{{ q.tieu_de }}</div>
+            {% else %}
+                <span class="question-title">{{ q.tieu_de }}</span> 
+                {% if q.cau_hoi %}
+                    {{ q.noi_dung_html|safe }}
+                    
+                    {% if q.hinh_anh_url %}
+                        <div style="margin-top: 10px; text-align: center;">
+                            <img src="{{ q.hinh_anh_url }}" style="max-width: 300px; max-height: 200px;">
                         </div>
-                    {% endfor %}
-                </div>
-                <div style="clear: both;"></div>
+                    {% endif %}
+                    
+                    {% if q.cau_hoi.DangCauHoi == 'MCQ' %}
+                        <div class="answers">
+                            {% for da in q.cau_hoi.dap_ans.all|dictsort:"ThuTu" %}
+                                <div class="answer-item">
+                                    {% if forloop.counter == 1 %}A.{% elif forloop.counter == 2 %}B.{% elif forloop.counter == 3 %}C.{% else %}D.{% endif %}
+                                    {{ da.NoiDung|safe }}
+                                </div>
+                            {% endfor %}
+                        </div>
+                        <div style="clear: both;"></div>
+                    {% endif %}
+                {% else %}
+                    {# Ngữ liệu chung #}
+                    {{ q.noi_dung_html|safe }}
+                    {% if q.hinh_anh_url %}
+                        <div style="margin-top: 10px; text-align: center;">
+                            <img src="{{ q.hinh_anh_url }}" style="max-width: 300px; max-height: 200px;">
+                        </div>
+                    {% endif %}
+                {% endif %}
             {% endif %}
         </div>
     {% endfor %}

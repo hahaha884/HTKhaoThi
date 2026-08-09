@@ -152,4 +152,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Cấu hình API Key cho Google Gemini (Tính năng AI)
 # Truy cập https://aistudio.google.com/app/apikey để tạo key miễn phí.
-GEMINI_API_KEY = 'AQ.Ab8RN6JrINz8Qn-E3XNvy8HgwG3XqffDxL0xC-AbDx8yTn23Pw'
+GEMINI_API_KEY = 'AQ.Ab8RN6L56jmWc2V5y8kKaXJcVaHRJwUKjktGnWMwUkIchw93RA'
+
+# Allow iframes from the same origin (for popup modals)
+X_FRAME_OPTIONS = 'SAMEORIGIN'

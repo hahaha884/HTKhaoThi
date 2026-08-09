@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load l10n %}
 {% block page_title %}Soạn thảo Đề thi{% endblock %}
 {% block content %}
 <div class="row g-4 mb-4">
@@ -30,7 +31,7 @@
                                     </div>
                                     {% if not mp.is_completed and de_thi.HinhThucTao == 'Thủ công' and de_thi.TrangThai == 'Nháp' %}
                                     <button type="button" class="btn btn-sm btn-outline-primary"
-                                            onclick="openQuestionPicker({{ mp.ct.id }}, {{ mp.diem_moi_cau }})">
+                                            onclick="openQuestionPicker({{ mp.ct.id }}, {{ mp.diem_moi_cau|unlocalize }})">
                                         <i class="fas fa-plus me-1"></i>Chọn câu
                                     </button>
                                     {% endif %}
@@ -85,13 +86,13 @@
                             </h6>
                             {% if de_thi.TrangThai == 'Nháp' %}
                             <div class="d-flex gap-2 align-items-center">
-                                <form method="POST" class="d-flex align-items-center gap-2 m-0 p-0">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="action" value="update_score">
-                                    <input type="hidden" name="ct_id" value="{{ item.id }}">
-                                    <input type="number" step="0.25" name="new_score" value="{{ item.DiemSo }}" class="form-control form-control-sm text-center" style="width: 70px;" onchange="this.form.submit()">
-                                    <span class="text-muted small">điểm</span>
-                                </form>
+                                    <form method="POST" class="d-flex align-items-center gap-2 m-0 p-0">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="update_score">
+                                        <input type="hidden" name="ct_id" value="{{ item.id }}">
+                                        <input type="number" step="0.25" name="new_score" value="{{ item.DiemSo|unlocalize }}" class="form-control form-control-sm text-center" style="width: 70px;" onchange="this.form.submit()">
+                                        <span class="text-muted small">điểm</span>
+                                    </form>
                                 <div class="dropdown">
                                     <button class="btn btn-sm btn-light border-0" type="button" data-bs-toggle="dropdown"><i class="fas fa-ellipsis-v text-muted"></i></button>
                                     <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
@@ -114,6 +115,19 @@
                             {% endif %}
                         </div>
                         
+                        <!-- Ngữ liệu chung (nếu có nhóm) -->
+                        {% if item.MaCauHoi.NhomCauHoi %}
+                        <div class="mt-3 mb-3 p-3 bg-light border rounded" style="border-left: 4px solid #0dcaf0 !important;">
+                            <div class="fw-bold text-info small mb-2"><i class="fas fa-layer-group me-1"></i>Ngữ liệu chung: {{ item.MaCauHoi.NhomCauHoi.TenNhom }}</div>
+                            {% if item.MaCauHoi.NhomCauHoi.NoiDungChung %}
+                            <div class="text-dark mb-2" style="white-space: pre-line;">{{ item.MaCauHoi.NhomCauHoi.NoiDungChung }}</div>
+                            {% endif %}
+                            {% if item.MaCauHoi.NhomCauHoi.HinhAnh %}
+                            <div><img src="{{ item.MaCauHoi.NhomCauHoi.HinhAnh.url }}" class="img-fluid rounded border shadow-sm" style="max-height: 250px;" alt="Hình ảnh ngữ liệu"></div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+
                         <!-- Nội dung câu hỏi -->
                         <div class="mt-2 text-dark" style="font-size: 1.05rem;">
                             {{ item.MaCauHoi.NoiDungCauHoi|safe }}
@@ -331,7 +345,13 @@
                     {% if de_thi.NguoiDuyet %}
                     <li class="mb-2 d-flex justify-content-between">
                         <span class="text-muted">Gửi đến:</span>
-                        <span class="fw-bold text-end" style="max-width:60%">{{ de_thi.NguoiDuyet.HoTen }}</span>
+                        <span class="fw-bold text-end" style="max-width:60%">
+                            {% if de_thi.NguoiDuyet.ChucVu in 'Hiệu trưởng,Phó hiệu trưởng' %}
+                                Ban Giám Hiệu
+                            {% else %}
+                                {{ de_thi.NguoiDuyet.HoTen }}
+                            {% endif %}
+                        </span>
                     </li>
                     {% endif %}
                     {% if de_thi.TrangThai == 'Đã nộp' %}
@@ -391,48 +411,60 @@
 
 
                 {% if de_thi.TrangThai == 'Nháp' %}
-                    {% if request.user.giaovien.ChucVu in 'Hiệu trưởng,Phó hiệu trưởng' and de_thi.NguoiTao == request.user.giaovien %}
-                    {# BGH tự tạo → Phê duyệt trực tiếp, không cần nộp #}
-                    {% if da_co_chinh_thuc %}
-                    <div class="alert alert-warning py-2 small mb-2">
-                        <i class="fas fa-exclamation-triangle me-1"></i>
-                        Đã có đề <strong>Chính thức</strong> cho môn <strong>{{ de_thi.MonHoc.TenMon }}</strong> - {{ de_thi.Khoi.TenKhoi }} kỳ này. Không thể phê duyệt thêm.
-                    </div>
-                    {% else %}
-                    <form method="POST" onsubmit="if(confirm('Xác nhận phê duyệt chính thức đề thi này?')){hasUnsavedChanges = false; return true;} return false;" class="d-grid gap-2 mb-2">
+                    {# 1. Nút LƯU ĐỀ (Dành cho tất cả mọi người đang ở chế độ Nháp) #}
+                    <form method="POST" onsubmit="hasUnsavedChanges = false;" class="d-grid gap-2 mb-2">
                         {% csrf_token %}
-                        <input type="hidden" name="action" value="approve_exam">
-                        <button type="submit" class="btn btn-success"><i class="fas fa-check-circle me-2"></i>Phê duyệt chính thức</button>
+                        <input type="hidden" name="action" value="save_draft">
+                        <button type="submit" class="btn btn-outline-primary"><i class="fas fa-save me-2"></i>Lưu đề (Nháp)</button>
                     </form>
-                    {% endif %}
+
+                    {# 2. Phân quyền hiển thị nút XUẤT BẢN / NỘP ĐỀ #}
+                    {% if request.user.giaovien.ChucVu == 'Hiệu trưởng' or request.user.giaovien.ChucVu == 'Phó hiệu trưởng' %}
+                        {# BGH: Chỉ duyệt chính thức nếu đề tự tạo hoặc bản sao của BGH #}
+                        {% if de_thi.NguoiTao == request.user.giaovien %}
+                            {% if da_co_chinh_thuc %}
+                            <div class="alert alert-warning py-2 small mb-2">
+                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                Đã có đề <strong>Chính thức</strong> cho môn <strong>{{ de_thi.MonHoc.TenMon }}</strong> - {{ de_thi.Khoi.TenKhoi }} kỳ này. Không thể phê duyệt thêm.
+                            </div>
+                            {% else %}
+                            <form method="POST" onsubmit="if(confirm('Bạn có chắc chắn muốn phê duyệt chính thức đề thi này không?')){hasUnsavedChanges = false; return true;} return false;" class="d-grid gap-2 mb-2">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="approve_exam">
+                                <button type="submit" class="btn btn-success"><i class="fas fa-check-circle me-2"></i>Phê duyệt</button>
+                            </form>
+                            {% endif %}
+                        {% endif %}
                     {% else %}
-                    {# Giáo viên / Tổ trưởng → Nộp đề lên cấp trên #}
-                    <form method="POST" onsubmit="if(confirm('Bạn có chắc chắn muốn nộp đề thi này? Sau khi nộp sẽ không thể chỉnh sửa.')){hasUnsavedChanges = false; return true;} return false;" class="d-grid gap-2 mb-2">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="submit_approval">
-                        <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane me-2"></i>Nộp đề</button>
-                    </form>
+                        {# Giáo viên/Tổ trưởng: Phải nộp đề lên cấp trên #}
+                        {% if de_thi.NguoiTao == request.user.giaovien %}
+                        <form method="POST" onsubmit="if(confirm('Bạn có chắc chắn muốn nộp đề thi này? Sau khi nộp sẽ không thể chỉnh sửa.')){hasUnsavedChanges = false; return true;} return false;" class="d-grid gap-2 mb-2">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="submit_approval">
+                            <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane me-2"></i>Nộp đề</button>
+                        </form>
+                        {% endif %}
                     {% endif %}
                 {% endif %}
 
                 {# === NÚT HÀNH ĐỘNG KHI XEM ĐỀ ĐÃ NỘP === #}
-
-                {# --- Đánh dấu đã đọc: chỉ hiện cho người được phân công (NguoiDuyet), khi chưa đọc --- #}
-                {% if de_thi.TrangThai == 'Đã nộp' and de_thi.TrangThaiDoc == 'Chưa đọc' and request.user.giaovien.pk == de_thi.NguoiDuyet_id %}
-                <form method="POST" onsubmit="return confirm('Xác nhận đã đọc đề thi này?');" class="d-grid gap-2 mb-2">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="mark_as_read">
-                    <button type="submit" class="btn btn-warning"><i class="fas fa-envelope-open me-2"></i>Đánh dấu đã đọc</button>
-                </form>
+                
+                {# --- Đánh dấu đã đọc: chỉ hiện cho người được phân công (NguoiDuyet) hoặc cho bất kỳ BGH nào nếu NguoiDuyet là BGH, khi chưa đọc --- #}
+                {% if de_thi.TrangThai == 'Đã nộp' and de_thi.TrangThaiDoc == 'Chưa đọc' %}
+                    {% if request.user.giaovien.pk == de_thi.NguoiDuyet_id or de_thi.NguoiDuyet.ChucVu in 'Hiệu trưởng,Phó hiệu trưởng' and request.user.giaovien.ChucVu in 'Hiệu trưởng,Phó hiệu trưởng' %}
+                    <form method="POST" onsubmit="return confirm('Xác nhận đã đọc đề thi này?');" class="d-grid gap-2 mb-2">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="mark_as_read">
+                        <button type="submit" class="btn btn-info text-dark fw-bold"><i class="fas fa-envelope-open-text me-2"></i>Đánh dấu đã đọc</button>
+                    </form>
+                    {% endif %}
                 {% endif %}
-
-
-
+                
                 {# --- Khi đề "Đã nộp": hướng dẫn tạo bản sao để xử lý --- #}
                 {% if de_thi.TrangThai == 'Đã nộp' %}
                 <div class="alert alert-info py-2 small mb-2">
                     <i class="fas fa-info-circle me-1"></i>
-                    {% if request.user.giaovien.ChucVu in 'Hiệu trưởng,Phó hiệu trưởng' %}
+                    {% if request.user.giaovien.ChucVu == 'Hiệu trưởng' or request.user.giaovien.ChucVu == 'Phó hiệu trưởng' %}
                         <strong>Để phê duyệt:</strong> Đánh dấu đã đọc → <strong>Tạo bản sao</strong> → Phê duyệt trên bản sao.
                     {% elif request.user.giaovien.pk == de_thi.NguoiDuyet_id %}
                         {% if de_thi.TrangThaiDoc == 'Chưa đọc' %}
@@ -449,8 +481,7 @@
 
 
                 <div class="d-grid gap-2">
-                    <a href="{% url 'exam_export' de_thi.id 'word' %}" class="btn btn-outline-secondary"><i class="fas fa-download me-2"></i>Xuất đề thi (Word)</a>
-                    
+                    <a href="{% url 'exam_export' de_thi.id 'word' %}" class="btn btn-outline-secondary" target="_blank"><i class="fas fa-file-word me-2"></i>Xuất Word</a>
                     <form method="POST" onsubmit="return confirm('Bạn có chắc chắn muốn tạo bản sao của đề thi này không?');" class="d-grid m-0 p-0">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="clone_exam">
@@ -475,7 +506,7 @@
                         <span id="pickerCriteria" class="badge bg-info text-dark fs-6"></span>
                         <span class="text-muted small ms-2"><i class="fas fa-info-circle me-1"></i>Chỉ hiển thị các câu chưa có trong đề</span>
                     </div>
-                    <a href="{% url 'question_create' %}?next={% url 'exam_editor' de_thi.pk %}&khoi_id={{ de_thi.Khoi_id|default:'' }}&mon_id={{ de_thi.MonHoc_id|default:'' }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                    <a href="javascript:void(0)" data-base-url="{% url 'question_create' %}?next={% url 'exam_editor' de_thi.pk %}&khoi_id={{ de_thi.Khoi_id|default:'' }}&mon_id={{ de_thi.MonHoc_id|default:'' }}&popup=1&is_from_exam=1" onclick="openCreateQuestionModal(this.dataset.baseUrl)" class="btn btn-sm btn-outline-primary create-question-btn">
                         <i class="fas fa-plus me-1"></i>Tạo câu mới
                     </a>
                 </div>
@@ -488,7 +519,7 @@
                 <div id="pickerEmpty" class="text-center py-5 d-none">
                     <i class="fas fa-search fa-3x text-muted opacity-25 mb-3"></i>
                     <h6 class="text-muted mb-3">Không tìm thấy câu hỏi phù hợp hoặc đã chọn hết.</h6>
-                    <a href="{% url 'question_create' %}?next={% url 'exam_editor' de_thi.pk %}&khoi_id={{ de_thi.Khoi_id|default:'' }}&mon_id={{ de_thi.MonHoc_id|default:'' }}" target="_blank" class="btn btn-primary">
+                    <a href="javascript:void(0)" data-base-url="{% url 'question_create' %}?next={% url 'exam_editor' de_thi.pk %}&khoi_id={{ de_thi.Khoi_id|default:'' }}&mon_id={{ de_thi.MonHoc_id|default:'' }}&popup=1&is_from_exam=1" onclick="openCreateQuestionModal(this.dataset.baseUrl)" class="btn btn-primary create-question-btn">
                         <i class="fas fa-plus me-2"></i>Soạn câu hỏi mới ngay
                     </a>
                 </div>
@@ -538,6 +569,36 @@
                     <input type="hidden" name="action" value="save_draft">
                     <button type="submit" class="btn btn-primary">Lưu lại</button>
                 </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Preview Question Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title fw-bold text-info"><i class="fas fa-eye me-2"></i>Xem trước Câu hỏi</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <iframe id="previewIframe" src="" width="100%" height="500px" style="border: none;"></iframe>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Question Modal -->
+<div class="modal fade" id="createQuestionModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold"><i class="fas fa-plus-circle me-2"></i>Tạo Câu hỏi Mới</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" id="closeCreateBtn"></button>
+            </div>
+            <div class="modal-body p-0" style="background-color: #f8f9fa;">
+                <iframe id="createIframe" src="" width="100%" height="80vh" style="border: none; min-height: 600px;"></iframe>
             </div>
         </div>
     </div>
@@ -614,9 +675,11 @@
                 
                 // Update "Tạo câu mới" links dynamically with matrix item criteria
                 if(data.ct_info) {
-                    const extra = `&muc_do=${data.ct_info.muc_do}&hinh_thuc=${data.ct_info.hinh_thuc}&mach_id=${data.ct_info.mach_id}&noidung_id=${data.ct_info.noidung_id}`;
-                    document.querySelectorAll('a[href^="/them/?next="]').forEach(a => {
-                        a.href = `{% url 'question_create' %}?next={% url 'exam_editor' de_thi.pk %}&khoi_id={{ de_thi.Khoi_id|default:'' }}&mon_id={{ de_thi.MonHoc_id|default:'' }}${extra}`;
+                    const mucDo = encodeURIComponent(data.ct_info.muc_do || '');
+                    const hinhThuc = encodeURIComponent(data.ct_info.hinh_thuc || '');
+                    const extra = `&muc_do=${mucDo}&hinh_thuc=${hinhThuc}&mach_id=${data.ct_info.mach_id}&noidung_id=${data.ct_info.noidung_id}&popup=1&is_from_exam=1`;
+                    document.querySelectorAll('.create-question-btn').forEach(btn => {
+                        btn.dataset.baseUrl = `{% url 'question_create' %}?next={% url 'exam_editor' de_thi.pk %}&khoi_id={{ de_thi.Khoi_id|default:'' }}&mon_id={{ de_thi.MonHoc_id|default:'' }}${extra}`;
                     });
                 }
                 
@@ -635,9 +698,11 @@
                         let textContent = q.noidung.replace(/<[^>]+>/g, ' ');
                         if(textContent.length > 200) textContent = textContent.substring(0, 200) + '...';
                         
+                        const previewUrl = `{% url 'question_preview' 0 %}`.replace('0', q.id);
                         divContent.innerHTML = `
                             <div class="d-flex justify-content-between w-100 mb-1">
-                                <h6 class="mb-0 fw-bold text-dark">ID: ${q.id} <span class="badge bg-light text-secondary border fw-normal ms-2">${q.dang_cau_hoi}</span></h6>
+                                <h6 class="mb-0 fw-bold text-dark align-self-center">ID: ${q.id} <span class="badge bg-light text-secondary border fw-normal ms-2">${q.dang_cau_hoi}</span></h6>
+                                <a href="javascript:void(0)" class="btn btn-sm btn-outline-info" title="Xem chi tiết" onclick="event.stopPropagation(); openPreviewModal('${previewUrl}');"><i class="fas fa-eye"></i> Xem</a>
                             </div>
                             <p class="mb-0 text-muted" style="font-size: 0.95rem;">${textContent}</p>
                         `;
@@ -697,9 +762,9 @@
                 }
                 
                 if(data.ct_info) {
-                    const extra = `&muc_do=${data.ct_info.muc_do}&hinh_thuc=${data.ct_info.hinh_thuc}&mach_id=${data.ct_info.mach_id}&noidung_id=${data.ct_info.noidung_id}`;
-                    document.querySelectorAll('a[href^="/them/?next="]').forEach(a => {
-                        a.href = `{% url 'question_create' %}?next={% url 'exam_editor' de_thi.pk %}&khoi_id={{ de_thi.Khoi_id|default:'' }}&mon_id={{ de_thi.MonHoc_id|default:'' }}${extra}`;
+                    const extra = `&muc_do=${data.ct_info.muc_do}&hinh_thuc=${data.ct_info.hinh_thuc}&mach_id=${data.ct_info.mach_id}&noidung_id=${data.ct_info.noidung_id}&popup=1&is_from_exam=1`;
+                    document.querySelectorAll('.create-question-btn').forEach(btn => {
+                        btn.dataset.baseUrl = `{% url 'question_create' %}?next={% url 'exam_editor' de_thi.pk %}&khoi_id={{ de_thi.Khoi_id|default:'' }}&mon_id={{ de_thi.MonHoc_id|default:'' }}${extra}`;
                     });
                 }
                 
@@ -717,9 +782,11 @@
                         let textContent = q.noidung.replace(/<[^>]+>/g, ' ');
                         if(textContent.length > 200) textContent = textContent.substring(0, 200) + '...';
                         
+                        const previewUrl = `{% url 'question_preview' 0 %}`.replace('0', q.id);
                         divContent.innerHTML = `
                             <div class="d-flex justify-content-between w-100 mb-1">
-                                <h6 class="mb-0 fw-bold text-dark">ID: ${q.id} <span class="badge bg-light text-secondary border fw-normal ms-2">${q.dang_cau_hoi}</span></h6>
+                                <h6 class="mb-0 fw-bold text-dark align-self-center">ID: ${q.id} <span class="badge bg-light text-secondary border fw-normal ms-2">${q.dang_cau_hoi}</span></h6>
+                                <a href="javascript:void(0)" class="btn btn-sm btn-outline-info" title="Xem chi tiết" onclick="event.stopPropagation(); openPreviewModal('${previewUrl}');"><i class="fas fa-eye"></i> Xem</a>
                             </div>
                             <p class="mb-0 text-muted" style="font-size: 0.95rem;">${textContent}</p>
                         `;
@@ -746,5 +813,29 @@
                 console.error(err);
             });
     }
+
+
+    function openPreviewModal(url) {
+        document.getElementById('previewIframe').src = url;
+        new bootstrap.Modal(document.getElementById('previewModal')).show();
+    }
+
+    function openCreateQuestionModal(url) {
+        document.getElementById('createIframe').src = url;
+        new bootstrap.Modal(document.getElementById('createQuestionModal')).show();
+    }
+
+    // Listen for messages from the popup iframe (when a new question is created)
+    window.addEventListener("message", function(event) {
+        if (event.data.type === "question_created") {
+            // Re-fetch questions or reload editor based on where they clicked
+            // If they click 'Tạo câu mới', they actually want the question added automatically
+            if (event.data.added_question_id) {
+                hasUnsavedChanges = false;
+                // redirect to include the added_question_id param to let python add it
+                window.location.href = window.location.pathname + "?added_question_id=" + event.data.added_question_id;
+            }
+        }
+    }, false);
 </script>
 {% endblock %}

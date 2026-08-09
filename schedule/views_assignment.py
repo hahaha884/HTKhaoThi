@@ -54,9 +54,14 @@ def assignment_list(request):
         
     phan_cong_list = phan_cong_list.order_by('-LichThi__NamHoc__TenNamHoc', 'LichThi__HocKy', 'LichThi__KyThi', 'LichThi__Khoi__TenKhoi', 'LopHoc__TenLop')
     
+    from django.core.paginator import Paginator
+    paginator = Paginator(phan_cong_list, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
     import collections
     grouped_data = collections.defaultdict(lambda: collections.defaultdict(lambda: collections.defaultdict(list)))
-    for pc in phan_cong_list:
+    for pc in page_obj:
         nam_hoc = f"Năm học {pc.LichThi.NamHoc.TenNamHoc}"
         hk_kt = f"{pc.LichThi.HocKy} - {pc.LichThi.KyThi}"
         khoi = pc.LichThi.Khoi.TenKhoi
@@ -71,6 +76,7 @@ def assignment_list(request):
     
     context = {
         'grouped_data': grouped_data_dict,
+        'page_obj': page_obj,
         'nam_hoc_list': NamHoc.objects.all(),
         'khoi_list': Khoi.objects.all(),
         'hoc_ky_choices': HOC_KY_CHOICES,

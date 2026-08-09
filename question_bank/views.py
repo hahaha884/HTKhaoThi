@@ -6,6 +6,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.http import JsonResponse
 import json
+import os
 import docx
 from exam.models import DeThi_CT
 import google.generativeai as genai
@@ -273,6 +274,19 @@ def question_create(request):
                         DapAn.objects.create(CauHoi=q, HinhAnh=hinh_anh_da, LaDapAnDung=True)
                 
                 messages.success(request, 'Thêm câu hỏi thành công.')
+                is_popup = request.GET.get('popup') == '1' or request.POST.get('popup') == '1'
+                if is_popup:
+                    html = f"""
+                    <script>
+                        window.parent.postMessage({{
+                            type: 'question_created',
+                            added_question_id: {q.id}
+                        }}, '*');
+                    </script>
+                    """
+                    from django.http import HttpResponse
+                    return HttpResponse(html)
+                    
                 if next_url:
                     separator = '&' if '?' in next_url else '?'
                     next_url = f"{next_url}{separator}added_question_id={q.id}"
@@ -294,6 +308,8 @@ def question_create(request):
         'default_noidung': request.GET.get('noidung_id', ''),
         'default_hinh_thuc': request.GET.get('hinh_thuc', ''),
         'default_muc_do': request.GET.get('muc_do', ''),
+        'is_popup': request.GET.get('popup') == '1',
+        'is_from_exam': request.GET.get('is_from_exam') == '1',
     }
     return render(request, 'question_bank/form.html', context)
 
@@ -615,6 +631,12 @@ def group_delete(request, pk):
 @login_required
 @khao_thi_required
 def import_word_preview(request):
+    # Pre-fetch classification data needed for template context in all code paths
+    khois_list = list(Khoi.objects.values('id', 'TenKhoi'))
+    mons_list = list(MonHoc.objects.values('id', 'TenMon'))
+    machs_list = list(MachKienThuc.objects.values('id', 'TenMach', 'MonHoc_id'))
+    noidungs_list = list(NoiDungKienThuc.objects.values('id', 'TenNoidung', 'MachKienThuc_id'))
+
     if request.method == 'POST' and request.FILES.get('word_file'):
         word_file = request.FILES['word_file']
         try:
@@ -668,15 +690,16 @@ def import_word_preview(request):
             api_key = getattr(settings, 'GEMINI_API_KEY', '')
             if not api_key:
                 messages.error(request, 'Cần cấu hình GEMINI_API_KEY trong settings để sử dụng tính năng trích xuất thông minh.')
-                return render(request, 'question_bank/import_word.html', {'parsed_groups': '[]'})
+                return render(request, 'question_bank/import_word.html', {
+                    'parsed_groups': '[]',
+                    'khois_data': json.dumps(khois_list),
+                    'mons_data': json.dumps(mons_list),
+                    'machs_data': json.dumps(machs_list),
+                    'noidungs_data': json.dumps(noidungs_list)
+                })
                 
             genai.configure(api_key=api_key)
             model = genai.GenerativeModel('gemini-flash-latest')
-            
-            khois_list = list(Khoi.objects.values('id', 'TenKhoi'))
-            mons_list = list(MonHoc.objects.values('id', 'TenMon'))
-            machs_list = list(MachKienThuc.objects.values('id', 'TenMach', 'MonHoc_id'))
-            noidungs_list = list(NoiDungKienThuc.objects.values('id', 'TenNoidung', 'MachKienThuc_id'))
             
             prompt = f"""
             Bạn là một hệ thống trích xuất và phân loại câu hỏi thông minh từ đề thi.
@@ -693,22 +716,24 @@ def import_word_preview(request):
             - "TF": Trắc nghiệm Đúng/Sai (Gồm nhiều mệnh đề, yêu cầu đánh giá từng mệnh đề là Đúng hay Sai).
             - "Matching": Câu hỏi ghép nối (Nối các mục ở 2 cột với nhau).
             - "FIB": Câu hỏi điền khuyết (Điền từ vào chỗ trống).
+            - "Order": Sắp xếp thứ tự (Sắp xếp danh sách các mục theo thứ tự đúng).
             - "EssayShort": Tự luận ngắn (Ví dụ: đặt câu, viết 1 đoạn văn ngắn, tính toán tự luận).
             - "EssayLong": Tự luận dài (Ví dụ: Tập làm văn, viết bài văn).
             Nếu là dạng tự luận, phần giải thích/đáp án/barem điểm phải được gán vào trường "explanation".
             
             LƯU Ý CỰC KỲ QUAN TRỌNG VỀ ĐỊNH DẠNG:
-            1. BẠN PHẢI LOẠI BỎ TOÀN BỘ CÁC THẺ HTML (như <br>, <strong>, <p>, <span>...) ra khỏi nội dung câu hỏi và đáp án, CHỈ GIỮ LẠI PLAIN TEXT. Tuyệt đối không được trả về thẻ HTML trong kết quả.
+            1. BẠN PHẢI LOẠI BỎ CÁC THẺ HTML TRANG TRÍ (như <br>, <strong>, <p>, <span>...) ra khỏi nội dung câu hỏi và đáp án, CHỈ GIỮ LẠI PLAIN TEXT. 
+               TUY NHIÊN, nếu câu hỏi hoặc đáp án có chứa hình ảnh (các tag <img src="IMAGE_X"> hoặc <img id="IMAGE_X">), bạn BẮT BUỘC phải giữ nguyên thẻ `<img src="IMAGE_X">` ở vị trí tương ứng trong văn bản `content` của câu hỏi hoặc `text` / `statement` / `left` / `right` của đáp án để không làm mất vị trí ảnh.
             2. NẾU CÂU HỎI CÓ CÁC LỰA CHỌN ĐÁP ÁN (ví dụ A, B, C, D), BẠN BẮT BUỘC PHẢI TÁCH CHÚNG RA KHỎI NỘI DUNG CÂU HỎI VÀ ĐƯA VÀO MẢNG `answers`. KHÔNG ĐƯỢC GỘP LỰA CHỌN ĐÁP ÁN VÀO TRONG TRƯỜNG `content` CỦA CÂU HỎI.
             3. PHẢI PHÂN LOẠI ĐÚNG DẠNG CÂU HỎI. Nếu câu hỏi có 4 phương án A,B,C,D thì đó là MCQ, không phải tự luận!
             
             LƯU Ý VỀ HÌNH ẢNH: Trong văn bản HTML có các thẻ `<img src="IMAGE_X" id="IMAGE_X">`. 
             - Nếu câu hỏi có chứa hình ảnh, hãy đặt giá trị `IMAGE_X` vào trường `image` của câu hỏi. Nếu không có, để null.
-            - Nếu đáp án/phương án có hình ảnh, hãy đặt `IMAGE_X` vào trường `image` (hoặc `left_image`, `right_image` tùy dạng) của phương án đó. Nếu không, để null.
+            - Nếu đáp án/phương án có hình ảnh, hãy đặt giá trị `IMAGE_X` vào trường `image` (hoặc `left_image`, `right_image` tùy dạng) của phương án đó. Nếu không, để null.
             
             Nhiệm vụ 2: Kiểm duyệt và Giải đề tự động
             - Kiểm duyệt: Phân tích nội dung đề thi. Nếu phát hiện kiến thức VƯỢT QUÁ chương trình Tiểu học (Ví dụ: Toán cấp 2, 3, Đại học, môn học lạ), hãy gán "is_out_of_scope": true và ghi rõ cảnh báo vào "scope_warning" (VD: "Đề thi này chứa kiến thức Đại số cấp 2"). Nếu bình thường, để false và null.
-            - Giải đề: Đóng vai trò là Giáo viên, nếu đề thi KHÔNG CÓ SẴN ĐÁP ÁN ở cuối, bạn phải TỰ ĐỘNG GIẢI các câu hỏi và điền đáp án đúng vào cấu trúc. ĐỒNG THỜI, gán cờ "is_ai_solved": true cho các câu hỏi mà bạn phải tự giải. Nếu đề đã có sẵn đáp án, gán false.
+            - Giải đề: Đóng vai trò là Giáo viên, nếu đề thi KHÔNG CÓ SẴN ĐÁP ÁN ở cuối hoặc không ghi rõ đáp án đúng, bạn phải TỰ ĐỘNG GIẢI các câu hỏi và điền đáp án đúng vào cấu trúc. ĐỒNG THỜI, gán cờ "is_ai_solved": true cho các câu hỏi mà bạn phải tự giải. Nếu đề đã có sẵn đáp án, gán false.
             
             Nhiệm vụ 3: Phân loại từng câu hỏi dựa vào danh sách sau (trả về ID tương ứng, nếu không rõ thì null):
             - Khối: {khois_list}
@@ -723,9 +748,10 @@ def import_word_preview(request):
             
             Cấu trúc mảng `answers` sẽ khác nhau tùy thuộc vào `question_type`:
             - MCQ/MSQ: `answers`: [{{"text": "A. ...", "image": "IMAGE_X"}}], `correct`: 0 (với MCQ) hoặc [0, 2] (với MSQ). Đảm bảo phải có mảng `answers` riêng biệt.
-            - TF: `answers`: [{{"statement": "Mệnh đề 1", "image": "IMAGE_X", "correct_label": "Đúng"}}].
+            - TF: `answers`: [{{"statement": "Mệnh đề 1", "image": "IMAGE_X", "correct_label": "Đúng"}}]. (correct_label chỉ nhận giá trị "Đúng" hoặc "Sai").
             - Matching: `answers`: [{{"left": "Từ 1", "left_image": "IMAGE_X", "right": "Nghĩa 1", "right_image": "IMAGE_Y"}}].
             - FIB: `answers`: ["Đáp án 1", "Đáp án 2"]. (Điền khuyết không hỗ trợ ảnh đáp án)
+            - Order: `answers`: ["Mục 1", "Mục 2", "Mục 3"]. (Danh sách các mục theo thứ tự đúng)
             - EssayShort/EssayLong: `answers`: [].
             
             Ví dụ định dạng trả về:
@@ -738,25 +764,12 @@ def import_word_preview(request):
                   "questions": [
                     {{
                       "question_type": "MCQ",
-                      "content": "Câu 1: Địa danh được tả là gì?",
-                      "image": null,
-                      "answers": [{{"text": "A. Đà Lạt", "image": null}}, {{"text": "B. Gò Công", "image": "IMAGE_1"}}],
+                      "content": "Câu 1: Địa danh được tả là gì? <img src=\\"IMAGE_1\\">",
+                      "image": "IMAGE_1",
+                      "answers": [{{"text": "A. Đà Lạt", "image": null}}, {{"text": "B. Gò Công", "image": null}}],
                       "correct": 1,
                       "explanation": "Chi tiết trong bài...",
                       "is_ai_solved": true,
-                      "khoi_id": 4, "mon_id": 2, "mach_id": 10, "noidung_id": 25,
-                      "khoi_name": "Khối 4", "mon_name": "Tiếng Việt", "mach_name": "Đọc hiểu", "noidung_name": ""
-                    }},
-                    {{
-                      "question_type": "TF",
-                      "content": "Câu 2: Các nhận định sau đúng hay sai?",
-                      "answers": [
-                          {{"statement": "Gò Công ở miền Tây", "correct_label": "Đúng"}},
-                          {{"statement": "Gò Công có núi cao", "correct_label": "Sai"}}
-                      ],
-                      "correct": null,
-                      "explanation": "",
-                      "is_ai_solved": false,
                       "khoi_id": 4, "mon_id": 2, "mach_id": 10, "noidung_id": 25,
                       "khoi_name": "Khối 4", "mon_name": "Tiếng Việt", "mach_name": "Đọc hiểu", "noidung_name": ""
                     }}
@@ -793,12 +806,30 @@ def import_word_preview(request):
                 
             parsed_data = json.loads(res_text.strip())
             
+            # Thêm kiểm tra trùng lặp cho mỗi câu hỏi trong parsed_data
+            if isinstance(parsed_data, dict) and 'groups' in parsed_data:
+                for group in parsed_data['groups']:
+                    for q in group.get('questions', []):
+                        q['is_duplicate'] = CauHoi.objects.filter(
+                            Khoi_id=q.get('khoi_id'),
+                            MonHoc_id=q.get('mon_id'),
+                            NoiDungCauHoi__iexact=q.get('content', '').strip()
+                        ).exists()
+            
             # Thay thế mã ảnh thành chuỗi Base64 thực tế để hiển thị
             def replace_image_codes(obj):
                 if isinstance(obj, dict):
                     for k, v in obj.items():
-                        if isinstance(v, str) and v in images_dict:
-                            obj[k] = images_dict[v]
+                        if isinstance(v, str):
+                            if v in images_dict:
+                                obj[k] = images_dict[v]
+                            else:
+                                # Thay thế placeholder IMAGE_X trong chuỗi HTML/Sub-string
+                                new_v = v
+                                for img_id, img_base64 in images_dict.items():
+                                    if img_id in new_v:
+                                        new_v = new_v.replace(img_id, img_base64)
+                                obj[k] = new_v
                         else:
                             replace_image_codes(v)
                 elif isinstance(obj, list):
@@ -808,15 +839,160 @@ def import_word_preview(request):
             replace_image_codes(parsed_data)
             
             return render(request, 'question_bank/import_word.html', {
-                'parsed_groups': json.dumps(parsed_data)
+                'parsed_groups': json.dumps(parsed_data),
+                'khois_data': json.dumps(khois_list),
+                'mons_data': json.dumps(mons_list),
+                'machs_data': json.dumps(machs_list),
+                'noidungs_data': json.dumps(noidungs_list)
             })
             
         except Exception as e:
             messages.error(request, f'Lỗi đọc file hoặc AI: {str(e)}')
             
     return render(request, 'question_bank/import_word.html', {
-        'parsed_groups': '[]'
+        'parsed_groups': '[]',
+        'khois_data': json.dumps(khois_list),
+        'mons_data': json.dumps(mons_list),
+        'machs_data': json.dumps(machs_list),
+        'noidungs_data': json.dumps(noidungs_list)
     })
+
+@csrf_exempt
+@login_required
+@khao_thi_required
+def api_suggest_question(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            khoi    = data.get('khoi', '').strip()
+            mon     = data.get('mon', '').strip()
+            mach    = data.get('mach', '').strip()
+            noidung = data.get('noidung', '').strip()
+            dang    = data.get('dang', '').strip()
+            muc_do  = data.get('muc_do', '').strip()
+            requirement = data.get('requirement', '').strip()
+            group_content = data.get('group_content', '').strip()
+
+            api_key = getattr(settings, 'GEMINI_API_KEY', '')
+            if not api_key:
+                return JsonResponse({'error': 'Chưa cấu hình API Key cho Gemini AI.'}, status=400)
+
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel('gemini-flash-latest')
+
+            # Xây dựng ngữ cảnh phân loại
+            context_parts = []
+            if khoi:    context_parts.append(f"Khối: {khoi}")
+            if mon:     context_parts.append(f"Môn: {mon}")
+            if mach:    context_parts.append(f"Mạch kiến thức: {mach}")
+            if noidung: context_parts.append(f"Nội dung kiến thức: {noidung}")
+            if dang:    context_parts.append(f"Dạng câu hỏi: {dang}")
+            if muc_do:  context_parts.append(f"Mức độ: {muc_do}")
+            context_str = '\n'.join(context_parts) if context_parts else 'Chưa chọn phân loại cụ thể'
+
+            extra = f'\nYêu cầu thêm: {requirement}' if requirement else ''
+            
+            group_context = f'\nNGỮ LIỆU CHUNG (Dùng ngữ liệu này để đặt câu hỏi đọc hiểu / tính toán):\n"""\n{group_content}\n"""\n(BẮT BUỘC: Đặt câu hỏi dựa trên hoặc liên quan đến nội dung ngữ liệu này)' if group_content else ''
+
+            prompt = f"""
+Bạn là giáo viên Tiểu học Việt Nam. Hãy tạo 1 câu hỏi thi theo yêu cầu sau:
+
+{context_str}{extra}{group_context}
+
+QUY TẮC BẮT BUỘC:
+- Chỉ viết PHẦN ĐỀ BÀI của câu hỏi (câu hỏi đặt ra cho học sinh).
+- TUYỆT ĐỐI KHÔNG được viết các phương án trả lời (A., B., C., D., 1., 2., ...) vào trong câu hỏi.
+- TUYỆT ĐỐI KHÔNG viết đáp án, gợi ý, hoặc giải thích.
+- Không có tiền tố "Câu 1:" hay số thứ tự.
+- Câu hỏi ngắn gọn, rõ ràng, phù hợp học sinh Tiểu học.
+- Trả về JSON: {{"question_content": "Câu hỏi ở đây"}}
+"""
+            response = model.generate_content(prompt)
+            res_text = response.text.strip()
+            if res_text.startswith('```json'): res_text = res_text[7:]
+            if res_text.startswith('```'):     res_text = res_text[3:]
+            if res_text.endswith('```'):       res_text = res_text[:-3]
+
+            result = json.loads(res_text.strip())
+            q_content = result.get('question_content', '')
+
+            # Hậu xử lý: cắt bỏ các dòng đáp án nếu AI vẫn thêm vào
+            import re
+            lines = q_content.splitlines()
+            clean_lines = [
+                line for line in lines
+                if not re.match(r'^\s*[A-Da-d][.)]\s+', line)   # Loại "A. ...", "B) ..."
+                and not re.match(r'^\s*[1-4][.)]\s+', line)      # Loại "1. ...", "2) ..."
+            ]
+            q_content = '\n'.join(clean_lines).strip()
+
+            return JsonResponse({'success': True, 'question_content': q_content})
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    return JsonResponse({'error': 'Invalid method'}, status=400)
+
+
+@csrf_exempt
+@login_required
+@khao_thi_required
+def api_suggest_group_content(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            khoi    = data.get('khoi', '').strip()
+            mon     = data.get('mon', '').strip()
+            mach    = data.get('mach', '').strip()
+            noidung = data.get('noidung', '').strip()
+            requirement = data.get('requirement', '').strip()
+
+            api_key = getattr(settings, 'GEMINI_API_KEY', '')
+            if not api_key:
+                return JsonResponse({'error': 'Chưa cấu hình API Key cho Gemini AI.'}, status=400)
+
+            import google.generativeai as genai
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel('gemini-flash-latest')
+
+            # Xây dựng ngữ cảnh phân loại
+            context_parts = []
+            if khoi:    context_parts.append(f"Khối: {khoi}")
+            if mon:     context_parts.append(f"Môn: {mon}")
+            if mach:    context_parts.append(f"Mạch kiến thức: {mach}")
+            if noidung: context_parts.append(f"Nội dung kiến thức: {noidung}")
+            context_str = '\n'.join(context_parts) if context_parts else 'Chưa chọn phân loại cụ thể'
+
+            extra = f'\nYêu cầu thêm: {requirement}' if requirement else ''
+
+            prompt = f"""
+Bạn là giáo viên Tiểu học Việt Nam. Hãy tạo phần Nội dung chung (ngữ liệu chung như đoạn văn, bài thơ, tình huống) để dùng chung cho 1 nhóm câu hỏi, theo yêu cầu sau:
+
+{context_str}{extra}
+
+QUY TẮC BẮT BUỘC:
+- Chỉ viết phần ngữ liệu, văn bản, đoạn văn, hoặc bài thơ.
+- Độ dài và nội dung phù hợp với học sinh Tiểu học.
+- TUYỆT ĐỐI KHÔNG viết các câu hỏi con đi kèm (1, 2, 3...).
+- Trả về JSON theo định dạng sau:
+{{
+  "group_name": "Tên ngắn gọn cho nhóm ngữ liệu này (Ví dụ: Chiếc lá cuối cùng, Đoạn văn bảo vệ môi trường)",
+  "group_content": "Ngữ liệu ở đây"
+}}
+"""
+            response = model.generate_content(prompt)
+            res_text = response.text.strip()
+            if res_text.startswith('```json'): res_text = res_text[7:]
+            if res_text.startswith('```'):     res_text = res_text[3:]
+            if res_text.endswith('```'):       res_text = res_text[:-3]
+
+            result = json.loads(res_text.strip())
+            g_content = result.get('group_content', '')
+            g_name = result.get('group_name', '')
+
+            return JsonResponse({'success': True, 'group_content': g_content.strip(), 'group_name': g_name.strip()})
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    return JsonResponse({'error': 'Invalid method'}, status=400)
+
 
 @csrf_exempt
 @login_required
@@ -826,39 +1002,82 @@ def api_generate_ai_variations(request):
         try:
             data = json.loads(request.body)
             original_q = data.get('question_content', '')
+            requirement = data.get('requirement', '').strip()
+            dang = data.get('dang', 'MCQ').strip()
+            
+            if not original_q.strip():
+                return JsonResponse({'error': 'Vui lòng nhập nội dung câu hỏi.'}, status=400)
             
             api_key = getattr(settings, 'GEMINI_API_KEY', '')
             if not api_key:
-                return JsonResponse({'error': 'Chưa cấu hình API Key cho Gemini AI (GEMINI_API_KEY trong settings).'}, status=400)
+                return JsonResponse({'error': 'Chưa cấu hình API Key cho Gemini AI.'}, status=400)
                 
             genai.configure(api_key=api_key)
-            model = genai.GenerativeModel('gemini-pro')
+            model = genai.GenerativeModel('gemini-flash-latest')
             
-            prompt = f"""
-            Bạn là một chuyên gia ra đề thi. Hãy tạo ra 1 câu hỏi trắc nghiệm tương tự về mặt kiến thức và độ khó so với câu hỏi gốc dưới đây.
-            Câu hỏi gốc: {original_q}
+            # Xây dựng yêu cầu bổ sung từ người dùng
+            extra_instruction = ''
+            if requirement:
+                extra_instruction = f'\nYêu cầu đặc biệt từ giáo viên: {requirement}'
             
-            Yêu cầu trả về JSON chuẩn theo định dạng sau, không kèm markdown code block:
-            {{
-                "content": "Câu X: Nội dung câu hỏi mới",
-                "answers": ["A. Đáp án 1", "B. Đáp án 2", "C. Đáp án 3", "D. Đáp án 4"],
-                "correct": 0
-            }}
-            Lưu ý correct là chỉ số của đáp án đúng (0 tương ứng A, 1 tương ứng B, v.v.)
-            """
+            is_essay = dang.startswith('Essay') or dang == 'Tự luận' or dang == 'TL'
+            
+            if is_essay:
+                prompt = f"""
+Bạn là giáo viên Tiểu học Việt Nam. Nhiệm vụ: tạo đáp án mẫu, hướng dẫn giải hoặc barem chấm điểm chi tiết cho câu hỏi tự luận bên dưới.
+
+Câu hỏi: {original_q}{extra_instruction}
+
+Yêu cầu:
+- Viết đáp án mẫu rõ ràng, phù hợp với trình độ học sinh Tiểu học.
+- Trả về JSON theo định dạng sau (không kèm markdown, không giải thích thêm):
+{{
+    "essay_answer": "Nội dung đáp án mẫu hoặc hướng dẫn chấm..."
+}}
+"""
+            else:
+                prompt = f"""
+Bạn là giáo viên Tiểu học Việt Nam. Nhiệm vụ: tạo các phương án trả lời cho câu hỏi trắc nghiệm bên dưới và chỉ rõ đáp án đúng.
+
+Câu hỏi: {original_q}{extra_instruction}
+
+Yêu cầu:
+- Mặc định tạo 4 phương án (A, B, C, D), trừ khi yêu cầu đặc biệt chỉ định số lượng khác.
+- Chỉ có 1 đáp án đúng.
+- Các đáp án sai phải hợp lý, không quá dễ đoán.
+- Nếu câu hỏi có công thức toán, hãy dùng ký hiệu LaTeX (VD: \\frac{{1}}{{2}} cho phân số 1/2).
+- Trả về JSON theo định dạng sau (không kèm markdown, không giải thích thêm):
+{{
+    "answers": ["Nội dung A", "Nội dung B", "Nội dung C", "Nội dung D"],
+    "correct": 0
+}}
+(correct là chỉ số 0-based của đáp án đúng)
+"""
             response = model.generate_content(prompt)
             res_text = response.text.strip()
             if res_text.startswith('```json'):
-                res_text = res_text[7:-3]
-            elif res_text.startswith('```'):
-                res_text = res_text[3:-3]
+                res_text = res_text[7:]
+            if res_text.startswith('```'):
+                res_text = res_text[3:]
+            if res_text.endswith('```'):
+                res_text = res_text[:-3]
                 
-            new_q = json.loads(res_text.strip())
-            return JsonResponse({'success': True, 'question': new_q})
+            result = json.loads(res_text.strip())
+            
+            if is_essay:
+                return JsonResponse({'success': True, 'question': {
+                    'essay_answer': result.get('essay_answer', '')
+                }})
+            else:
+                return JsonResponse({'success': True, 'question': {
+                    'answers': result.get('answers', []),
+                    'correct': result.get('correct', 0)
+                }})
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
             
     return JsonResponse({'error': 'Invalid method'}, status=400)
+
 
 @login_required
 @khao_thi_required
@@ -873,6 +1092,29 @@ def save_imported_questions(request):
             
             count = 0
             duplicate_count = 0
+            
+            def process_and_save_inline_images(html_text):
+                if not html_text:
+                    return html_text
+                soup = BeautifulSoup(html_text, 'html.parser')
+                has_changes = False
+                for img in soup.find_all('img'):
+                    src = img.get('src')
+                    if src and src.startswith('data:image/'):
+                        try:
+                            fmt, imgstr = src.split(';base64,')
+                            ext = fmt.split('/')[-1]
+                            # Decode and save
+                            img_bytes = base64.b64decode(imgstr)
+                            file_name = f"{uuid.uuid4()}.{ext}"
+                            from django.core.files.storage import default_storage
+                            saved_path = default_storage.save(f"questions/{file_name}", ContentFile(img_bytes))
+                            img['src'] = settings.MEDIA_URL + saved_path
+                            has_changes = True
+                        except Exception:
+                            pass
+                return str(soup) if has_changes else html_text
+
             with transaction.atomic():
                 for group in groups:
                     group_content = group.get('group_content')
@@ -883,16 +1125,18 @@ def save_imported_questions(request):
                         first_q = group.get('questions', [{}])[0]
                         khoi_id = first_q.get('khoi_id')
                         mon_id = first_q.get('mon_id')
+                        
+                        # Sửa đổi từ DoanVan thành NoiDungChung để khớp model NhomCauHoi
                         nhom_obj = NhomCauHoi.objects.create(
                             Khoi_id=khoi_id,
                             MonHoc_id=mon_id,
                             TenNhom="Nhóm trích xuất từ Word",
-                            DoanVan=group_content.strip()
+                            NoiDungChung=group_content.strip()
                         )
                         
                     for q_data in group.get('questions', []):
                         q_type = q_data.get('question_type', 'MCQ')
-                        is_trac_nghiem = q_type in ['MCQ', 'MSQ', 'TF', 'Matching', 'FIB']
+                        is_trac_nghiem = q_type in ['MCQ', 'MSQ', 'TF', 'Matching', 'FIB', 'Order']
                         
                         def get_image_file(b64_str):
                             if b64_str and b64_str.startswith('data:image/'):
@@ -905,8 +1149,14 @@ def save_imported_questions(request):
                             return None
 
                         content = q_data.get('content', '').strip()
+                        # Lưu các ảnh inline trong câu hỏi
+                        content = process_and_save_inline_images(content)
+                        
                         khoi_id = q_data.get('khoi_id')
                         mon_id = q_data.get('mon_id')
+                        muc_do = q_data.get('muc_do', 'Mức 1')
+                        if muc_do not in ['Mức 1', 'Mức 2', 'Mức 3']:
+                            muc_do = 'Mức 1'
 
                         # Kiểm tra câu hỏi trùng lặp (dựa trên Khối, Môn, Nội dung)
                         if CauHoi.objects.filter(
@@ -927,7 +1177,7 @@ def save_imported_questions(request):
                             NhomCauHoi=nhom_obj,
                             HinhThuc='Trắc nghiệm' if is_trac_nghiem else 'Tự luận',
                             DangCauHoi=q_type,
-                            MucDo='Mức 1', 
+                            MucDo=muc_do, 
                             NoiDungCauHoi=content,
                             HinhAnh=q_img_file,
                             DapAnMau=q_data.get('explanation', ''),
@@ -943,11 +1193,12 @@ def save_imported_questions(request):
                                 correct_idx = 0
                             for i, ans_obj in enumerate(answers):
                                 label = chr(65 + i)
-                                content = ans_obj.get('text', '') if isinstance(ans_obj, dict) else ans_obj
+                                ans_text = ans_obj.get('text', '') if isinstance(ans_obj, dict) else ans_obj
+                                ans_text = process_and_save_inline_images(ans_text)
                                 ans_img = get_image_file(ans_obj.get('image')) if isinstance(ans_obj, dict) else None
-                                if content.startswith(f"{label}.") or content.startswith(f"{label})"):
-                                    content = content[2:].strip()
-                                DapAn.objects.create(CauHoi=q, ThuTu=i, NoiDungTrai=label, NoiDung=content, HinhAnh=ans_img, LaDapAnDung=(i == correct_idx))
+                                if ans_text.startswith(f"{label}.") or ans_text.startswith(f"{label})"):
+                                    ans_text = ans_text[2:].strip()
+                                DapAn.objects.create(CauHoi=q, ThuTu=i, NoiDungTrai=label, NoiDung=ans_text, HinhAnh=ans_img, LaDapAnDung=(i == correct_idx))
                                 
                         elif q_type == 'MSQ':
                             corrects = q_data.get('correct', [])
@@ -955,16 +1206,18 @@ def save_imported_questions(request):
                                 corrects = [corrects]
                             for i, ans_obj in enumerate(answers):
                                 label = chr(65 + i)
-                                content = ans_obj.get('text', '') if isinstance(ans_obj, dict) else ans_obj
+                                ans_text = ans_obj.get('text', '') if isinstance(ans_obj, dict) else ans_obj
+                                ans_text = process_and_save_inline_images(ans_text)
                                 ans_img = get_image_file(ans_obj.get('image')) if isinstance(ans_obj, dict) else None
-                                if content.startswith(f"{label}.") or content.startswith(f"{label})"):
-                                    content = content[2:].strip()
-                                DapAn.objects.create(CauHoi=q, ThuTu=i, NoiDungTrai=label, NoiDung=content, HinhAnh=ans_img, LaDapAnDung=(i in corrects))
+                                if ans_text.startswith(f"{label}.") or ans_text.startswith(f"{label})"):
+                                    ans_text = ans_text[2:].strip()
+                                DapAn.objects.create(CauHoi=q, ThuTu=i, NoiDungTrai=label, NoiDung=ans_text, HinhAnh=ans_img, LaDapAnDung=(i in corrects))
                                 
                         elif q_type == 'TF':
                             labels_set = set()
                             for i, ans_obj in enumerate(answers):
                                 stmt = ans_obj.get('statement', '')
+                                stmt = process_and_save_inline_images(stmt)
                                 lbl = ans_obj.get('correct_label', 'Đúng')
                                 ans_img = get_image_file(ans_obj.get('image'))
                                 labels_set.add(lbl)
@@ -977,14 +1230,24 @@ def save_imported_questions(request):
                         elif q_type == 'Matching':
                             for i, ans_obj in enumerate(answers):
                                 left_val = ans_obj.get('left', '')
+                                left_val = process_and_save_inline_images(left_val)
                                 right_val = ans_obj.get('right', '')
+                                right_val = process_and_save_inline_images(right_val)
                                 left_img = get_image_file(ans_obj.get('left_image'))
                                 right_img = get_image_file(ans_obj.get('right_image'))
                                 DapAn.objects.create(CauHoi=q, ThuTu=i, NoiDungTrai=left_val, NoiDung=right_val, HinhAnhTrai=left_img, HinhAnh=right_img, LaDapAnDung=True)
                                 
                         elif q_type == 'FIB':
                             for i, ans_text in enumerate(answers):
+                                ans_text = process_and_save_inline_images(ans_text)
                                 DapAn.objects.create(CauHoi=q, ThuTu=i, NoiDung=ans_text, LaDapAnDung=True)
+                                
+                        elif q_type == 'Order':
+                            for i, ans_obj in enumerate(answers):
+                                ans_text = ans_obj.get('text', '') if isinstance(ans_obj, dict) else ans_obj
+                                ans_text = process_and_save_inline_images(ans_text)
+                                ans_img = get_image_file(ans_obj.get('image')) if isinstance(ans_obj, dict) else None
+                                DapAn.objects.create(CauHoi=q, ThuTu=i, NoiDung=ans_text, HinhAnh=ans_img, LaDapAnDung=True)
                                 
                         count += 1
                         
@@ -995,4 +1258,10 @@ def save_imported_questions(request):
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'Invalid method'}, status=400)
+
+@login_required
+@khao_thi_required
+def question_preview(request, pk):
+    cau_hoi = get_object_or_404(CauHoi, pk=pk)
+    return render(request, 'question_bank/preview.html', {'cau_hoi': cau_hoi})
 

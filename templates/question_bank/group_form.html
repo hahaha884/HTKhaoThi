@@ -24,7 +24,7 @@
                     
                     <div class="mb-3">
                         <label class="form-label">Tên Nhóm <span class="text-danger">*</span></label>
-                        <input type="text" name="TenNhom" class="form-control" value="{{ nhom.TenNhom }}" required>
+                        <input type="text" name="TenNhom" class="form-control" value="{{ nhom.TenNhom }}" placeholder="Nhập tên nhóm..." required>
                     </div>
 
                     <div class="row g-2 mb-3">
@@ -73,9 +73,20 @@
                         </div>
                     </div>
 
+                    <div class="mb-3 border p-3 rounded bg-light border-primary" style="border-style: dashed !important;">
+                        <label class="form-label fw-bold text-primary"><i class="fas fa-magic me-2"></i>AI Gợi ý Ngữ liệu chung</label>
+                        <div class="input-group">
+                            <input type="text" id="aiGroupRequirement" class="form-control" placeholder="Gợi ý thêm (VD: Bài đọc về bảo vệ môi trường, có 2 đoạn...)">
+                            <button class="btn btn-primary" type="button" id="btnAiSuggestGroup" onclick="aiSuggestGroup()">
+                                <i class="fas fa-robot me-1"></i>Tạo Ngữ Liệu
+                            </button>
+                        </div>
+                        <small id="aiSuggestGroupStatus" class="form-text text-muted mt-1 d-block"></small>
+                    </div>
+
                     <div class="mb-3">
-                        <label class="form-label">Nội dung chung (Ngữ liệu)</label>
-                        <textarea name="NoiDungChung" class="form-control" rows="5" placeholder="Đoạn văn, bài thơ, ngữ liệu chung...">{{ nhom.NoiDungChung }}</textarea>
+                        <label class="form-label">Nội dung chung (Ngữ liệu) <span class="text-danger">*</span></label>
+                        <textarea name="NoiDungChung" id="noiDungChung" class="form-control" rows="5" placeholder="Đoạn văn, bài thơ, ngữ liệu chung..." required>{{ nhom.NoiDungChung }}</textarea>
                     </div>
 
                     <div class="mb-4">
@@ -187,9 +198,27 @@
                                 </div>
                             </div>
 
+                            <div class="mb-3 d-flex align-items-center gap-2">
+                                <button type="button" id="btnAiSuggestQ" class="btn btn-sm btn-outline-primary fw-semibold" onclick="aiSuggestQuestion()">
+                                    <i class="fas fa-lightbulb me-1"></i>✨ Gợi ý câu hỏi bằng AI
+                                </button>
+                                <input type="text" id="aiQuestionRequirement" class="form-control form-control-sm"
+                                    placeholder="Yêu cầu thêm (VD: về cây cối, dễ hiểu...)"
+                                    style="max-width: 250px;">
+                                <span id="aiSuggestQStatus" class="small text-muted"></span>
+                            </div>
+
                             <div class="mb-3">
                                 <label class="form-label fw-bold">Nội dung câu hỏi <span class="text-danger">*</span></label>
-                                <textarea name="NoiDungCauHoi" class="form-control mb-2" rows="2" required placeholder="Nội dung câu hỏi..."></textarea>
+                                <textarea name="NoiDungCauHoi" id="noiDungCauHoi" class="form-control mb-2" rows="2" required placeholder="Nội dung câu hỏi..."></textarea>
+                                
+                                <button type="button" id="btnAiSuggest" class="btn btn-sm btn-outline-warning fw-semibold mb-2" onclick="aiSuggestAnswers()">
+                                    <i class="fas fa-robot me-1"></i>✨ Gợi ý đáp án bằng AI
+                                </button>
+                                <input type="text" id="aiRequirement" class="form-control form-control-sm d-inline-block ms-2 mb-2"
+                                    placeholder="Yêu cầu thêm (VD: tạo 3 đáp án...)"
+                                    style="width: 250px; vertical-align: middle;">
+                                <span id="aiSuggestStatus" class="ms-2 small text-muted"></span>
                                 <div class="d-flex align-items-center gap-2 mt-1">
                                     <label class="btn btn-outline-primary btn-sm mb-0 px-3 cursor-pointer" title="Thêm hình ảnh">
                                         <i class="fas fa-camera camera-icon"></i>
@@ -520,6 +549,225 @@
             Array.from(selMachGroup.options).forEach(o => { if(!o.selected && o.value !== "") o.remove(); });
             Array.from(selNdGroup.options).forEach(o => { if(!o.selected && o.value !== "") o.remove(); });
         });
+    }
+
+    async function aiSuggestQuestion() {
+        const khoiEl = selKhoiGroup;
+        const monEl = selMonGroup;
+        const machEl = selMachGroup;
+        const ndEl = selNdGroup;
+        const dangEl = document.getElementById('dangCauHoi');
+        const mucDoEl = document.querySelector('#addChildModal select[name="MucDo"]');
+
+        const khoiText  = khoiEl?.options[khoiEl.selectedIndex]?.text || '';
+        const monText   = monEl?.options[monEl.selectedIndex]?.text || '';
+        const machText  = machEl?.options[machEl.selectedIndex]?.text || '';
+        const ndText    = ndEl?.options[ndEl.selectedIndex]?.text || '';
+        const dangText  = dangEl?.options[dangEl.selectedIndex]?.text || '';
+        const mucDoText = mucDoEl?.options[mucDoEl.selectedIndex]?.text || '';
+        const extraReq  = (document.getElementById('aiQuestionRequirement')?.value || '').trim();
+        const groupContent = (document.getElementById('noiDungChung')?.value || '').trim();
+
+        if (!khoiEl?.value || !monEl?.value || !machEl?.value || !ndEl?.value || !dangEl?.value || !mucDoEl?.value) {
+            alert('Vui lòng chọn đầy đủ các thông tin phân loại (Khối, Môn học, Mạch kiến thức, Nội dung KT, Dạng câu hỏi, Mức độ) trước khi yêu cầu AI gợi ý câu hỏi!');
+            return;
+        }
+
+        const btn = document.getElementById('btnAiSuggestQ');
+        const status = document.getElementById('aiSuggestQStatus');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>AI đang tạo câu hỏi...';
+        status.textContent = '';
+
+        try {
+            const res = await fetch('{% url "api_suggest_question" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({
+                    khoi: khoiText,
+                    mon: monText,
+                    mach: machText,
+                    noidung: ndText,
+                    dang: dangText,
+                    muc_do: mucDoText,
+                    requirement: extraReq,
+                    group_content: groupContent
+                })
+            });
+            const data = await res.json();
+
+            if (data.error) {
+                alert('Lỗi AI: ' + data.error);
+                return;
+            }
+
+            const textarea = document.getElementById('noiDungCauHoi');
+            if (textarea) {
+                textarea.value = data.question_content || '';
+                textarea.dispatchEvent(new Event('input'));
+                textarea.focus();
+            }
+
+            status.innerHTML = '<span class="text-success"><i class="fas fa-check-circle me-1"></i>AI đã tạo câu hỏi!</span>';
+
+        } catch (err) {
+            alert('Lỗi kết nối: ' + err);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-lightbulb me-1"></i>✨ Gợi ý câu hỏi bằng AI';
+        }
+    }
+
+    async function aiSuggestAnswers() {
+        const content = document.getElementById('noiDungCauHoi').value.trim();
+        if (!content) {
+            alert('Vui lòng nhập nội dung câu hỏi trước khi yêu cầu AI gợi ý đáp án!');
+            return;
+        }
+
+        const requirement = (document.getElementById('aiRequirement')?.value || '').trim();
+        const btn = document.getElementById('btnAiSuggest');
+        const status = document.getElementById('aiSuggestStatus');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>AI đang suy nghĩ...';
+        status.textContent = '';
+
+        try {
+            const res = await fetch('{% url "api_ai_suggest" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({ question_content: content, requirement: requirement })
+            });
+            const data = await res.json();
+
+            if (data.error) {
+                alert('Lỗi AI: ' + data.error);
+                return;
+            }
+
+            const q = data.question;
+            const answers = q.answers || [];
+            const correctIdx = typeof q.correct === 'number' ? q.correct : 0;
+
+            document.getElementById('hinhThuc').value = 'Trắc nghiệm';
+            updateDangCauHoi();
+            document.getElementById('dangCauHoi').value = 'MCQ';
+            updateAnswerArea();
+
+            await new Promise(r => setTimeout(r, 100));
+            const choicesList = document.getElementById('choicesList');
+            if (!choicesList) return;
+            choicesList.innerHTML = '';
+
+            answers.forEach(function(ans, idx) {
+                const row = document.createElement('div');
+                row.className = 'input-group mb-2 input-group-sm';
+                const label = String.fromCharCode(65 + idx);
+                const ansText = (typeof ans === 'object') ? (ans.text || '') : ans;
+                const cleanText = ansText.replace(/^[A-Z][.)\s]+/, '').trim();
+
+                row.innerHTML = `
+                    <div class="input-group-text bg-white">
+                        <input class="form-check-input mt-0" type="radio" name="IsCorrect" value="${idx}" ${idx === correctIdx ? 'checked' : ''}>
+                    </div>
+                    <input type="text" name="ChoiceLabel" class="form-control text-center fw-bold text-primary" style="max-width:50px;" value="${label}" required>
+                    <input type="text" name="ChoiceContent" class="form-control" value="${cleanText.replace(/"/g, '&quot;')}" required>
+                    <label class="input-group-text bg-white cursor-pointer px-2" style="cursor:pointer;">
+                        <i class="fas fa-camera text-primary camera-icon"></i>
+                        <img class="img-preview d-none" style="height:20px;max-width:40px;object-fit:contain;">
+                        <input type="file" name="ChoiceImage_${idx}" class="d-none" accept="image/*" onchange="previewIcon(this)">
+                    </label>
+                    <button class="btn btn-outline-danger px-2" type="button" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>
+                `;
+                choicesList.appendChild(row);
+            });
+
+            status.innerHTML = '<span class="text-success"><i class="fas fa-check-circle me-1"></i>AI đã gợi ý ' + answers.length + ' đáp án!</span>';
+
+        } catch (err) {
+            alert('Lỗi kết nối: ' + err);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-robot me-1"></i>✨ Gợi ý đáp án bằng AI';
+        }
+    }
+
+    async function aiSuggestGroup() {
+        const khoiEl = selKhoiGroup;
+        const monEl = selMonGroup;
+        const machEl = selMachGroup;
+        const ndEl = selNdGroup;
+
+        const khoiText  = khoiEl?.options[khoiEl.selectedIndex]?.text || '';
+        const monText   = monEl?.options[monEl.selectedIndex]?.text || '';
+        const machText  = machEl?.options[machEl.selectedIndex]?.text || '';
+        const ndText    = ndEl?.options[ndEl.selectedIndex]?.text || '';
+        const extraReq  = (document.getElementById('aiGroupRequirement')?.value || '').trim();
+
+        if (!khoiEl?.value || !monEl?.value || !machEl?.value || !ndEl?.value) {
+            alert('Vui lòng chọn đầy đủ các thông tin phân loại (Khối, Môn học, Mạch kiến thức, Nội dung KT) trước khi yêu cầu AI tạo ngữ liệu!');
+            return;
+        }
+
+        const btn = document.getElementById('btnAiSuggestGroup');
+        const status = document.getElementById('aiSuggestGroupStatus');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Đang tạo...';
+        status.textContent = 'AI đang tổng hợp và viết ngữ liệu, vui lòng chờ...';
+
+        try {
+            const res = await fetch('{% url "api_suggest_group_content" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({
+                    khoi: khoiText,
+                    mon: monText,
+                    mach: machText,
+                    noidung: ndText,
+                    requirement: extraReq
+                })
+            });
+            const data = await res.json();
+
+            if (data.error) {
+                alert('Lỗi AI: ' + data.error);
+                status.textContent = 'Có lỗi xảy ra.';
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-robot me-1"></i>Tạo Ngữ Liệu';
+                return;
+            }
+
+            const textarea = document.getElementById('noiDungChung');
+            if (textarea) {
+                textarea.value = data.group_content;
+                // Trigger auto resize if using any plugins
+                textarea.dispatchEvent(new Event('input'));
+            }
+            
+            // Tự động điền Tên Nhóm nếu AI có trả về
+            const tenNhomInput = document.querySelector('input[name="TenNhom"]');
+            if (tenNhomInput && data.group_name) {
+                tenNhomInput.value = data.group_name;
+            }
+
+            status.textContent = 'Tạo ngữ liệu thành công!';
+            status.className = 'form-text text-success mt-1 d-block fw-bold';
+        } catch (e) {
+            alert('Lỗi mạng: ' + e);
+            status.textContent = 'Lỗi kết nối.';
+        }
+        
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-robot me-1"></i>Tạo Ngữ Liệu';
     }
 
     function previewIcon(input) {

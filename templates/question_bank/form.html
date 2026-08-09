@@ -4,6 +4,65 @@
 {% block page_title %}Ngân hàng câu hỏi{% endblock %}
 
 {% block content %}
+{% if is_popup %}
+<style>
+    /* Ẩn toàn bộ giao diện khung để hiển thị gọn trong iframe modal */
+    header, nav, .sidebar, aside, footer, #header { display: none !important; }
+    #main-content, .main-content, body { margin-left: 0 !important; padding: 0 !important; background: #fff; }
+    .card { box-shadow: none !important; border: none !important; }
+    .btn-secondary.px-4 { display: none !important; } /* Hide 'Quay lại' button */
+</style>
+{% endif %}
+{% if is_from_exam %}
+<style>
+    /* Khóa các trường phân loại được kế thừa từ ma trận đề */
+    .exam-locked { pointer-events: none; opacity: 0.85; background-color: #e9ecef; }
+</style>
+{% endif %}
+
+{% if cau_hoi.NhomCauHoi and not is_popup %}
+<div class="row g-4">
+    <!-- Cột trái: Thông tin nhóm -->
+    <div class="col-md-5">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-bold text-info"><i class="fas fa-layer-group me-2"></i>Thuộc Nhóm Câu hỏi</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label text-muted small mb-1">Tên Nhóm</label>
+                    <div class="fw-bold">{{ cau_hoi.NhomCauHoi.TenNhom }}</div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <label class="form-label text-muted small mb-1">Môn / Khối</label>
+                        <div class="fw-bold">{{ cau_hoi.NhomCauHoi.MonHoc.TenMon|default:"-" }} - {{ cau_hoi.NhomCauHoi.Khoi.TenKhoi|default:"-" }}</div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label text-muted small mb-1">Ngữ liệu chung</label>
+                    <div class="p-3 bg-light rounded border" style="white-space: pre-line;">{{ cau_hoi.NhomCauHoi.NoiDungChung|default:"-" }}</div>
+                </div>
+
+                {% if cau_hoi.NhomCauHoi.HinhAnh %}
+                <div class="mb-3">
+                    <label class="form-label text-muted small mb-1">Hình ảnh ngữ liệu</label>
+                    <div><img src="{{ cau_hoi.NhomCauHoi.HinhAnh.url }}" class="img-fluid rounded border shadow-sm"></div>
+                </div>
+                {% endif %}
+                
+                <div class="mt-4 pt-3 border-top text-center">
+                    <a href="{% url 'group_update' cau_hoi.NhomCauHoi.pk %}" class="btn btn-outline-primary"><i class="fas fa-edit me-2"></i>Chỉnh sửa Nhóm này</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Cột phải: Form câu hỏi -->
+    <div class="col-md-7">
+{% endif %}
+
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-header bg-white py-3">
         <h5 class="mb-0 fw-bold text-primary"><i class="fas fa-edit me-2"></i>{% if cau_hoi %}Sửa Câu hỏi{% else %}Thêm Câu hỏi mới{% endif %}</h5>
@@ -25,12 +84,15 @@
                 {% csrf_token %}
                 <fieldset {% if readonly %}disabled{% endif %}>
                 {% if next_url %}<input type="hidden" name="next_url" value="{{ next_url }}">{% endif %}
+                {% if is_popup %}<input type="hidden" name="popup" value="1">{% endif %}
+                {% if is_from_exam %}<input type="hidden" name="is_from_exam" value="1">{% endif %}
                 
                 <h6 class="fw-bold text-secondary mb-3">Phân loại & Thuộc tính</h6>
             <div class="row g-3 mb-4 bg-light p-3 rounded">
+                {% if not cau_hoi.NhomCauHoi %}
                 <div class="col-md-3">
                     <label class="form-label">Khối <span class="text-danger">*</span></label>
-                    <select name="Khoi" class="form-select" required>
+                    <select name="Khoi" class="form-select {% if is_from_exam %}exam-locked{% endif %}" required>
                         <option value="">-- Chọn Khối --</option>
                         {% for k in khois %}
                         <option value="{{ k.pk }}" {% if cau_hoi.Khoi_id == k.pk or default_khoi == k.pk|stringformat:"s" %}selected{% endif %}>{{ k.TenKhoi }}</option>
@@ -39,7 +101,7 @@
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Môn học <span class="text-danger">*</span></label>
-                    <select name="MonHoc" class="form-select" required>
+                    <select name="MonHoc" class="form-select {% if is_from_exam %}exam-locked{% endif %}" required>
                         <option value="">-- Chọn Môn --</option>
                         {% for m in mons %}
                         <option value="{{ m.pk }}" {% if cau_hoi.MonHoc_id == m.pk or default_mon == m.pk|stringformat:"s" %}selected{% endif %}>{{ m.TenMon }}</option>
@@ -48,7 +110,7 @@
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Mạch kiến thức <span class="text-danger">*</span></label>
-                    <select name="MachKienThuc" class="form-select" required>
+                    <select name="MachKienThuc" class="form-select {% if is_from_exam %}exam-locked{% endif %}" required>
                         <option value="">-- Chọn Mạch KT --</option>
                         {% for m in machs %}
                         <option value="{{ m.pk }}" data-mon="{{ m.MonHoc_id }}" data-khoi="{{ m.Khoi_id }}" {% if cau_hoi.MachKienThuc_id == m.pk %}selected{% endif %}>{{ m.TenMach }}</option>
@@ -57,17 +119,23 @@
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Nội dung KT <span class="text-danger">*</span></label>
-                    <select name="NoiDungKienThuc" class="form-select" required>
+                    <select name="NoiDungKienThuc" class="form-select {% if is_from_exam %}exam-locked{% endif %}" required>
                         <option value="">-- Chọn ND KT --</option>
                         {% for nd in noidungs %}
                         <option value="{{ nd.pk }}" data-mach="{{ nd.MachKienThuc_id }}" {% if cau_hoi.NoiDungKienThuc_id == nd.pk %}selected{% endif %}>{{ nd.TenNoidung }}</option>
                         {% endfor %}
                     </select>
                 </div>
+                {% else %}
+                <input type="hidden" name="Khoi" value="{{ cau_hoi.Khoi_id|default:'' }}">
+                <input type="hidden" name="MonHoc" value="{{ cau_hoi.MonHoc_id|default:'' }}">
+                <input type="hidden" name="MachKienThuc" value="{{ cau_hoi.MachKienThuc_id|default:'' }}">
+                <input type="hidden" name="NoiDungKienThuc" value="{{ cau_hoi.NoiDungKienThuc_id|default:'' }}">
+                {% endif %}
                 
                 <div class="col-md-4">
                     <label class="form-label">Hình thức <span class="text-danger">*</span></label>
-                    <select name="HinhThuc" id="hinhThuc" class="form-select" required>
+                    <select name="HinhThuc" id="hinhThuc" class="form-select {% if is_from_exam %}exam-locked{% endif %}" required>
                         <option value="Trắc nghiệm" {% if cau_hoi.HinhThuc == 'Trắc nghiệm' or default_hinh_thuc == 'Trắc nghiệm' %}selected{% endif %}>Trắc nghiệm</option>
                         <option value="Tự luận" {% if cau_hoi.HinhThuc == 'Tự luận' or default_hinh_thuc == 'Tự luận' %}selected{% endif %}>Tự luận</option>
                     </select>
@@ -81,7 +149,7 @@
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Mức độ <span class="text-danger">*</span></label>
-                    <select name="MucDo" class="form-select" required>
+                    <select name="MucDo" class="form-select {% if is_from_exam %}exam-locked{% endif %}" required>
                         <option value="Mức 1" {% if cau_hoi.MucDo == 'Mức 1' or default_muc_do == 'Mức 1' %}selected{% endif %}>Mức 1</option>
                         <option value="Mức 2" {% if cau_hoi.MucDo == 'Mức 2' or default_muc_do == 'Mức 2' %}selected{% endif %}>Mức 2</option>
                         <option value="Mức 3" {% if cau_hoi.MucDo == 'Mức 3' or default_muc_do == 'Mức 3' %}selected{% endif %}>Mức 3</option>
@@ -89,9 +157,27 @@
                 </div>
             </div>
 
+            <!-- Nút gợi ý câu hỏi bằng AI -->
+            <div class="mb-3 d-flex align-items-center gap-2">
+                <button type="button" id="btnAiSuggestQ" class="btn btn-sm btn-outline-primary fw-semibold" onclick="aiSuggestQuestion()">
+                    <i class="fas fa-lightbulb me-1"></i>✨ Gợi ý câu hỏi bằng AI
+                </button>
+                <input type="text" id="aiQuestionRequirement" class="form-control form-control-sm"
+                    placeholder="Yêu cầu thêm (VD: về cây cối, dễ hiểu, thực tế...)"
+                    style="max-width: 300px;">
+                <span id="aiSuggestQStatus" class="small text-muted"></span>
+            </div>
+
             <h6 class="fw-bold text-secondary mb-3">Nội dung câu hỏi <span class="text-danger">*</span></h6>
             <div class="mb-4">
-                <textarea name="NoiDungCauHoi" class="form-control mb-2" rows="4" required placeholder="Nhập nội dung câu hỏi...">{{ cau_hoi.NoiDungCauHoi }}</textarea>
+                <textarea name="NoiDungCauHoi" id="noiDungCauHoi" class="form-control mb-2" rows="4" required placeholder="Nhập nội dung câu hỏi...">{{ cau_hoi.NoiDungCauHoi }}</textarea>
+                <button type="button" id="btnAiSuggest" class="btn btn-sm btn-outline-warning fw-semibold" onclick="aiSuggestAnswers()">
+                    <i class="fas fa-robot me-1"></i>✨ Gợi ý đáp án bằng AI
+                </button>
+                <input type="text" id="aiRequirement" class="form-control form-control-sm d-inline-block ms-2"
+                    placeholder="Yêu cầu thêm (VD: tạo 3 đáp án, dung dị lớ p 3...)"
+                    style="width: 280px; vertical-align: middle;">
+                <span id="aiSuggestStatus" class="ms-2 small text-muted"></span>
                 <div>
                     <label class="form-label small text-muted"><i class="fas fa-image me-1"></i>Đính kèm hình ảnh (nếu có)</label>
                     <div class="input-group input-group-sm mt-1" style="width: max-content;">
@@ -125,7 +211,7 @@
             </div>
             </fieldset>
 
-            <div class="d-flex justify-content-between mt-5 border-top pt-4">
+            <div class="d-flex justify-content-between mt-3 border-top pt-3 px-3">
                 <a href="{% url 'question_list' %}" class="btn btn-secondary px-4" {% if not readonly %}onclick="return confirmCancel(event);"{% endif %}>{% if readonly %}Quay lại{% else %}Hủy{% endif %}</a>
                 {% if not readonly %}
                 <button type="submit" class="btn btn-primary px-5"><i class="fas fa-save me-2"></i>Lưu Câu hỏi</button>
@@ -134,6 +220,11 @@
         </form>
     </div>
 </div>
+
+{% if cau_hoi.NhomCauHoi and not is_popup %}
+    </div> <!-- Close col-md-7 -->
+</div> <!-- Close row -->
+{% endif %}
 
 {% if cau_hoi %}<pre id="__dapAnMauData" class="d-none">{{ cau_hoi.DapAnMau }}</pre>{% endif %}
 
@@ -683,6 +774,179 @@
             }
         }
         return true;
+    }
+
+    // ===== AI SUGGEST QUESTION =====
+    async function aiSuggestQuestion() {
+        // Đọc giá trị phân loại hiện tại
+        const khoiEl = document.querySelector('select[name="Khoi"]');
+        const monEl  = document.querySelector('select[name="MonHoc"]');
+        const machEl = document.querySelector('select[name="MachKienThuc"]');
+        const ndEl   = document.querySelector('select[name="NoiDungKienThuc"]');
+        const dangEl = document.getElementById('dangCauHoi');
+        const mucDoEl = document.querySelector('select[name="MucDo"]');
+
+        const khoiText  = khoiEl?.options[khoiEl.selectedIndex]?.text || '';
+        const monText   = monEl?.options[monEl.selectedIndex]?.text || '';
+        const machText  = machEl?.options[machEl.selectedIndex]?.text || '';
+        const ndText    = ndEl?.options[ndEl.selectedIndex]?.text || '';
+        const dangText  = dangEl?.options[dangEl.selectedIndex]?.text || '';
+        const mucDoText = mucDoEl?.options[mucDoEl.selectedIndex]?.text || '';
+        const extraReq  = (document.getElementById('aiQuestionRequirement')?.value || '').trim();
+
+        // Kiểm tra bắt buộc phải chọn đủ phân loại
+        if (!khoiEl?.value || !monEl?.value || !machEl?.value || !ndEl?.value || !dangEl?.value || !mucDoEl?.value) {
+            alert('Vui lòng chọn đầy đủ các thông tin phân loại (Khối, Môn học, Mạch kiến thức, Nội dung KT, Dạng câu hỏi, Mức độ) trước khi yêu cầu AI gợi ý câu hỏi!');
+            return;
+        }
+
+        const btn = document.getElementById('btnAiSuggestQ');
+        const status = document.getElementById('aiSuggestQStatus');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>AI đang tạo câu hỏi...';
+        status.textContent = '';
+
+        try {
+            const res = await fetch('{% url "api_suggest_question" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({
+                    khoi: khoiText,
+                    mon: monText,
+                    mach: machText,
+                    noidung: ndText,
+                    dang: dangText,
+                    muc_do: mucDoText,
+                    requirement: extraReq
+                })
+            });
+            const data = await res.json();
+
+            if (data.error) {
+                alert('Lỗi AI: ' + data.error);
+                return;
+            }
+
+            // Điền câu hỏi vào textarea
+            const textarea = document.getElementById('noiDungCauHoi');
+            if (textarea) {
+                textarea.value = data.question_content || '';
+                textarea.dispatchEvent(new Event('input'));
+                textarea.focus();
+                // Cuộn xuống textarea
+                textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+
+            status.innerHTML = '<span class="text-success"><i class="fas fa-check-circle me-1"></i>AI đã tạo câu hỏi!</span>';
+
+        } catch (err) {
+            alert('Lỗi kết nối: ' + err);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-lightbulb me-1"></i>✨ Gợi ý câu hỏi bằng AI';
+        }
+    }
+
+    // ===== AI SUGGEST ANSWERS =====
+    async function aiSuggestAnswers() {
+        const content = document.getElementById('noiDungCauHoi').value.trim();
+        if (!content) {
+            alert('Vui lòng nhập nội dung câu hỏi trước khi yêu cầu AI gợi ý đáp án!');
+            return;
+        }
+
+        const requirement = (document.getElementById('aiRequirement')?.value || '').trim();
+        const btn = document.getElementById('btnAiSuggest');
+        const status = document.getElementById('aiSuggestStatus');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>AI đang suy nghĩ...';
+        status.textContent = '';
+
+        try {
+            const res = await fetch('{% url "api_ai_suggest" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({ 
+                    question_content: content, 
+                    requirement: requirement,
+                    dang: dangCauHoiSelect.value
+                })
+            });
+            const data = await res.json();
+
+            if (data.error) {
+                alert('Lỗi AI: ' + data.error);
+                return;
+            }
+
+            const q = data.question;
+            const dang = dangCauHoiSelect.value || currentDang || 'EssayShort';
+            
+            if (dang === 'MCQ' || dang === 'MSQ') {
+                // Đảm bảo đang ở dạng MCQ nếu đang chọn MCQ
+                hinhThucSelect.selectedIndex = 0;
+                populateDangDropdown('MCQ');
+                dangCauHoiSelect.value = 'MCQ';
+                renderAnswerArea();
+
+                await new Promise(r => setTimeout(r, 100));
+                const choicesList = document.getElementById('choicesList');
+                if (!choicesList) return;
+                choicesList.innerHTML = '';
+
+                const answers = q.answers || [];
+                const correctIdx = typeof q.correct === 'number' ? q.correct : 0;
+
+                answers.forEach(function(ans, idx) {
+                    const row = document.createElement('div');
+                    row.className = 'input-group mb-2';
+                    const label = String.fromCharCode(65 + idx);
+                    const ansText = (typeof ans === 'object') ? (ans.text || '') : ans;
+                    const cleanText = ansText.replace(/^[A-Z][.)\s]+/, '').trim();
+
+                    row.innerHTML = `
+                        <div class="input-group-text bg-white">
+                            <input class="form-check-input mt-0" type="radio" name="IsCorrect" value="${idx}" ${idx === correctIdx ? 'checked' : ''}>
+                        </div>
+                        <input type="text" name="ChoiceLabel" class="form-control text-center fw-bold text-primary" style="max-width:50px;" value="${label}" required>
+                        <input type="text" name="ChoiceContent" class="form-control" value="${cleanText.replace(/"/g, '&quot;')}" required>
+                        <label class="input-group-text bg-white cursor-pointer px-2" style="cursor:pointer;">
+                            <i class="fas fa-camera text-primary camera-icon"></i>
+                            <img class="img-preview d-none" style="height:20px;max-width:40px;object-fit:contain;">
+                            <input type="file" name="ChoiceImage_${idx}" class="d-none" accept="image/*" onchange="previewIcon(this)">
+                        </label>
+                        <button class="btn btn-outline-danger px-2" type="button" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>
+                    `;
+                    choicesList.appendChild(row);
+                });
+                status.innerHTML = '<span class="text-success"><i class="fas fa-check-circle me-1"></i>AI đã gợi ý ' + answers.length + ' đáp án!</span>';
+            } else if (isEssayDang(dang)) {
+                // Tự luận: điền đáp án vào textarea
+                renderAnswerArea();
+                await new Promise(r => setTimeout(r, 100));
+                
+                // Tìm textarea DapAnMau. Nó có thể nằm trong id="__essayDapAnMauTA" hoặc trong name="DapAnMau"
+                const essayTa = document.querySelector('textarea[name="DapAnMau"]');
+                if (essayTa) {
+                     essayTa.value = q.essay_answer || '';
+                     essayTa.dispatchEvent(new Event('input'));
+                     essayTa.focus();
+                }
+                status.innerHTML = '<span class="text-success"><i class="fas fa-check-circle me-1"></i>AI đã gợi ý đáp án mẫu!</span>';
+            }
+
+        } catch (err) {
+            alert('Lỗi kết nối: ' + err);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-robot me-1"></i>✨ Gợi ý đáp án bằng AI';
+        }
     }
 </script>
 {% endblock %}

@@ -93,10 +93,8 @@
                         </div>
                     </div>
                 </form>
-                {% if not request.user.is_superuser %}
-                    {% if request.user|is_bgh or request.user|is_to_chuyen_mon %}
-                    <a href="{% url 'matrix_create' %}" class="btn btn-primary btn-sm d-flex align-items-center px-3"><i class="fas fa-plus me-1"></i>Thêm ma trận</a>
-                    {% endif %}
+                {% if request.user.is_superuser or request.user|is_to_chuyen_mon %}
+                <a href="{% url 'matrix_create' %}" class="btn btn-primary btn-sm d-flex align-items-center px-3"><i class="fas fa-plus me-1"></i>Thêm ma trận</a>
                 {% endif %}
             </div>
         </div>
@@ -126,7 +124,10 @@
                     <tr>
                         <td class="fw-medium text-primary">{{ mt.TenMaTran }}</td>
                         <td>{{ mt.NamHoc.TenNamHoc }}</td>
-                        <td>{{ mt.HocKy }}<br><small class="text-muted">{{ mt.KyThi }}</small></td>
+                        <td>
+                            {% if mt.HocKy == 'Học kỳ 1' %}Học kỳ I{% elif mt.HocKy == 'Học kỳ 2' %}Học kỳ II{% else %}{{ mt.HocKy }}{% endif %}<br>
+                            <small class="text-primary fw-bold">{{ mt.KyThi }} {% if mt.HocKy == 'Học kỳ 1' %}I{% elif mt.HocKy == 'Học kỳ 2' %}II{% endif %}</small>
+                        </td>
                         <td>{{ mt.Khoi.TenKhoi }}<br><small class="text-muted">{{ mt.MonHoc.TenMon }}</small></td>
                         <td class="text-center fw-bold">{{ mt.TongSoCau }} câu<br><span class="text-danger">{{ mt.TongSoDiem }}đ</span></td>
                         <td>{{ mt.NguoiTao.HoTen|default:"-" }}</td>
@@ -153,6 +154,7 @@
                             {% endif %}
                         </td>
                     </tr>
+
                     {% empty %}
                     <tr>
                         <td colspan="7" class="text-center text-muted py-4">Chưa có dữ liệu ma trận, hoặc không tìm thấy kết quả.</td>
