@@ -9,7 +9,7 @@ import json
 import os
 import docx
 from exam.models import DeThi_CT
-import google.generativeai as genai
+from groq import Groq
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 import mammoth
@@ -19,6 +19,50 @@ from django.core.files.base import ContentFile
 import uuid
 from .models import CauHoi, DapAn, NhomCauHoi, MachKienThuc, NoiDungKienThuc
 from core.models import Khoi, MonHoc, GiaoVien
+
+
+def call_groq_chat(groq_client, messages, temperature=0.5, max_tokens=2048, model=None, **kwargs):
+    """Gọi Groq chat completion với fallback model an toàn."""
+    preferred_model = model or getattr(settings, 'GROQ_MODEL', 'openai/gpt-oss-120b')
+    models_to_try = [preferred_model, 'openai/gpt-oss-120b', 'qwen/qwen3.8-27b', 'openai/gpt-oss-20b']
+    seen = set()
+    models_list = []
+    for m in models_to_try:
+        if m and m not in seen:
+            seen.add(m)
+            models_list.append(m)
+
+    last_err = None
+    for model in models_list:
+        try:
+            return groq_client.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+        except Exception as e:
+            last_err = e
+            err_str = str(e).lower()
+            if 'model_not_found' in err_str or 'does not exist' in err_str:
+                continue
+            raise e
+    raise last_err
+
+
+def extract_json_from_ai(res_text):
+    """Trích xuất và parse JSON từ chuỗi kết quả của AI."""
+    text = res_text.strip()
+    if '```json' in text:
+        text = text.split('```json', 1)[1].split('```', 1)[0].strip()
+    elif '```' in text:
+        text = text.split('```', 1)[1].split('```', 1)[0].strip()
+    else:
+        start = text.find('{')
+        end = text.rfind('}')
+        if start != -1 and end != -1:
+            text = text[start:end+1].strip()
+    return json.loads(text)
 
 
 def serialize_dap_ans(cau_hoi):
@@ -92,6 +136,7 @@ def question_list(request):
     dang_cau_hoi = request.GET.get('dang_cau_hoi', '')
     muc_do = request.GET.get('muc_do', '')
     noidung_id = request.GET.get('noidung', '')
+    nguoi_tao_id = request.GET.get('nguoi_tao', '')
     
     questions = CauHoi.objects.all().order_by('-id')
     
@@ -108,6 +153,11 @@ def question_list(request):
     if dang_cau_hoi: questions = questions.filter(DangCauHoi=dang_cau_hoi)
     if muc_do: questions = questions.filter(MucDo=muc_do)
     if noidung_id: questions = questions.filter(NoiDungKienThuc_id=noidung_id)
+    if nguoi_tao_id: questions = questions.filter(NguoiTao_id=nguoi_tao_id)
+
+    # Danh sách người tạo thực tế (giáo viên đã tạo câu hỏi)
+    creator_ids = CauHoi.objects.values_list('NguoiTao_id', flat=True).distinct()
+    giaoviens = GiaoVien.objects.filter(id__in=creator_ids).order_by('HoTen')
 
     # Lấy danh sách môn đã lọc theo khối (nếu có khối được chọn)
     if khoi_id:
@@ -151,6 +201,8 @@ def question_list(request):
         'selected_mach': mach_id,
         'selected_noidung': noidung_id,
         'selected_dang_cau_hoi': dang_cau_hoi,
+        'selected_nguoi_tao': nguoi_tao_id,
+        'giaoviens': giaoviens,
         'locked_ids': locked_ids,
     }
     return render(request, 'question_bank/list.html', context)
@@ -256,16 +308,24 @@ def question_create(request):
                     lefts = request.POST.getlist('MatchLeft')
                     rights = request.POST.getlist('MatchRight')
                     for i in range(len(lefts)):
+                        left_val = lefts[i].strip() if i < len(lefts) else ''
+                        right_val = rights[i].strip() if i < len(rights) else ''
+                        if not left_val and not right_val and not request.FILES.get(f'MatchImageLeft_{i}') and not request.FILES.get(f'MatchImageRight_{i}'):
+                            continue
                         DapAn.objects.create(
-                            CauHoi=q, ThuTu=i, NoiDungTrai=lefts[i], NoiDung=rights[i], LaDapAnDung=True,
+                            CauHoi=q, ThuTu=i, NoiDungTrai=left_val, NoiDung=right_val, LaDapAnDung=True,
                             HinhAnhTrai=request.FILES.get(f'MatchImageLeft_{i}'),
                             HinhAnh=request.FILES.get(f'MatchImageRight_{i}')
                         )
                 elif dang == 'FIB':
-                    fib = request.POST.get('DapAnFIB', '')
-                    for i, line in enumerate(fib.split('\n')):
-                        if line.strip():
-                            DapAn.objects.create(CauHoi=q, ThuTu=i, NoiDung=line.strip(), LaDapAnDung=True)
+                    fib_answers = request.POST.getlist('FIBAnswer')
+                    if fib_answers:
+                        valid_answers = [ans.strip() for ans in fib_answers if ans.strip()]
+                    else:
+                        fib = request.POST.get('DapAnFIB', '')
+                        valid_answers = [line.strip() for line in fib.splitlines() if line.strip()]
+                    for i, ans in enumerate(valid_answers):
+                        DapAn.objects.create(CauHoi=q, ThuTu=i, NoiDung=ans, LaDapAnDung=True)
                 elif dang.startswith('Essay'):
                     q.DapAnMau = request.POST.get('DapAnMau')
                     q.save()
@@ -391,17 +451,39 @@ def question_update(request, pk):
                 elif dang == 'Matching':
                     lefts = request.POST.getlist('MatchLeft')
                     rights = request.POST.getlist('MatchRight')
+                    old_img_lefts = request.POST.getlist('ExistingMatchImageLeft')
+                    old_img_rights = request.POST.getlist('ExistingMatchImageRight')
                     for i in range(len(lefts)):
-                        DapAn.objects.create(
-                            CauHoi=cau_hoi, ThuTu=i, NoiDungTrai=lefts[i], NoiDung=rights[i], LaDapAnDung=True,
-                            HinhAnhTrai=request.FILES.get(f'MatchImageLeft_{i}'),
-                            HinhAnh=request.FILES.get(f'MatchImageRight_{i}')
+                        left_val = lefts[i].strip() if i < len(lefts) else ''
+                        right_val = rights[i].strip() if i < len(rights) else ''
+                        if not left_val and not right_val and not request.FILES.get(f'MatchImageLeft_{i}') and not request.FILES.get(f'MatchImageRight_{i}'):
+                            continue
+                        new_img_l = request.FILES.get(f'MatchImageLeft_{i}')
+                        new_img_r = request.FILES.get(f'MatchImageRight_{i}')
+                        da = DapAn.objects.create(
+                            CauHoi=cau_hoi, ThuTu=i, NoiDungTrai=left_val, NoiDung=right_val, LaDapAnDung=True,
+                            HinhAnhTrai=new_img_l,
+                            HinhAnh=new_img_r
                         )
+                        if not new_img_l and i < len(old_img_lefts) and old_img_lefts[i]:
+                            raw_path = old_img_lefts[i].replace('/media/', '')
+                            if raw_path:
+                                da.HinhAnhTrai.name = raw_path
+                                da.save(update_fields=['HinhAnhTrai'])
+                        if not new_img_r and i < len(old_img_rights) and old_img_rights[i]:
+                            raw_path = old_img_rights[i].replace('/media/', '')
+                            if raw_path:
+                                da.HinhAnh.name = raw_path
+                                da.save(update_fields=['HinhAnh'])
                 elif dang == 'FIB':
-                    fib = request.POST.get('DapAnFIB', '')
-                    for i, line in enumerate(fib.split('\n')):
-                        if line.strip():
-                            DapAn.objects.create(CauHoi=cau_hoi, ThuTu=i, NoiDung=line.strip(), LaDapAnDung=True)
+                    fib_answers = request.POST.getlist('FIBAnswer')
+                    if fib_answers:
+                        valid_answers = [ans.strip() for ans in fib_answers if ans.strip()]
+                    else:
+                        fib = request.POST.get('DapAnFIB', '')
+                        valid_answers = [line.strip() for line in fib.splitlines() if line.strip()]
+                    for i, ans in enumerate(valid_answers):
+                        DapAn.objects.create(CauHoi=cau_hoi, ThuTu=i, NoiDung=ans, LaDapAnDung=True)
                 elif dang.startswith('Essay'):
                     cau_hoi.DapAnMau = request.POST.get('DapAnMau')
                     cau_hoi.save()
@@ -687,9 +769,9 @@ def import_word_preview(request):
                     
             raw_text = str(soup)
             
-            api_key = getattr(settings, 'GEMINI_API_KEY', '')
+            api_key = getattr(settings, 'GROQ_API_KEY', '')
             if not api_key:
-                messages.error(request, 'Cần cấu hình GEMINI_API_KEY trong settings để sử dụng tính năng trích xuất thông minh.')
+                messages.error(request, 'Cần cấu hình GROQ_API_KEY trong settings để sử dụng tính năng trích xuất thông minh.')
                 return render(request, 'question_bank/import_word.html', {
                     'parsed_groups': '[]',
                     'khois_data': json.dumps(khois_list),
@@ -698,8 +780,7 @@ def import_word_preview(request):
                     'noidungs_data': json.dumps(noidungs_list)
                 })
                 
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel('gemini-flash-latest')
+            groq_client = Groq(api_key=api_key)
             
             prompt = f"""
             Bạn là một hệ thống trích xuất và phân loại câu hỏi thông minh từ đề thi.
@@ -780,31 +861,44 @@ def import_word_preview(request):
             Chỉ trả về chuỗi JSON (bắt đầu bằng {{ và kết thúc bằng }}), không kèm giải thích.
             """
             
-            prompt_parts = [prompt]
+            # Xây dựng nội dung message cho Groq
+            user_content = [{'type': 'text', 'text': prompt}]
             
-            # Đính kèm ảnh thực tế cho Gemini
-            import io
-            from PIL import Image
+            # Đính kèm ảnh qua base64 cho Groq vision
+            has_images = False
             for img_id, b64_str in images_dict.items():
                 if b64_str.startswith('data:image/'):
                     try:
-                        fmt, imgstr = b64_str.split(';base64,')
-                        img_bytes = base64.b64decode(imgstr)
-                        img = Image.open(io.BytesIO(img_bytes))
-                        # Gắn nhãn ID cho bức ảnh để AI nhận biết
-                        prompt_parts.append(f"--- ĐÂY LÀ BỨC ẢNH {img_id} ---")
-                        prompt_parts.append(img)
+                        media_type = b64_str.split(';')[0].split(':')[1]  # e.g. image/png
+                        b64_data = b64_str.split(';base64,')[1]
+                        user_content.append({
+                            'type': 'text',
+                            'text': f'--- ĐÂY LÀ BỨC ẢNH {img_id} ---'
+                        })
+                        user_content.append({
+                            'type': 'image_url',
+                            'image_url': {
+                                'url': f'data:{media_type};base64,{b64_data}'
+                            }
+                        })
+                        has_images = True
                     except Exception:
                         pass
             
-            response = model.generate_content(prompt_parts)
-            res_text = response.text.strip()
+            model_name = getattr(settings, 'GROQ_MODEL', 'openai/gpt-oss-120b')
+            groq_response = call_groq_chat(groq_client,
+                model=model_name,
+                messages=[{'role': 'user', 'content': user_content if has_images else prompt}],
+                temperature=0.3,
+                max_tokens=8192,
+            )
+            res_text = groq_response.choices[0].message.content.strip()
             if res_text.startswith('```json'):
                 res_text = res_text[7:-3]
             elif res_text.startswith('```'):
                 res_text = res_text[3:-3]
                 
-            parsed_data = json.loads(res_text.strip())
+            parsed_data = extract_json_from_ai(res_text)
             
             # Thêm kiểm tra trùng lặp cho mỗi câu hỏi trong parsed_data
             if isinstance(parsed_data, dict) and 'groups' in parsed_data:
@@ -873,12 +967,11 @@ def api_suggest_question(request):
             requirement = data.get('requirement', '').strip()
             group_content = data.get('group_content', '').strip()
 
-            api_key = getattr(settings, 'GEMINI_API_KEY', '')
+            api_key = getattr(settings, 'GROQ_API_KEY', '')
             if not api_key:
-                return JsonResponse({'error': 'Chưa cấu hình API Key cho Gemini AI.'}, status=400)
+                return JsonResponse({'error': 'Chưa cấu hình API Key cho Groq AI.'}, status=400)
 
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel('gemini-flash-latest')
+            groq_client = Groq(api_key=api_key)
 
             # Xây dựng ngữ cảnh phân loại
             context_parts = []
@@ -894,7 +987,60 @@ def api_suggest_question(request):
             
             group_context = f'\nNGỮ LIỆU CHUNG (Dùng ngữ liệu này để đặt câu hỏi đọc hiểu / tính toán):\n"""\n{group_content}\n"""\n(BẮT BUỘC: Đặt câu hỏi dựa trên hoặc liên quan đến nội dung ngữ liệu này)' if group_content else ''
 
-            prompt = f"""
+            if dang == 'Matching':
+                prompt = f"""
+Bạn là giáo viên Tiểu học Việt Nam. Hãy tạo 1 câu hỏi ghép nối (Matching) hoàn chỉnh theo yêu cầu:
+{context_str}{extra}{group_context}
+
+QUY TẮC BẮT BUỘC:
+- Sinh câu lệnh đề bài (ví dụ: "Nối mỗi từ ở cột bên trái với ý nghĩa tương ứng ở cột bên phải:")
+- Sinh đồng thời 3 đến 4 cặp ghép nối logic và chính xác. Cột trái và cột phải tương ứng với nhau.
+- Trả về DUY NHẤT một chuỗi JSON hợp lệ theo định dạng sau (không markdown, không giải thích):
+{{
+    "question_content": "Yêu cầu đề bài...",
+    "matching_pairs": [
+        {{"left": "Từ hoặc vế trái 1", "right": "Nghĩa hoặc vế phải 1"}},
+        {{"left": "Từ hoặc vế trái 2", "right": "Nghĩa hoặc vế phải 2"}},
+        {{"left": "Từ hoặc vế trái 3", "right": "Nghĩa hoặc vế phải 3"}}
+    ]
+}}
+"""
+            elif dang == 'FIB':
+                prompt = f"""
+Bạn là giáo viên Tiểu học Việt Nam. Hãy tạo 1 câu hỏi điền khuyết (Fill in the Blank) hoàn chỉnh theo yêu cầu:
+{context_str}{extra}{group_context}
+
+QUY TẮC BẮT BUỘC:
+- Sinh câu hoặc đoạn văn có chứa 2 đến 3 vị trí khuyết được đánh dấu bằng ký hiệu [...]
+- Sinh đồng thời đáp án chính xác cho từng vị trí khuyết [...] theo đúng thứ tự xuất hiện.
+- Trả về DUY NHẤT một chuỗi JSON hợp lệ theo định dạng sau (không markdown, không giải thích):
+{{
+    "question_content": "Điền từ thích hợp vào chỗ trống: Đoạn văn chứa [...] và [...] ở vị trí khuyết.",
+    "fib_answers": ["đáp án cho chỗ trống 1", "đáp án cho chỗ trống 2"]
+}}
+"""
+            elif dang == 'TF':
+                prompt = f"""
+Bạn là giáo viên Tiểu học Việt Nam. Hãy tạo 1 câu hỏi Đúng/Sai (Yes/No) hoàn chỉnh theo yêu cầu:
+{context_str}{extra}{group_context}
+
+QUY TẮC BẮT BUỘC:
+- Nếu có ngữ liệu chung: sinh câu dẫn yêu cầu đánh giá nhận định theo đoạn văn.
+- Nếu không có ngữ liệu: sinh nội dung mệnh đề/câu hỏi làm cơ sở.
+- Sinh đồng thời 4 nhận định và xác định đáp án "Đúng" hoặc "Sai" cho từng nhận định.
+- Trả về DUY NHẤT một chuỗi JSON hợp lệ theo định dạng sau (không markdown, không giải thích):
+{{
+    "question_content": "Câu hỏi / câu dẫn ở đây",
+    "tf_statements": [
+        {{"statement": "Nhận định 1...", "correct": "Đúng"}},
+        {{"statement": "Nhận định 2...", "correct": "Sai"}},
+        {{"statement": "Nhận định 3...", "correct": "Đúng"}},
+        {{"statement": "Nhận định 4...", "correct": "Sai"}}
+    ]
+}}
+"""
+            else:
+                prompt = f"""
 Bạn là giáo viên Tiểu học Việt Nam. Hãy tạo 1 câu hỏi thi theo yêu cầu sau:
 
 {context_str}{extra}{group_context}
@@ -907,13 +1053,18 @@ QUY TẮC BẮT BUỘC:
 - Câu hỏi ngắn gọn, rõ ràng, phù hợp học sinh Tiểu học.
 - Trả về JSON: {{"question_content": "Câu hỏi ở đây"}}
 """
-            response = model.generate_content(prompt)
-            res_text = response.text.strip()
+            groq_response = call_groq_chat(groq_client,
+                model=getattr(settings, 'GROQ_MODEL', 'openai/gpt-oss-120b'),
+                messages=[{'role': 'user', 'content': prompt}],
+                temperature=0.5,
+                max_tokens=2048,
+            )
+            res_text = groq_response.choices[0].message.content.strip()
             if res_text.startswith('```json'): res_text = res_text[7:]
             if res_text.startswith('```'):     res_text = res_text[3:]
             if res_text.endswith('```'):       res_text = res_text[:-3]
 
-            result = json.loads(res_text.strip())
+            result = extract_json_from_ai(res_text)
             q_content = result.get('question_content', '')
 
             # Hậu xử lý: cắt bỏ các dòng đáp án nếu AI vẫn thêm vào
@@ -926,7 +1077,13 @@ QUY TẮC BẮT BUỘC:
             ]
             q_content = '\n'.join(clean_lines).strip()
 
-            return JsonResponse({'success': True, 'question_content': q_content})
+            return JsonResponse({
+                'success': True,
+                'question_content': q_content,
+                'matching_pairs': result.get('matching_pairs', []),
+                'fib_answers': result.get('fib_answers', []),
+                'tf_statements': result.get('tf_statements', [])
+            })
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'Invalid method'}, status=400)
@@ -945,13 +1102,11 @@ def api_suggest_group_content(request):
             noidung = data.get('noidung', '').strip()
             requirement = data.get('requirement', '').strip()
 
-            api_key = getattr(settings, 'GEMINI_API_KEY', '')
+            api_key = getattr(settings, 'GROQ_API_KEY', '')
             if not api_key:
-                return JsonResponse({'error': 'Chưa cấu hình API Key cho Gemini AI.'}, status=400)
+                return JsonResponse({'error': 'Chưa cấu hình API Key cho Groq AI.'}, status=400)
 
-            import google.generativeai as genai
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel('gemini-flash-latest')
+            groq_client = Groq(api_key=api_key)
 
             # Xây dựng ngữ cảnh phân loại
             context_parts = []
@@ -978,13 +1133,18 @@ QUY TẮC BẮT BUỘC:
   "group_content": "Ngữ liệu ở đây"
 }}
 """
-            response = model.generate_content(prompt)
-            res_text = response.text.strip()
+            groq_response = call_groq_chat(groq_client,
+                model=getattr(settings, 'GROQ_MODEL', 'openai/gpt-oss-120b'),
+                messages=[{'role': 'user', 'content': prompt}],
+                temperature=0.7,
+                max_tokens=2048,
+            )
+            res_text = groq_response.choices[0].message.content.strip()
             if res_text.startswith('```json'): res_text = res_text[7:]
             if res_text.startswith('```'):     res_text = res_text[3:]
             if res_text.endswith('```'):       res_text = res_text[:-3]
 
-            result = json.loads(res_text.strip())
+            result = extract_json_from_ai(res_text)
             g_content = result.get('group_content', '')
             g_name = result.get('group_name', '')
 
@@ -1008,12 +1168,11 @@ def api_generate_ai_variations(request):
             if not original_q.strip():
                 return JsonResponse({'error': 'Vui lòng nhập nội dung câu hỏi.'}, status=400)
             
-            api_key = getattr(settings, 'GEMINI_API_KEY', '')
+            api_key = getattr(settings, 'GROQ_API_KEY', '')
             if not api_key:
-                return JsonResponse({'error': 'Chưa cấu hình API Key cho Gemini AI.'}, status=400)
+                return JsonResponse({'error': 'Chưa cấu hình API Key cho Groq AI.'}, status=400)
                 
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel('gemini-flash-latest')
+            groq_client = Groq(api_key=api_key)
             
             # Xây dựng yêu cầu bổ sung từ người dùng
             extra_instruction = ''
@@ -1035,6 +1194,52 @@ Yêu cầu:
     "essay_answer": "Nội dung đáp án mẫu hoặc hướng dẫn chấm..."
 }}
 """
+            elif dang == 'Matching':
+                prompt = f"""
+Bạn là giáo viên Tiểu học Việt Nam. Nhiệm vụ: tạo 3 đến 4 cặp ghép nối phù hợp, có quan hệ logic và chính xác cho câu hỏi ghép nối dưới đây.
+Câu hỏi: {original_q}{extra_instruction}
+
+Yêu cầu:
+- Sinh các cặp ghép có vế trái và vế phải tương ứng.
+- Trả về JSON theo định dạng sau (không kèm markdown, không giải thích thêm):
+{{
+    "matching_pairs": [
+        {{"left": "Từ/vế trái 1", "right": "Nghĩa/vế phải 1"}},
+        {{"left": "Từ/vế trái 2", "right": "Nghĩa/vế phải 2"}},
+        {{"left": "Từ/vế trái 3", "right": "Nghĩa/vế phải 3"}}
+    ]
+}}
+"""
+            elif dang == 'FIB':
+                prompt = f"""
+Bạn là giáo viên Tiểu học Việt Nam. Nhiệm vụ: xác định các vị trí khuyết [...] trong câu hỏi dưới đây và tạo đáp án chính xác cho từng vị trí khuyết theo thứ tự xuất hiện.
+Câu hỏi: {original_q}{extra_instruction}
+
+Yêu cầu:
+- Nếu câu hỏi chưa có vị trí khuyết rõ ràng, hãy xác định các từ khóa trọng tâm phù hợp để làm đáp án điền khuyết.
+- Trả về JSON theo định dạng sau (không kèm markdown, không giải thích thêm):
+{{
+    "fib_answers": ["đáp án cho vị trí 1", "đáp án cho vị trí 2"]
+}}
+"""
+            elif dang == 'TF':
+                prompt = f"""
+Bạn là giáo viên Tiểu học Việt Nam. Nhiệm vụ: tạo 4 nhận định liên quan đến câu hỏi dưới đây và xác định giá trị Đúng hoặc Sai cho từng nhận định.
+Câu hỏi: {original_q}{extra_instruction}
+
+Yêu cầu:
+- Tạo 4 nhận định rõ ràng, phù hợp học sinh Tiểu học.
+- Xác định chính xác "Đúng" hoặc "Sai" cho từng nhận định.
+- Trả về JSON theo định dạng sau (không kèm markdown, không giải thích thêm):
+{{
+    "tf_statements": [
+        {{"statement": "Nhận định 1...", "correct": "Đúng"}},
+        {{"statement": "Nhận định 2...", "correct": "Sai"}},
+        {{"statement": "Nhận định 3...", "correct": "Đúng"}},
+        {{"statement": "Nhận định 4...", "correct": "Sai"}}
+    ]
+}}
+"""
             else:
                 prompt = f"""
 Bạn là giáo viên Tiểu học Việt Nam. Nhiệm vụ: tạo các phương án trả lời cho câu hỏi trắc nghiệm bên dưới và chỉ rõ đáp án đúng.
@@ -1053,8 +1258,13 @@ Yêu cầu:
 }}
 (correct là chỉ số 0-based của đáp án đúng)
 """
-            response = model.generate_content(prompt)
-            res_text = response.text.strip()
+            groq_response = call_groq_chat(groq_client,
+                model=getattr(settings, 'GROQ_MODEL', 'openai/gpt-oss-120b'),
+                messages=[{'role': 'user', 'content': prompt}],
+                temperature=0.5,
+                max_tokens=2048,
+            )
+            res_text = groq_response.choices[0].message.content.strip()
             if res_text.startswith('```json'):
                 res_text = res_text[7:]
             if res_text.startswith('```'):
@@ -1062,11 +1272,23 @@ Yêu cầu:
             if res_text.endswith('```'):
                 res_text = res_text[:-3]
                 
-            result = json.loads(res_text.strip())
+            result = extract_json_from_ai(res_text)
             
             if is_essay:
                 return JsonResponse({'success': True, 'question': {
                     'essay_answer': result.get('essay_answer', '')
+                }})
+            elif dang == 'Matching':
+                return JsonResponse({'success': True, 'question': {
+                    'matching_pairs': result.get('matching_pairs', [])
+                }})
+            elif dang == 'FIB':
+                return JsonResponse({'success': True, 'question': {
+                    'fib_answers': result.get('fib_answers', [])
+                }})
+            elif dang == 'TF':
+                return JsonResponse({'success': True, 'question': {
+                    'tf_statements': result.get('tf_statements', [])
                 }})
             else:
                 return JsonResponse({'success': True, 'question': {

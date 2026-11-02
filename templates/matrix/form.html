@@ -1,242 +1,379 @@
 {% extends 'base.html' %}
 {% load l10n %}
-{% block page_title %}{% if matran %}Cập nhật Ma trận{% else %}Thêm Ma trận{% endif %}{% endblock %}
+{% load rbac_tags %}
+{% block page_title %}{% if matran and matran.pk %}Chỉnh sửa Ma trận Đề thi{% else %}Tạo mới Ma trận Đề thi{% endif %}{% endblock %}
 
 {% block content %}
 <div class="card shadow-sm mt-3 border-0">
-    <div class="card-header bg-white border-bottom pt-3 pb-2">
-        <h5 class="text-primary mb-0"><i class="fas fa-table me-2"></i>{% if matran %}Chỉnh sửa Ma trận: {{ matran.TenMaTran }}{% else %}Tạo mới Ma trận Đề thi{% endif %}</h5>
+    <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+        <div>
+            <h5 class="text-primary mb-0 fw-bold">
+                <i class="fas fa-th me-2"></i>
+                {% if matran and matran.pk %}Chỉnh sửa Ma trận: {{ matran.TenMaTran }}{% else %}Tạo mới Ma trận Đề thi{% endif %}
+            </h5>
+            <small class="text-muted">Đặc tả cấu trúc đề thi theo môn học, kỳ thi, khối lớp làm cơ sở sinh đề</small>
+        </div>
+        <div>
+            {% if matran and matran.pk %}
+                {% if matran.TrangThai == 'Đã duyệt' %}
+                    <span class="badge bg-success fs-6">Đã duyệt</span>
+                {% elif matran.TrangThai == 'Chờ duyệt' %}
+                    <span class="badge bg-warning text-dark fs-6">Chờ duyệt</span>
+                {% elif matran.TrangThai == 'Từ chối' %}
+                    <span class="badge bg-danger fs-6">Từ chối</span>
+                {% else %}
+                    <span class="badge bg-secondary fs-6">Nháp</span>
+                {% endif %}
+            {% endif %}
+        </div>
     </div>
     
-    <div class="card-body">
+    <div class="card-body p-4">
         {% if messages %}
             {% for message in messages %}
-                <div class="alert alert-{{ message.tags }} py-2">{{ message }}</div>
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show py-2" role="alert">
+                    <i class="fas fa-exclamation-circle me-1"></i> {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
             {% endfor %}
         {% endif %}
         
-        <form method="POST" id="matrixForm">
+        <form method="POST" id="matrixForm" novalidate>
             {% csrf_token %}
-            <h6 class="text-muted border-bottom pb-2 mb-3">Thông tin chung</h6>
-            <div class="row g-3 mb-4">
-                <div class="col-md-12">
-                    <label class="form-label fw-bold">Tên ma trận <span class="text-danger">*</span></label>
-                    <input type="text" name="TenMaTran" id="tenMaTran" class="form-control bg-light" value="{{ matran.TenMaTran }}" required readonly placeholder="Tên ma trận sẽ tự động tạo sau khi chọn đủ thông tin phía dưới...">
+            
+            <!-- THÔNG TIN CHUNG (HEADER) -->
+            <div class="card border mb-4 bg-light bg-opacity-25 shadow-sm">
+                <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
+                    <span class="fw-bold text-secondary"><i class="fas fa-info-circle me-1"></i> Thông tin chung ma trận (Bắt buộc nhập trước)</span>
+                    <span id="headerStatusBadge" class="badge bg-secondary">Chưa hoàn thành</span>
                 </div>
-                
-                <div class="col-md-3">
-                    <label class="form-label">Năm học <span class="text-danger">*</span></label>
-                    <select name="NamHoc" class="form-select" required {% if has_details %}style="pointer-events: none; background-color: #e9ecef;"{% endif %}>
-                        <option value="">-- Chọn --</option>
-                        {% for nh in namhocs %}
-                        <option value="{{ nh.pk }}" {% if matran.NamHoc_id|add:"0" == nh.pk|add:"0" %}selected{% endif %}>{{ nh.TenNamHoc }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <div class="col-md-3">
-                    <label class="form-label">Học kỳ <span class="text-danger">*</span></label>
-                    <select name="HocKy" class="form-select" required {% if has_details %}style="pointer-events: none; background-color: #e9ecef;"{% endif %}>
-                        <option value="">-- Chọn học kỳ --</option>
-                        <option value="Học kỳ 1" {% if matran.HocKy == 'Học kỳ 1' %}selected{% endif %}>Học kỳ I</option>
-                        <option value="Học kỳ 2" {% if matran.HocKy == 'Học kỳ 2' %}selected{% endif %}>Học kỳ II</option>
-                    </select>
-                </div>
-                
-                <div class="col-md-3">
-                    <label class="form-label">Kỳ thi <span class="text-danger">*</span></label>
-                    <select name="KyThi" class="form-select" required {% if has_details %}style="pointer-events: none; background-color: #e9ecef;"{% endif %}>
-                        <option value="">-- Chọn --</option>
-                        <option value="Giữa kỳ" {% if matran.KyThi == 'Giữa kỳ' %}selected{% endif %}>Giữa kỳ</option>
-                        <option value="Cuối kỳ" {% if matran.KyThi == 'Cuối kỳ' %}selected{% endif %}>Cuối kỳ</option>
-                    </select>
-                </div>
-                
-                <div class="col-md-3">
-                    <label class="form-label">Khối <span class="text-danger">*</span></label>
-                    <select name="Khoi" class="form-select" required onchange="filterMonHoc()" {% if has_details %}style="pointer-events: none; background-color: #e9ecef;"{% endif %}>
-                        <option value="">-- Chọn --</option>
-                        {% for k in khois %}
-                        <option value="{{ k.pk }}" {% if matran.Khoi_id|add:"0" == k.pk|add:"0" %}selected{% endif %}>{{ k.TenKhoi }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <div class="col-md-3">
-                    <label class="form-label">Môn học <span class="text-danger">*</span></label>
-                    <select name="MonHoc" class="form-select" required onchange="filterMach()" {% if has_details %}style="pointer-events: none; background-color: #e9ecef;"{% endif %}>
-                        <option value="">-- Chọn --</option>
-                        {% for mh in monhocs %}
-                        <option value="{{ mh.pk }}" data-khois="{% for k in mh.KhoiApDung.all %}{{ k.pk }},{% endfor %}" {% if matran.MonHoc_id|add:"0" == mh.pk|add:"0" %}selected{% endif %}>{{ mh.TenMon }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <div class="col-md-9">
-                    <label class="form-label">Mô tả</label>
-                    <input type="text" name="MoTa" class="form-control" value="{{ matran.MoTa|default:'' }}">
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-12">
+                            <label class="form-label fw-bold">Tên ma trận <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <input type="text" name="TenMaTran" id="tenMaTran" class="form-control" value="{{ matran.TenMaTran|default:'' }}" required placeholder="Nhập tên ma trận hoặc chọn các mục dưới để tự động tạo tên..." oninput="checkGeneralInfoCompletion()">
+                                <button class="btn btn-outline-secondary" type="button" id="btnAutoName" title="Tự động tạo tên theo thông tin đã chọn">
+                                    <i class="fas fa-magic me-1"></i> Tự động tạo tên
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Năm học <span class="text-danger">*</span></label>
+                            <select name="NamHoc" id="selNamHoc" class="form-select" required onchange="checkGeneralInfoCompletion()">
+                                <option value="">-- Chọn Năm học --</option>
+                                {% for nh in namhocs %}
+                                <option value="{{ nh.pk }}" {% if matran.NamHoc_id|add:"0" == nh.pk|add:"0" %}selected{% endif %}>{{ nh.TenNamHoc }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Học kỳ <span class="text-danger">*</span></label>
+                            <select name="HocKy" id="selHocKy" class="form-select" required onchange="checkGeneralInfoCompletion()">
+                                <option value="">-- Chọn Học kỳ --</option>
+                                <option value="Học kỳ 1" {% if matran.HocKy == 'Học kỳ 1' %}selected{% endif %}>Học kỳ I</option>
+                                <option value="Học kỳ 2" {% if matran.HocKy == 'Học kỳ 2' %}selected{% endif %}>Học kỳ II</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Kỳ thi <span class="text-danger">*</span></label>
+                            <select name="KyThi" id="selKyThi" class="form-select" required onchange="checkGeneralInfoCompletion()">
+                                <option value="">-- Chọn Kỳ thi --</option>
+                                <option value="Giữa kỳ" {% if matran.KyThi == 'Giữa kỳ' %}selected{% endif %}>Giữa kỳ</option>
+                                <option value="Cuối kỳ" {% if matran.KyThi == 'Cuối kỳ' %}selected{% endif %}>Cuối kỳ</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Khối <span class="text-danger">*</span></label>
+                            <select name="Khoi" id="selKhoi" class="form-select" required onchange="filterMonHoc(); checkGeneralInfoCompletion();">
+                                <option value="">-- Chọn Khối --</option>
+                                {% for k in khois %}
+                                <option value="{{ k.pk }}" {% if matran.Khoi_id|add:"0" == k.pk|add:"0" %}selected{% endif %}>{{ k.TenKhoi }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Môn học <span class="text-danger">*</span></label>
+                            <select name="MonHoc" id="selMonHoc" class="form-select" required onchange="filterMach(); checkGeneralInfoCompletion();">
+                                <option value="">-- Chọn Môn học --</option>
+                                {% for mh in monhocs %}
+                                <option value="{{ mh.pk }}" data-khois="{% for k in mh.KhoiApDung.all %}{{ k.pk }},{% endfor %}" {% if matran.MonHoc_id|add:"0" == mh.pk|add:"0" %}selected{% endif %}>{{ mh.TenMon }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Mô tả</label>
+                            <input type="text" name="MoTa" id="txtMoTa" class="form-control" value="{{ matran.MoTa|default:'' }}" placeholder="Ghi chú thêm về ma trận (nếu có)...">
+                        </div>
+                    </div>
                 </div>
             </div>
             
-            <div class="d-flex justify-content-between align-items-center mb-2 border-bottom pb-2">
-                <h6 class="text-muted mb-0">Chi tiết ma trận</h6>
-                <button type="button" class="btn btn-sm btn-outline-primary" onclick="addRow()"><i class="fas fa-plus me-1"></i>Thêm dòng</button>
+            <!-- THÔNG BÁO TẠM KHÓA KHI CHƯA NHẬP ĐỦ THÔNG TIN CHUNG (Theo UC 9.1 Bước 5 -> 6) -->
+            <div id="generalInfoLockedAlert" class="card border-0 bg-light p-4 text-center mb-4 border-start border-4 border-warning shadow-sm">
+                <div class="py-3">
+                    <div class="mb-3">
+                        <span class="badge bg-warning text-dark px-3 py-2 fs-6">
+                            <i class="fas fa-lock me-1"></i> Khu vực Chi tiết ma trận đang tạm khóa
+                        </span>
+                    </div>
+                    <h6 class="fw-bold text-dark mb-2">Vui lòng hoàn thành Thông tin chung ma trận ở trên</h6>
+                    <p class="text-muted small mb-0" style="max-width: 600px; margin: 0 auto;">
+                        Bạn cần chọn đầy đủ <strong>Năm học, Học kỳ, Kỳ thi, Khối, Môn học</strong> và <strong>Tên ma trận</strong> để hệ thống tự động xác định mạch kiến thức tương ứng và mở khóa khu vực nhập chi tiết ma trận đề thi.
+                    </p>
+                </div>
+            </div>
+
+            <!-- KHU VỰC CHI TIẾT MA TRẬN (CHỈ MỞ KHÓA KHI ĐÃ NHẬP ĐỦ THÔNG TIN CHUNG) -->
+            <div id="matrixDetailsSection" class="d-none">
+                <div class="d-flex flex-wrap justify-content-between align-items-center mb-2 gap-2">
+                    <div>
+                        <h6 class="fw-bold text-secondary mb-0"><i class="fas fa-list-ol me-1"></i> Chi tiết ma trận đề thi</h6>
+                        <small class="text-muted">Khai báo phân bổ câu hỏi theo mạch kiến thức, mức độ, loại câu, điểm số và tỷ lệ</small>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-success shadow-sm" onclick="autoCalculateRowPercentages()" title="Tự động tính Tỷ lệ (%) của từng dòng theo điểm và làm tròn hàng chục">
+                            <i class="fas fa-calculator me-1"></i> Tự động tính Tỷ lệ (%) tròn hàng chục
+                        </button>
+                        <button type="button" class="btn btn-sm btn-primary shadow-sm" onclick="addRow()">
+                            <i class="fas fa-plus me-1"></i> Thêm dòng chi tiết
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="table-responsive border rounded mb-3 shadow-sm">
+                    <table class="table table-bordered align-middle mb-0" id="detailsTable">
+                        <thead class="table-light text-center small text-uppercase fw-bold">
+                            <tr>
+                                <th style="width: 40px;">STT</th>
+                                <th style="min-width: 170px;">Mạch kiến thức <span class="text-danger">*</span></th>
+                                <th style="min-width: 190px;">Nội dung kiến thức <span class="text-danger">*</span></th>
+                                <th style="width: 110px;">Mức độ <span class="text-danger">*</span></th>
+                                <th style="width: 120px;">Loại câu hỏi <span class="text-danger">*</span></th>
+                                <th style="width: 85px;">Số câu <span class="text-danger">*</span></th>
+                                <th style="min-width: 130px;">Câu số <span class="text-danger">*</span></th>
+                                <th style="width: 90px;">Điểm <span class="text-danger">*</span></th>
+                                <th style="width: 90px;">Tỷ lệ (%) <span class="text-danger">*</span></th>
+                                <th style="width: 50px;">Xóa</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detailsBody">
+                            {% if is_post_back %}
+                                {% for ct in posted_details %}
+                                <tr class="detail-row {% if forloop.counter0 in row_errors %}table-danger border-danger{% endif %}">
+                                    <td class="text-center fw-bold text-muted row-stt">{{ forloop.counter }}</td>
+                                    <td>
+                                        <select name="MachKienThuc[]" class="form-select form-select-sm mach-select" required onchange="filterNoiDung(this); reCalculateAll();">
+                                            <option value="">-- Mạch KT --</option>
+                                            {% for m in machs %}
+                                            <option value="{{ m.pk }}" data-monhoc="{{ m.MonHoc_id }}" data-khoi="{{ m.Khoi_id }}" {% if ct.MachKienThuc_id|add:"0" == m.pk|add:"0" %}selected{% endif %}>{{ m.TenMach }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <select name="NoiDung[]" class="form-select form-select-sm noidung-select" required onchange="reCalculateAll()">
+                                            <option value="">-- Nội dung --</option>
+                                            {% for nd in noidungs %}
+                                            <option value="{{ nd.pk }}" data-mach="{{ nd.MachKienThuc_id }}" {% if ct.NoiDung_id|add:"0" == nd.pk|add:"0" %}selected{% endif %}>{{ nd.TenNoidung }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <select name="MucDo[]" class="form-select form-select-sm mucdo-select" required onchange="reCalculateAll()">
+                                            <option value="Mức 1" {% if ct.MucDo == 'Mức 1' %}selected{% endif %}>Mức 1</option>
+                                            <option value="Mức 2" {% if ct.MucDo == 'Mức 2' %}selected{% endif %}>Mức 2</option>
+                                            <option value="Mức 3" {% if ct.MucDo == 'Mức 3' %}selected{% endif %}>Mức 3</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <select name="LoaiCauHoi[]" class="form-select form-select-sm loai-select" required onchange="reCalculateAll()">
+                                            <option value="Trắc nghiệm" {% if ct.LoaiCauHoi == 'Trắc nghiệm' %}selected{% endif %}>Trắc nghiệm</option>
+                                            <option value="Tự luận" {% if ct.LoaiCauHoi == 'Tự luận' %}selected{% endif %}>Tự luận</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input type="number" name="SoLuongCau[]" class="form-control form-control-sm text-center input-soluong" min="1" step="1" value="{{ ct.SoLuongCau }}" required oninput="reCalculateAll()">
+                                    </td>
+                                    <td>
+                                        <input type="text" name="CauSo[]" class="form-control form-control-sm input-causo" placeholder="VD: 1,2,3" value="{{ ct.CauSo|default:'' }}" required oninput="reCalculateAll()">
+                                        {% if forloop.counter0 in row_errors %}
+                                        <div class="small text-danger mt-1">
+                                            {% for err in row_errors|get_item:forloop.counter0 %}
+                                                <div><i class="fas fa-exclamation-triangle"></i> {{ err }}</div>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <input type="number" name="Diem[]" class="form-control form-control-sm text-center input-diem" step="0.25" min="0.25" value="{{ ct.Diem|unlocalize }}" required oninput="reCalculateAll()">
+                                    </td>
+                                    <td>
+                                        <input type="number" name="TyLe[]" class="form-control form-control-sm text-center input-tyle" step="0.1" min="0.1" max="100" value="{{ ct.TyLe|unlocalize }}" required oninput="reCalculateAll()">
+                                    </td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="confirmDeleteRow(this)" title="Xóa dòng này">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% elif matran and matran.chi_tiet.all %}
+                                {% for ct in matran.chi_tiet.all %}
+                                <tr class="detail-row">
+                                    <td class="text-center fw-bold text-muted row-stt">{{ forloop.counter }}</td>
+                                    <td>
+                                        <select name="MachKienThuc[]" class="form-select form-select-sm mach-select" required onchange="filterNoiDung(this); reCalculateAll();">
+                                            <option value="">-- Mạch KT --</option>
+                                            {% for m in machs %}
+                                            <option value="{{ m.pk }}" data-monhoc="{{ m.MonHoc_id }}" data-khoi="{{ m.Khoi_id }}" {% if ct.MachKienThuc_id == m.pk %}selected{% endif %}>{{ m.TenMach }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <select name="NoiDung[]" class="form-select form-select-sm noidung-select" required onchange="reCalculateAll()">
+                                            <option value="">-- Nội dung --</option>
+                                            {% for nd in noidungs %}
+                                            <option value="{{ nd.pk }}" data-mach="{{ nd.MachKienThuc_id }}" {% if ct.NoiDung_id == nd.pk %}selected{% endif %}>{{ nd.TenNoidung }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <select name="MucDo[]" class="form-select form-select-sm mucdo-select" required onchange="reCalculateAll()">
+                                            <option value="Mức 1" {% if ct.MucDo == 'Mức 1' %}selected{% endif %}>Mức 1</option>
+                                            <option value="Mức 2" {% if ct.MucDo == 'Mức 2' %}selected{% endif %}>Mức 2</option>
+                                            <option value="Mức 3" {% if ct.MucDo == 'Mức 3' %}selected{% endif %}>Mức 3</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <select name="LoaiCauHoi[]" class="form-select form-select-sm loai-select" required onchange="reCalculateAll()">
+                                            <option value="Trắc nghiệm" {% if ct.LoaiCauHoi == 'Trắc nghiệm' %}selected{% endif %}>Trắc nghiệm</option>
+                                            <option value="Tự luận" {% if ct.LoaiCauHoi == 'Tự luận' %}selected{% endif %}>Tự luận</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input type="number" name="SoLuongCau[]" class="form-control form-control-sm text-center input-soluong" min="1" step="1" value="{{ ct.SoLuongCau }}" required oninput="reCalculateAll()">
+                                    </td>
+                                    <td>
+                                        <input type="text" name="CauSo[]" class="form-control form-control-sm input-causo" placeholder="VD: 1,2,3" value="{{ ct.CauSo|default:'' }}" required oninput="reCalculateAll()">
+                                    </td>
+                                    <td>
+                                        <input type="number" name="Diem[]" class="form-control form-control-sm text-center input-diem" step="0.25" min="0.25" value="{{ ct.Diem|unlocalize }}" required oninput="reCalculateAll()">
+                                    </td>
+                                    <td>
+                                        <input type="number" name="TyLe[]" class="form-control form-control-sm text-center input-tyle" step="0.1" min="0.1" max="100" value="{{ ct.TyLe|unlocalize }}" required oninput="reCalculateAll()">
+                                    </td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="confirmDeleteRow(this)" title="Xóa dòng này">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% endif %}
+                        </tbody>
+                        <tfoot class="table-light fw-bold">
+                            <tr>
+                                <td colspan="5" class="text-end text-primary pe-3">TỔNG CỘNG MA TRẬN:</td>
+                                <td class="text-center text-primary" id="sumSoCau">0</td>
+                                <td class="text-muted small text-center" id="sumCauSoNote">-</td>
+                                <td class="text-center" id="sumDiemCell"><span id="sumDiem">0</span>đ</td>
+                                <td class="text-center" id="sumTyleCell"><span id="sumTyle">0</span>%</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <!-- BẢNG THỐNG KÊ MỨC ĐỘ REALTIME (LÀM TRÒN HÀNG CHỤC) -->
+                <div class="card border mb-4">
+                    <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
+                        <span class="fw-bold small text-secondary"><i class="fas fa-chart-pie me-1"></i> Bảng thống kê tỷ lệ theo Mức độ nhận thức (Làm tròn hàng chục theo tổng điểm)</span>
+                        <span id="levelValidationBadge" class="badge bg-success"><i class="fas fa-check me-1"></i> Tỷ lệ làm tròn hàng chục</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered text-center align-middle mb-0" id="levelTable">
+                                <thead class="table-light small">
+                                    <tr>
+                                        <th>Mức độ</th>
+                                        <th>Số câu</th>
+                                        <th>Tổng điểm</th>
+                                        <th>Tỷ lệ khai báo (%)</th>
+                                        <th>Tỷ lệ thực tế điểm (%)</th>
+                                        <th>Tỷ lệ làm tròn hàng chục (%)</th>
+                                        <th>Đánh giá</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr id="rowMuc1">
+                                        <td class="fw-bold">Mức 1</td>
+                                        <td class="m-cau">0</td>
+                                        <td class="m-diem">0</td>
+                                        <td class="m-tyle">0%</td>
+                                        <td class="m-thucte">0%</td>
+                                        <td class="m-lamtron fw-bold text-primary">0%</td>
+                                        <td class="m-status"><span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>Đạt</span></td>
+                                    </tr>
+                                    <tr id="rowMuc2">
+                                        <td class="fw-bold">Mức 2</td>
+                                        <td class="m-cau">0</td>
+                                        <td class="m-diem">0</td>
+                                        <td class="m-tyle">0%</td>
+                                        <td class="m-thucte">0%</td>
+                                        <td class="m-lamtron fw-bold text-primary">0%</td>
+                                        <td class="m-status"><span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>Đạt</span></td>
+                                    </tr>
+                                    <tr id="rowMuc3">
+                                        <td class="fw-bold">Mức 3</td>
+                                        <td class="m-cau">0</td>
+                                        <td class="m-diem">0</td>
+                                        <td class="m-tyle">0%</td>
+                                        <td class="m-thucte">0%</td>
+                                        <td class="m-lamtron fw-bold text-primary">0%</td>
+                                        <td class="m-status"><span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>Đạt</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- THÔNG BÁO TỔNG QUAN TRỰC QUAN -->
+                <div id="validationAlertBox" class="alert alert-warning py-2 mb-4 d-none">
+                    <i class="fas fa-info-circle me-1"></i> <span id="validationAlertMsg"></span>
+                </div>
             </div>
             
-            <div class="table-responsive">
-                <table class="table table-bordered align-middle" id="detailsTable">
-                    <thead class="table-light text-center" style="font-size: 0.85rem;">
-                        <tr>
-                            <th style="min-width: 150px;">Mạch kiến thức</th>
-                            <th style="min-width: 150px;">Nội dung kiến thức</th>
-                            <th style="width: 120px;">Mức độ</th>
-                            <th style="width: 120px;">Loại câu hỏi</th>
-                            <th style="width: 80px;">Số câu</th>
-                            <th style="min-width: 100px;">Câu số</th>
-                            <th style="width: 80px;">Điểm</th>
-                            <th style="width: 80px;">Tỷ lệ (%)</th>
-                            <th style="width: 50px;"></th>
-                        </tr>
-                    </thead>
-                    <tbody id="detailsBody">
-                        {% if is_post_back %}
-                            {% for ct in posted_details %}
-                            <tr>
-                                <td>
-                                    <select name="MachKienThuc[]" class="form-select form-select-sm mach-select" required onchange="filterNoiDung(this)">
-                                        <option value="">-- Mạch KT --</option>
-                                        {% for m in machs %}
-                                        <option value="{{ m.pk }}" data-monhoc="{{ m.MonHoc_id }}" data-khoi="{{ m.Khoi_id }}" {% if ct.MachKienThuc_id|add:"0" == m.pk|add:"0" %}selected{% endif %}>{{ m.TenMach }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </td>
-                                <td>
-                                    <select name="NoiDung[]" class="form-select form-select-sm noidung-select" required>
-                                        <option value="">-- Nội dung --</option>
-                                        {% for nd in noidungs %}
-                                        <option value="{{ nd.pk }}" data-mach="{{ nd.MachKienThuc_id }}" {% if ct.NoiDung_id|add:"0" == nd.pk|add:"0" %}selected{% endif %}>{{ nd.TenNoidung }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </td>
-                                <td>
-                                    <select name="MucDo[]" class="form-select form-select-sm" required>
-                                        <option value="Mức 1" {% if ct.MucDo == 'Mức 1' %}selected{% endif %}>Mức 1</option>
-                                        <option value="Mức 2" {% if ct.MucDo == 'Mức 2' %}selected{% endif %}>Mức 2</option>
-                                        <option value="Mức 3" {% if ct.MucDo == 'Mức 3' %}selected{% endif %}>Mức 3</option>
-                                    </select>
-                                </td>
-                                <td>
-                                    <select name="LoaiCauHoi[]" class="form-select form-select-sm" required>
-                                        <option value="Trắc nghiệm" {% if ct.LoaiCauHoi == 'Trắc nghiệm' %}selected{% endif %}>Trắc nghiệm</option>
-                                        <option value="Tự luận" {% if ct.LoaiCauHoi == 'Tự luận' %}selected{% endif %}>Tự luận</option>
-                                    </select>
-                                </td>
-                                <td><input type="number" name="SoLuongCau[]" class="form-control form-control-sm" min="1" value="{{ ct.SoLuongCau }}" required></td>
-                                <td><input type="text" name="CauSo[]" class="form-control form-control-sm" placeholder="VD: 1,2,3" value="{{ ct.CauSo|default:'' }}" required></td>
-                                <td><input type="number" name="Diem[]" class="form-control form-control-sm" step="0.25" min="0.25" value="{{ ct.Diem|unlocalize }}" required></td>
-                                <td><input type="number" name="TyLe[]" class="form-control form-control-sm" step="0.1" min="0.1" value="{{ ct.TyLe|unlocalize }}" required></td>
-                                <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRow(this)"><i class="fas fa-trash"></i></button></td>
-                            </tr>
-                            {% endfor %}
-                        {% elif matran and matran.chi_tiet.all %}
-                            {% for ct in matran.chi_tiet.all %}
-                            <tr>
-                                <td>
-                                    <select name="MachKienThuc[]" class="form-select form-select-sm mach-select" required onchange="filterNoiDung(this)">
-                                        <option value="">-- Mạch KT --</option>
-                                        {% for m in machs %}
-                                        <option value="{{ m.pk }}" data-monhoc="{{ m.MonHoc_id }}" data-khoi="{{ m.Khoi_id }}" {% if ct.MachKienThuc_id == m.pk %}selected{% endif %}>{{ m.TenMach }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </td>
-                                <td>
-                                    <select name="NoiDung[]" class="form-select form-select-sm noidung-select" required>
-                                        <option value="">-- Nội dung --</option>
-                                        {% for nd in noidungs %}
-                                        <option value="{{ nd.pk }}" data-mach="{{ nd.MachKienThuc_id }}" {% if ct.NoiDung_id == nd.pk %}selected{% endif %}>{{ nd.TenNoidung }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </td>
-                                <td>
-                                    <select name="MucDo[]" class="form-select form-select-sm" required>
-                                        <option value="Mức 1" {% if ct.MucDo == 'Mức 1' %}selected{% endif %}>Mức 1</option>
-                                        <option value="Mức 2" {% if ct.MucDo == 'Mức 2' %}selected{% endif %}>Mức 2</option>
-                                        <option value="Mức 3" {% if ct.MucDo == 'Mức 3' %}selected{% endif %}>Mức 3</option>
-                                    </select>
-                                </td>
-                                <td>
-                                    <select name="LoaiCauHoi[]" class="form-select form-select-sm" required>
-                                        <option value="Trắc nghiệm" {% if ct.LoaiCauHoi == 'Trắc nghiệm' %}selected{% endif %}>Trắc nghiệm</option>
-                                        <option value="Tự luận" {% if ct.LoaiCauHoi == 'Tự luận' %}selected{% endif %}>Tự luận</option>
-                                    </select>
-                                </td>
-                                <td><input type="number" name="SoLuongCau[]" class="form-control form-control-sm" min="1" value="{{ ct.SoLuongCau }}" required></td>
-                                <td><input type="text" name="CauSo[]" class="form-control form-control-sm" placeholder="VD: 1,2,3" value="{{ ct.CauSo|default:'' }}" required></td>
-                                <td><input type="number" name="Diem[]" class="form-control form-control-sm" step="0.25" min="0.25" value="{{ ct.Diem|unlocalize }}" required></td>
-                                <td><input type="number" name="TyLe[]" class="form-control form-control-sm" step="0.1" min="0.1" value="{{ ct.TyLe|unlocalize }}" required></td>
-                                <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRow(this)"><i class="fas fa-trash"></i></button></td>
-                            </tr>
-                            {% endfor %}
-                        {% else %}
-                            <!-- Default Row for New -->
-                            <tr>
-                                <td>
-                                    <select name="MachKienThuc[]" class="form-select form-select-sm mach-select" required onchange="filterNoiDung(this)">
-                                        <option value="">-- Mạch KT --</option>
-                                        {% for m in machs %}
-                                        <option value="{{ m.pk }}" data-monhoc="{{ m.MonHoc_id }}" data-khoi="{{ m.Khoi_id }}">{{ m.TenMach }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </td>
-                                <td>
-                                    <select name="NoiDung[]" class="form-select form-select-sm noidung-select" required>
-                                        <option value="">-- Nội dung --</option>
-                                        {% for nd in noidungs %}
-                                        <option value="{{ nd.pk }}" data-mach="{{ nd.MachKienThuc_id }}">{{ nd.TenNoidung }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </td>
-                                <td>
-                                    <select name="MucDo[]" class="form-select form-select-sm" required>
-                                        <option value="Mức 1">Mức 1</option>
-                                        <option value="Mức 2">Mức 2</option>
-                                        <option value="Mức 3">Mức 3</option>
-                                    </select>
-                                </td>
-                                <td>
-                                    <select name="LoaiCauHoi[]" class="form-select form-select-sm" required>
-                                        <option value="Trắc nghiệm">Trắc nghiệm</option>
-                                        <option value="Tự luận">Tự luận</option>
-                                    </select>
-                                </td>
-                                <td><input type="number" name="SoLuongCau[]" class="form-control form-control-sm" min="1" value="1" required></td>
-                                <td><input type="text" name="CauSo[]" class="form-control form-control-sm" placeholder="VD: 1,2" required></td>
-                                <td><input type="number" name="Diem[]" class="form-control form-control-sm" step="0.25" min="0.25" value="0.25" required></td>
-                                <td><input type="number" name="TyLe[]" class="form-control form-control-sm" step="0.1" min="0.1" value="5" required></td>
-                                <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRow(this)"><i class="fas fa-trash"></i></button></td>
-                            </tr>
-                        {% endif %}
-                    </tbody>
-                </table>
-            </div>
-            
-            <div class="mt-4 text-end">
-                <a href="{% url 'matrix_list' %}" class="btn btn-light px-4 me-2" onclick="confirmCancel(event, this.href)">Hủy</a>
-                <button type="submit" name="action" value="draft" class="btn btn-secondary px-4 me-2" onclick="removeDetailsRequired()"><i class="fas fa-save me-1"></i>Lưu Nháp</button>
-                {% if request.user.giaovien.ChucVu == 'Hiệu trưởng' or request.user.giaovien.ChucVu == 'Phó hiệu trưởng' %}
-                <button type="submit" name="action" value="approve" class="btn btn-success px-4" onclick="restoreDetailsRequired()"><i class="fas fa-check-circle me-1"></i>Phê duyệt</button>
-                {% else %}
-                <button type="submit" name="action" value="submit" class="btn btn-primary px-4" onclick="restoreDetailsRequired()"><i class="fas fa-paper-plane me-1"></i>Nộp (Gửi duyệt)</button>
-                {% endif %}
+            <!-- HÀNG NÚT THAO TÁC -->
+            <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+                <button type="button" class="btn btn-outline-secondary px-4" onclick="confirmCancel()">
+                    <i class="fas fa-times me-1"></i> Hủy
+                </button>
+                <div class="d-flex gap-2">
+                    <button type="submit" name="action" value="draft" class="btn btn-secondary px-4" onclick="setDraftAction()">
+                        <i class="fas fa-save me-1"></i> Lưu (Lưu nháp)
+                    </button>
+                    <button type="submit" name="action" value="submit" id="btnSubmitMatrix" class="btn btn-primary px-4 shadow-sm" onclick="setSubmitAction()">
+                        <i class="fas fa-paper-plane me-1"></i> Nộp (Gửi duyệt)
+                    </button>
+                </div>
             </div>
         </form>
     </div>
 </div>
 
+<!-- TEMPLATE DÒNG CHI TIẾT MỚI -->
 <template id="rowTemplate">
-    <tr>
+    <tr class="detail-row">
+        <td class="text-center fw-bold text-muted row-stt">#</td>
         <td>
-            <select name="MachKienThuc[]" class="form-select form-select-sm mach-select" required onchange="filterNoiDung(this)">
+            <select name="MachKienThuc[]" class="form-select form-select-sm mach-select" required onchange="filterNoiDung(this); reCalculateAll();">
                 <option value="">-- Mạch KT --</option>
                 {% for m in machs %}
                 <option value="{{ m.pk }}" data-monhoc="{{ m.MonHoc_id }}" data-khoi="{{ m.Khoi_id }}">{{ m.TenMach }}</option>
@@ -244,7 +381,7 @@
             </select>
         </td>
         <td>
-            <select name="NoiDung[]" class="form-select form-select-sm noidung-select" required>
+            <select name="NoiDung[]" class="form-select form-select-sm noidung-select" required onchange="reCalculateAll()">
                 <option value="">-- Nội dung --</option>
                 {% for nd in noidungs %}
                 <option value="{{ nd.pk }}" data-mach="{{ nd.MachKienThuc_id }}">{{ nd.TenNoidung }}</option>
@@ -252,60 +389,251 @@
             </select>
         </td>
         <td>
-            <select name="MucDo[]" class="form-select form-select-sm" required>
+            <select name="MucDo[]" class="form-select form-select-sm mucdo-select" required onchange="reCalculateAll()">
                 <option value="Mức 1">Mức 1</option>
                 <option value="Mức 2">Mức 2</option>
                 <option value="Mức 3">Mức 3</option>
             </select>
         </td>
         <td>
-            <select name="LoaiCauHoi[]" class="form-select form-select-sm" required>
+            <select name="LoaiCauHoi[]" class="form-select form-select-sm loai-select" required onchange="reCalculateAll()">
                 <option value="Trắc nghiệm">Trắc nghiệm</option>
                 <option value="Tự luận">Tự luận</option>
             </select>
         </td>
-        <td><input type="number" name="SoLuongCau[]" class="form-control form-control-sm" min="1" value="1" required></td>
-        <td><input type="text" name="CauSo[]" class="form-control form-control-sm" placeholder="VD: 1,2" required></td>
-        <td><input type="number" name="Diem[]" class="form-control form-control-sm" step="0.25" min="0.25" value="0.25" required></td>
-        <td><input type="number" name="TyLe[]" class="form-control form-control-sm" step="0.1" min="0.1" value="5" required></td>
-        <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRow(this)"><i class="fas fa-trash"></i></button></td>
+        <td>
+            <input type="number" name="SoLuongCau[]" class="form-control form-control-sm text-center input-soluong" min="1" step="1" value="1" required oninput="reCalculateAll()">
+        </td>
+        <td>
+            <input type="text" name="CauSo[]" class="form-control form-control-sm input-causo" placeholder="VD: 1" required oninput="reCalculateAll()">
+        </td>
+        <td>
+            <input type="number" name="Diem[]" class="form-control form-control-sm text-center input-diem" step="0.25" min="0.25" value="1" required oninput="reCalculateAll()">
+        </td>
+        <td>
+            <input type="number" name="TyLe[]" class="form-control form-control-sm text-center input-tyle" step="0.1" min="0.1" max="100" value="10" required oninput="reCalculateAll()">
+        </td>
+        <td class="text-center">
+            <button type="button" class="btn btn-sm btn-outline-danger" onclick="confirmDeleteRow(this)" title="Xóa dòng này">
+                <i class="fas fa-trash-alt"></i>
+            </button>
+        </td>
     </tr>
 </template>
 
+<!-- MODAL XÁC NHẬN XÓA DÒNG CHI TIẾT (Alternative Flow 7a) -->
+<div class="modal fade" id="deleteRowModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-header py-2 bg-light">
+                <h6 class="modal-title fw-bold text-danger"><i class="fas fa-trash-alt me-1"></i> Xác nhận xóa</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center py-3">
+                <p class="mb-0">Bạn có chắc chắn muốn xóa dòng chi tiết này?</p>
+            </div>
+            <div class="modal-footer py-2 justify-content-center">
+                <button type="button" class="btn btn-sm btn-secondary px-3" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-sm btn-danger px-3" id="btnConfirmDeleteRow">Đồng ý Xóa</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL XÁC NHẬN HỦY TẠO/SỬA (Exception Flow 8b / 8a) -->
+<div class="modal fade" id="cancelModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header py-2 bg-light">
+                <h6 class="modal-title fw-bold text-secondary"><i class="fas fa-question-circle me-1"></i> Xác nhận hủy</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body py-3">
+                <p class="mb-0">Bạn có chắc chắn muốn hủy? Mọi thông tin đang nhập hoặc chỉnh sửa chưa lưu sẽ bị mất.</p>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-sm btn-secondary px-3" data-bs-dismiss="modal">Tiếp tục chỉnh sửa</button>
+                <a href="{% url 'matrix_list' %}" class="btn btn-sm btn-danger px-3">Xác nhận Hủy</a>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+    let rowToDelete = null;
+    let isFormDirty = false;
+
+    // Khởi tạo giao diện khi load
+    document.addEventListener('DOMContentLoaded', function() {
+        filterMonHoc();
+        
+        // Lọc nội dung cho tất cả các dòng hiện có
+        document.querySelectorAll('.mach-select').forEach(sel => {
+            filterNoiDung(sel);
+        });
+
+        updateRowIndices();
+        reCalculateAll();
+
+        // Kiểm tra điều kiện mở khóa chi tiết ma trận
+        checkGeneralInfoCompletion();
+
+        // Lắng nghe thay đổi form để tracking dirty
+        const form = document.getElementById('matrixForm');
+        form.addEventListener('input', () => isFormDirty = true);
+        form.addEventListener('change', () => isFormDirty = true);
+
+        // Nút auto tạo tên
+        document.getElementById('btnAutoName').addEventListener('click', function() {
+            generateAutoName();
+            checkGeneralInfoCompletion();
+        });
+
+        // Lắng nghe các dropdown header thay đổi để gợi ý tạo tên
+        ['selNamHoc', 'selHocKy', 'selKyThi', 'selKhoi', 'selMonHoc'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('change', function() {
+                    const tenInput = document.getElementById('tenMaTran');
+                    if (!tenInput.value || tenInput.value.startsWith('Ma trận')) {
+                        generateAutoName();
+                    }
+                    checkGeneralInfoCompletion();
+                });
+            }
+        });
+
+        // Xử lý nút đồng ý xóa trong modal
+        document.getElementById('btnConfirmDeleteRow').addEventListener('click', function() {
+            if (rowToDelete) {
+                rowToDelete.remove();
+                rowToDelete = null;
+                updateRowIndices();
+                reCalculateAll();
+            }
+            const modalEl = document.getElementById('deleteRowModal');
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            if (modal) modal.hide();
+        });
+    });
+
+    // KIỂM TRA ĐIỀU KIỆN MỞ KHÓA CHI TIẾT MA TRẬN
+    // Chỉ khi đã nhập đầy đủ Thông tin chung: Tên ma trận, Năm học, Học kỳ, Kỳ thi, Khối, Môn học
+    function checkGeneralInfoCompletion() {
+        const tenInput = document.getElementById('tenMaTran');
+        const namhoc = document.getElementById('selNamHoc');
+        const hocky = document.getElementById('selHocKy');
+        const kythi = document.getElementById('selKyThi');
+        const khoi = document.getElementById('selKhoi');
+        const monhoc = document.getElementById('selMonHoc');
+
+        const isComplete = 
+            tenInput && tenInput.value.trim() !== '' &&
+            namhoc && namhoc.value !== '' &&
+            hocky && hocky.value !== '' &&
+            kythi && kythi.value !== '' &&
+            khoi && khoi.value !== '' &&
+            monhoc && monhoc.value !== '';
+
+        const detailsSection = document.getElementById('matrixDetailsSection');
+        const lockedAlert = document.getElementById('generalInfoLockedAlert');
+        const badge = document.getElementById('headerStatusBadge');
+        const btnSubmit = document.getElementById('btnSubmitMatrix');
+
+        if (isComplete) {
+            if (badge) {
+                badge.className = 'badge bg-success';
+                badge.innerHTML = '<i class="fas fa-check me-1"></i> Đã hoàn thành';
+            }
+            if (lockedAlert) lockedAlert.classList.add('d-none');
+            if (detailsSection) {
+                detailsSection.classList.remove('d-none');
+                detailsSection.querySelectorAll('input, select, button').forEach(el => {
+                    el.removeAttribute('disabled');
+                });
+            }
+            if (btnSubmit) btnSubmit.removeAttribute('disabled');
+
+            // Cập nhật lại lọc mạch kiến thức theo môn học và khối đã chọn
+            filterMach();
+
+            // Nếu chưa có dòng chi tiết nào, tự động thêm 1 dòng mẫu
+            const existingRows = document.querySelectorAll('#detailsBody tr.detail-row');
+            if (existingRows.length === 0) {
+                addRow();
+            } else {
+                reCalculateAll();
+            }
+        } else {
+            if (badge) {
+                badge.className = 'badge bg-secondary';
+                badge.innerHTML = '<i class="fas fa-lock me-1"></i> Chưa hoàn thành';
+            }
+            if (lockedAlert) lockedAlert.classList.remove('d-none');
+            if (detailsSection) {
+                detailsSection.classList.add('d-none');
+                // Vô hiệu hóa input trong chi tiết để browser không bắt required khi lưu nháp
+                detailsSection.querySelectorAll('input, select').forEach(el => {
+                    el.setAttribute('disabled', 'disabled');
+                });
+            }
+            if (btnSubmit) btnSubmit.setAttribute('disabled', 'disabled');
+        }
+        return isComplete;
+    }
+
+    // Tự động sinh tên ma trận theo quy chuẩn
+    function generateAutoName() {
+        const namhoc = document.getElementById('selNamHoc');
+        const hocky = document.getElementById('selHocKy');
+        const kythi = document.getElementById('selKyThi');
+        const khoi = document.getElementById('selKhoi');
+        const monhoc = document.getElementById('selMonHoc');
+        const tenInput = document.getElementById('tenMaTran');
+
+        let parts = [];
+        if (monhoc.selectedIndex > 0) parts.push(monhoc.options[monhoc.selectedIndex].text.trim());
+        if (khoi.selectedIndex > 0) parts.push(khoi.options[khoi.selectedIndex].text.trim());
+        
+        if (kythi.selectedIndex > 0 && hocky.selectedIndex > 0) {
+            let kt = kythi.options[kythi.selectedIndex].text.trim();
+            let hk = hocky.options[hocky.selectedIndex].text.trim().replace("Học kỳ ", "");
+            parts.push(`${kt} ${hk}`);
+        }
+        
+        if (namhoc.selectedIndex > 0) parts.push(namhoc.options[namhoc.selectedIndex].text.trim());
+
+        if (parts.length >= 2) {
+            tenInput.value = `Ma trận ${parts.join(' - ')}`;
+        }
+    }
+
+    // Lọc môn học theo Khối
     function filterMonHoc() {
-        const khoiId = document.querySelector('select[name="Khoi"]').value;
-        const monHocSelect = document.querySelector('select[name="MonHoc"]');
-        let hasSelectedValidOption = false;
+        const khoiId = document.getElementById('selKhoi').value;
+        const monHocSelect = document.getElementById('selMonHoc');
         
         Array.from(monHocSelect.options).forEach(opt => {
             if (opt.value === "") return;
-            
             const khois = opt.getAttribute('data-khois');
-            
             if (!khoiId || (khois && khois.split(',').includes(khoiId))) {
                 opt.style.display = 'block';
-                if (opt.selected) hasSelectedValidOption = true;
             } else {
                 opt.style.display = 'none';
-                if (opt.selected) {
-                    monHocSelect.value = "";
-                }
+                if (opt.selected) monHocSelect.value = "";
             }
         });
-        
         filterMach();
     }
 
+    // Lọc mạch kiến thức theo Khối & Môn học
     function filterMach() {
-        const monhocId = document.querySelector('select[name="MonHoc"]').value;
-        const khoiId = document.querySelector('select[name="Khoi"]').value;
-        const machSelects = document.querySelectorAll('.mach-select');
+        const monhocId = document.getElementById('selMonHoc').value;
+        const khoiId = document.getElementById('selKhoi').value;
         
-        machSelects.forEach(selectObj => {
+        document.querySelectorAll('.mach-select').forEach(selectObj => {
             Array.from(selectObj.options).forEach(opt => {
                 if (opt.value === "") return;
-                
                 const optMonHoc = opt.getAttribute('data-monhoc');
                 const optKhoi = opt.getAttribute('data-khoi');
                 
@@ -313,145 +641,238 @@
                     opt.style.display = 'block';
                 } else {
                     opt.style.display = 'none';
-                    if (opt.selected) {
-                        selectObj.value = "";
-                    }
+                    if (opt.selected) selectObj.value = "";
                 }
             });
             filterNoiDung(selectObj);
         });
     }
 
+    // Lọc nội dung kiến thức theo Mạch kiến thức
+    function filterNoiDung(machSelectObj) {
+        const machId = machSelectObj.value;
+        const row = machSelectObj.closest('tr');
+        const ndSelect = row.querySelector('.noidung-select');
+        
+        Array.from(ndSelect.options).forEach(opt => {
+            if (opt.value === "") return;
+            if (!machId || opt.getAttribute('data-mach') === machId) {
+                opt.style.display = 'block';
+            } else {
+                opt.style.display = 'none';
+                if (opt.selected) ndSelect.value = "";
+            }
+        });
+    }
+
+    // Thêm dòng chi tiết
     function addRow() {
         const template = document.getElementById('rowTemplate');
         const clone = template.content.cloneNode(true);
         document.getElementById('detailsBody').appendChild(clone);
         
-        // Initial filter for the newly added row
-        filterMach(); // This will filter Mach and subsequently NoiDung
-        checkIfCanEditGeneralInfo();
+        filterMach();
+        updateRowIndices();
+        reCalculateAll();
+        isFormDirty = true;
     }
 
-    function removeRow(btn) {
-        btn.closest('tr').remove();
-        checkIfCanEditGeneralInfo();
+    // Xác nhận xóa dòng (Alternative flow 7a)
+    function confirmDeleteRow(btn) {
+        rowToDelete = btn.closest('tr');
+        const modal = new bootstrap.Modal(document.getElementById('deleteRowModal'));
+        modal.show();
     }
 
-    function checkIfCanEditGeneralInfo() {
-        const rowCount = document.querySelectorAll('#detailsBody tr').length;
-        const selects = document.querySelectorAll('select[name="NamHoc"], select[name="HocKy"], select[name="KyThi"], select[name="Khoi"], select[name="MonHoc"]');
-        if (rowCount === 0) {
-            selects.forEach(s => s.removeAttribute('disabled'));
+    // Cập nhật lại số thứ tự các dòng
+    function updateRowIndices() {
+        const rows = document.querySelectorAll('#detailsBody tr.detail-row');
+        rows.forEach((row, i) => {
+            const sttCell = row.querySelector('.row-stt');
+            if (sttCell) sttCell.textContent = i + 1;
+        });
+    }
+
+    // Tính toán Realtime toàn bộ Ma trận và Thống kê mức độ (Rule 9d, 9g, 9k)
+    function reCalculateAll() {
+        let totalSoCau = 0;
+        let totalDiem = 0.0;
+        let totalTyle = 0.0;
+
+        const mucData = {
+            'Mức 1': { cau: 0, diem: 0.0, tyle: 0.0 },
+            'Mức 2': { cau: 0, diem: 0.0, tyle: 0.0 },
+            'Mức 3': { cau: 0, diem: 0.0, tyle: 0.0 }
+        };
+
+        const rows = document.querySelectorAll('#detailsBody tr.detail-row');
+        rows.forEach(row => {
+            const slInput = row.querySelector('.input-soluong');
+            const diemInput = row.querySelector('.input-diem');
+            const tyleInput = row.querySelector('.input-tyle');
+            const mucSelect = row.querySelector('.mucdo-select');
+
+            const sl = parseInt(slInput?.value) || 0;
+            const diem = parseFloat(diemInput?.value) || 0.0;
+            const tyle = parseFloat(tyleInput?.value) || 0.0;
+            const muc = mucSelect?.value || 'Mức 1';
+
+            totalSoCau += sl;
+            totalDiem += diem;
+            totalTyle += tyle;
+
+            if (mucData[muc]) {
+                mucData[muc].cau += sl;
+                mucData[muc].diem += diem;
+                mucData[muc].tyle += tyle;
+            }
+        });
+
+        totalDiem = Math.round(totalDiem * 100) / 100;
+        totalTyle = Math.round(totalTyle * 10) / 10;
+
+        // Cập nhật footer bảng
+        document.getElementById('sumSoCau').textContent = totalSoCau;
+        document.getElementById('sumDiem').textContent = totalDiem;
+        document.getElementById('sumTyle').textContent = totalTyle;
+
+        // Đổi màu hiển thị tổng điểm và tỷ lệ
+        const sumDiemCell = document.getElementById('sumDiemCell');
+        if (totalDiem > 0) {
+            sumDiemCell.className = 'text-center fw-bold text-success';
         } else {
-            // Note: we only disable if they were originally disabled (has_details) or if we just want to lock it down again.
-            // Actually, if they add a row back, it should be disabled to prevent changing after adding.
-            selects.forEach(s => s.setAttribute('disabled', 'disabled'));
+            sumDiemCell.className = 'text-center fw-bold text-danger';
+        }
+
+        const sumTyleCell = document.getElementById('sumTyleCell');
+        if (Math.abs(totalTyle - 100.0) < 0.01) {
+            sumTyleCell.className = 'text-center fw-bold text-success';
+        } else {
+            sumTyleCell.className = 'text-center fw-bold text-danger';
+        }
+
+        // Cập nhật bảng thống kê mức độ (Làm tròn hàng chục theo tổng điểm)
+        ['Mức 1', 'Mức 2', 'Mức 3'].forEach(lvl => {
+            const rowId = lvl === 'Mức 1' ? 'rowMuc1' : (lvl === 'Mức 2' ? 'rowMuc2' : 'rowMuc3');
+            const tr = document.getElementById(rowId);
+            if (!tr) return;
+
+            const m = mucData[lvl];
+            const mCau = tr.querySelector('.m-cau');
+            const mDiem = tr.querySelector('.m-diem');
+            const mTyle = tr.querySelector('.m-tyle');
+            const mThucte = tr.querySelector('.m-thucte');
+            const mLamtron = tr.querySelector('.m-lamtron');
+            const mStatus = tr.querySelector('.m-status');
+
+            mCau.textContent = m.cau;
+            mDiem.textContent = Math.round(m.diem * 100) / 100 + 'đ';
+            mTyle.textContent = Math.round(m.tyle * 10) / 10 + '%';
+
+            let thucte = totalDiem > 0 ? (m.diem / totalDiem) * 100 : 0;
+            let thucteDisplay = Math.round(thucte * 10) / 10;
+            mThucte.textContent = thucteDisplay + '%';
+
+            // Làm tròn đến hàng chục theo tổng điểm (ví dụ: 31.25% -> 30%)
+            let lamtron = Math.round(thucte / 10) * 10;
+            if (mLamtron) mLamtron.textContent = lamtron + '%';
+
+            tr.className = '';
+            if (totalDiem > 0 && m.cau > 0) {
+                mStatus.innerHTML = '<span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>Hợp lệ (' + lamtron + '%)</span>';
+            } else {
+                mStatus.innerHTML = '<span class="badge bg-secondary">-</span>';
+            }
+        });
+
+        // Cập nhật Badge bảng mức độ
+        const badge = document.getElementById('levelValidationBadge');
+        const alertBox = document.getElementById('validationAlertBox');
+        const alertMsg = document.getElementById('validationAlertMsg');
+
+        if (badge) {
+            badge.className = 'badge bg-success';
+            badge.innerHTML = '<i class="fas fa-check me-1"></i> Tỷ lệ làm tròn hàng chục';
+        }
+
+        if (totalDiem > 0 && Math.abs(totalTyle - 100.0) >= 0.01) {
+            alertBox.classList.remove('d-none');
+            alertMsg.textContent = `Tổng tỷ lệ khai báo của các dòng hiện tại là ${totalTyle}%. Bạn có thể nhấn nút "Tự động tính Tỷ lệ (%) tròn hàng chục" để hệ thống tự cân đối tròn hàng chục đạt 100%.`;
+        } else {
+            alertBox.classList.add('d-none');
         }
     }
-    
-    function filterNoiDung(selectObj) {
-        const machId = selectObj.value;
-        const row = selectObj.closest('tr');
-        const ndSelect = row.querySelector('.noidung-select');
-        
-        // Loop through all options in the NoiDung select
-        Array.from(ndSelect.options).forEach(opt => {
-            if (opt.value === "") return; // Skip placeholder
-            
-            if (opt.getAttribute('data-mach') === machId) {
-                opt.style.display = 'block';
+
+    // Tự động tính Tỷ lệ (%) của từng dòng theo điểm / tổng điểm và làm tròn hàng chục (Ví dụ: 31.25% -> 30%)
+    function autoCalculateRowPercentages() {
+        let totalDiem = 0.0;
+        const rows = Array.from(document.querySelectorAll('#detailsBody tr.detail-row'));
+        rows.forEach(row => {
+            const diem = parseFloat(row.querySelector('.input-diem')?.value) || 0;
+            totalDiem += diem;
+        });
+
+        if (totalDiem <= 0) {
+            alert('Vui lòng nhập điểm số cho các dòng trước khi tính tỷ lệ.');
+            return;
+        }
+
+        let totalRounded = 0;
+        const rowData = rows.map(row => {
+            const diemInput = row.querySelector('.input-diem');
+            const tyleInput = row.querySelector('.input-tyle');
+            const diem = parseFloat(diemInput?.value) || 0;
+            const pct = (diem / totalDiem) * 100;
+            const rounded = Math.round(pct / 10) * 10;
+            totalRounded += rounded;
+            return { row, tyleInput, diem, pct, rounded, diffFromRaw: pct - rounded };
+        });
+
+        // Nếu tổng sau khi làm tròn khác 100% (do sai số số học), tự cân đối vào dòng có độ chênh lệch lớn nhất
+        let remainder = 100 - totalRounded;
+        if (remainder !== 0 && rowData.length > 0) {
+            if (remainder > 0) {
+                rowData.sort((a, b) => b.diffFromRaw - a.diffFromRaw);
+                rowData[0].rounded += remainder;
             } else {
-                opt.style.display = 'none';
-                if (opt.selected) {
-                    ndSelect.value = "";
+                const candidates = rowData.filter(d => d.rounded > 10).sort((a, b) => a.diffFromRaw - b.diffFromRaw);
+                if (candidates.length > 0) {
+                    candidates[0].rounded += remainder;
+                } else {
+                    rowData[0].rounded += remainder;
                 }
             }
-        });
-    }
-
-    let isDirty = false;
-
-    // Run filter initially for all rows in edit mode
-    document.addEventListener('DOMContentLoaded', function() {
-        filterMonHoc();
-        
-        const selects = document.querySelectorAll('.mach-select');
-        selects.forEach(s => {
-            filterNoiDung(s);
-        });
-        
-        setupAutoName();
-
-        // Track if form is modified
-        const form = document.getElementById('matrixForm');
-        form.addEventListener('change', () => isDirty = true);
-        form.addEventListener('input', () => isDirty = true);
-    });
-
-    function confirmCancel(event, url) {
-        event.preventDefault();
-        if (isDirty) {
-            if (confirm('Bạn đã có thông tin chưa lưu. Bạn có chắc chắn muốn rời khỏi trang và hủy các thay đổi này không?')) {
-                window.location.href = url;
-            }
-        } else {
-            window.location.href = url;
         }
-    }
 
-    function setupAutoName() {
-        const namhoc = document.querySelector('select[name="NamHoc"]');
-        const hocky = document.querySelector('select[name="HocKy"]');
-        const kythi = document.querySelector('select[name="KyThi"]');
-        const khoi = document.querySelector('select[name="Khoi"]');
-        const monhoc = document.querySelector('select[name="MonHoc"]');
-        const tenInput = document.getElementById('tenMaTran');
-        
-        const selects = [namhoc, hocky, kythi, khoi, monhoc];
-        
-        selects.forEach(select => {
-            if(select) {
-                select.addEventListener('change', function() {
-                    // Cập nhật tên nếu chưa bị vô hiệu hóa
-                    if (!namhoc.disabled) {
-                        let allSelected = true;
-                        let parts = [];
-                        
-                        if(monhoc.selectedIndex > 0) parts.push(monhoc.options[monhoc.selectedIndex].text); else allSelected = false;
-                        if(khoi.selectedIndex > 0) parts.push(khoi.options[khoi.selectedIndex].text); else allSelected = false;
-                        
-                        if(kythi.selectedIndex > 0 && hocky.selectedIndex > 0) {
-                            let kt = kythi.options[kythi.selectedIndex].text;
-                            let hk = hocky.options[hocky.selectedIndex].text; // e.g. "Học kỳ I"
-                            let suffix = hk.replace("Học kỳ ", ""); // "I" or "II"
-                            parts.push(`${kt} ${suffix}`);
-                        } else {
-                            allSelected = false;
-                        }
-                        
-                        if(namhoc.selectedIndex > 0) parts.push(namhoc.options[namhoc.selectedIndex].text); else allSelected = false;
-                        
-                        if (allSelected) {
-                            tenInput.value = `Ma trận ${parts.join(' - ')}`;
-                        }
-                    }
-                });
+        rowData.forEach(item => {
+            if (item.tyleInput) {
+                item.tyleInput.value = item.rounded;
             }
         });
+
+        reCalculateAll();
     }
 
-    function removeDetailsRequired() {
+    // Khi chọn Lưu nháp
+    function setDraftAction() {
         const detailInputs = document.querySelectorAll('#detailsTable select, #detailsTable input');
-        detailInputs.forEach(input => {
-            input.removeAttribute('required');
-        });
+        detailInputs.forEach(el => el.removeAttribute('required'));
     }
 
-    function restoreDetailsRequired() {
+    // Khi chọn Nộp
+    function setSubmitAction() {
+        if (!checkGeneralInfoCompletion()) {
+            alert('Vui lòng nhập đầy đủ các trường Thông tin chung của ma trận trước khi nộp.');
+            return;
+        }
         const detailInputs = document.querySelectorAll('#detailsTable select, #detailsTable input');
-        detailInputs.forEach(input => {
-            input.setAttribute('required', 'required');
-        });
+        detailInputs.forEach(el => el.setAttribute('required', 'required'));
+    }
+
+    // Xác nhận hủy (Exception Flow 8b / 8a)
+    function confirmCancel() {
+        const modal = new bootstrap.Modal(document.getElementById('cancelModal'));
+        modal.show();
     }
 </script>
 {% endblock %}

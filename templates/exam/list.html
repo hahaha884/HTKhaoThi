@@ -1,13 +1,16 @@
 {% extends 'base.html' %}
+{% load rbac_tags %}
 
 {% block title %}Quản lý Đề thi{% endblock %}
 {% block page_title %}Quản lý Đề thi{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-end align-items-center mb-4">
+    {% if request.user|can_create_exam %}
     <a href="{% url 'exam_wizard_start' %}" class="btn btn-primary">
         <i class="fas fa-plus me-1"></i>Thêm đề thi
     </a>
+    {% endif %}
 </div>
 
 <!-- Lọc & Tìm kiếm -->
@@ -125,7 +128,10 @@
                                 <span class="badge bg-success">Chính thức</span>
                             {% endif %}
                         </td>
-                        <td>{{ de.NguoiTao.HoTen }}</td>
+                        <td>
+                            {{ de.NguoiTao.HoTen }}
+                            {% if de.NguoiTao.ChucVu %}<div class="small text-muted">{{ de.NguoiTao.ChucVu }}</div>{% endif %}
+                        </td>
                         <td class="text-end pe-4">
                             {% if de.TrangThai == 'Nháp' %}
                                 <a href="{% url 'exam_editor' de.id %}" class="btn btn-sm btn-outline-primary" title="Sửa đề"><i class="fas fa-edit"></i></a>

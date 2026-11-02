@@ -57,7 +57,12 @@
                 <tbody>
                     {% for account in accounts %}
                     <tr>
-                        <td class="fw-medium">{{ account.HoTen }}</td>
+                        <td class="fw-medium">
+                            {{ account.HoTen }}
+                            {% if account.ChucVu %}
+                            <div class="small text-muted">{{ account.ChucVu }}</div>
+                            {% endif %}
+                        </td>
                         <td><span class="badge bg-light text-dark border">{{ account.SDT }}</span></td>
                         <td><span class="badge bg-info text-dark border border-info">{{ account.user.groups.all.0.name|default:"Giáo viên" }}</span></td>
                         <td>

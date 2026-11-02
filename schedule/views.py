@@ -568,9 +568,6 @@ def schedule_delete(request, pk):
             messages.error(request, "Không thể xóa lịch thi đã diễn ra hoặc trong vòng 7 ngày trước ngày thi.")
             return redirect('schedule_list')
         
-        if lich_thi.phan_cong_set.exists():
-            messages.error(request, "Không thể xóa do đã sử dụng cho các phiên làm việc.")
-            return redirect('schedule_list')
         
         try:
             # Hủy liên kết với đề thi (để đề thi có thể gán lại)

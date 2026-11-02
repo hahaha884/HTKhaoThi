@@ -289,6 +289,9 @@
                     for(let i=0; i<4; i++) addChoiceRow(inputType);
                 } else if (dang === 'TF') {
                     html = `
+                        <div class="alert alert-info py-2 px-3 mb-2 fw-bold small">
+                            <i class="fas fa-info-circle me-2"></i>Hướng dẫn hiển thị: <span class="text-primary">Chọn đáp án đúng/sai theo đoạn văn sau:</span>
+                        </div>
                         <div class="mb-3">
                             <label class="form-label small mb-0">Các ký hiệu lựa chọn (Cách nhau bởi dấu phẩy, VD: Đ, S hoặc T, F, NG)</label>
                             <div class="input-group input-group-sm mt-1">
@@ -345,9 +348,20 @@
                     </label>
                     <a class="btn btn-outline-primary d-none px-3" target="_blank" title="Xem ảnh"><i class="fas fa-external-link-alt"></i></a>
                     <button class="btn btn-outline-danger d-none px-3" type="button" title="Xóa ảnh" onclick="const inp = this.previousElementSibling.previousElementSibling.querySelector('input[type=file]'); inp.value=''; previewIcon(inp);"><i class="fas fa-trash-alt"></i></button>
-                    <button class="btn btn-outline-danger px-2" type="button" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>
+                    <button class="btn btn-outline-danger px-2" type="button" onclick="this.parentElement.remove(); reindexGroupMatchRows();"><i class="fas fa-times"></i></button>
                 `;
                 list.appendChild(row);
+                reindexGroupMatchRows();
+            }
+
+            function reindexGroupMatchRows() {
+                const rows = document.querySelectorAll('#matchList .input-group');
+                rows.forEach((r, idx) => {
+                    const lInp = r.querySelector('input[name^="MatchImageLeft"]');
+                    const rInp = r.querySelector('input[name^="MatchImageRight"]');
+                    if (lInp) lInp.name = `MatchImageLeft_${idx}`;
+                    if (rInp) rInp.name = `MatchImageRight_${idx}`;
+                });
             }
 
             function addTFRow() {
@@ -378,9 +392,20 @@
                     </label>
                     <a class="btn btn-outline-primary d-none px-3" target="_blank" title="Xem ảnh"><i class="fas fa-external-link-alt"></i></a>
                     <button class="btn btn-outline-danger d-none px-3" type="button" title="Xóa ảnh" onclick="const inp = this.previousElementSibling.previousElementSibling.querySelector('input[type=file]'); inp.value=''; previewIcon(inp);"><i class="fas fa-trash-alt"></i></button>
-                    <button class="btn btn-outline-danger px-2" type="button" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>
+                    <button class="btn btn-outline-danger px-2" type="button" onclick="this.parentElement.remove(); reindexGroupMatchRows();"><i class="fas fa-times"></i></button>
                 `;
                 list.appendChild(row);
+                reindexGroupMatchRows();
+            }
+
+            function reindexGroupMatchRows() {
+                const rows = document.querySelectorAll('#matchList .input-group');
+                rows.forEach((r, idx) => {
+                    const lInp = r.querySelector('input[name^="MatchImageLeft"]');
+                    const rInp = r.querySelector('input[name^="MatchImageRight"]');
+                    if (lInp) lInp.name = `MatchImageLeft_${idx}`;
+                    if (rInp) rInp.name = `MatchImageRight_${idx}`;
+                });
             }
 
             function updateTFColumns() {
@@ -429,9 +454,20 @@
                     <a class="btn btn-outline-primary d-none px-3" target="_blank" title="Xem ảnh"><i class="fas fa-external-link-alt"></i></a>
                     <button class="btn btn-outline-danger d-none px-3" type="button" title="Xóa ảnh" onclick="const inp = this.previousElementSibling.previousElementSibling.querySelector('input[type=file]'); inp.value=''; previewIcon(inp);"><i class="fas fa-trash-alt"></i></button>
                     
-                    <button class="btn btn-outline-danger px-2" type="button" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>
+                    <button class="btn btn-outline-danger px-2" type="button" onclick="this.parentElement.remove(); reindexGroupMatchRows();"><i class="fas fa-times"></i></button>
                 `;
                 list.appendChild(row);
+                reindexGroupMatchRows();
+            }
+
+            function reindexGroupMatchRows() {
+                const rows = document.querySelectorAll('#matchList .input-group');
+                rows.forEach((r, idx) => {
+                    const lInp = r.querySelector('input[name^="MatchImageLeft"]');
+                    const rInp = r.querySelector('input[name^="MatchImageRight"]');
+                    if (lInp) lInp.name = `MatchImageLeft_${idx}`;
+                    if (rInp) rInp.name = `MatchImageRight_${idx}`;
+                });
             }
 
             hinhThucSelect.addEventListener('change', updateDangCauHoi);

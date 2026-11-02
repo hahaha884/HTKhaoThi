@@ -83,15 +83,8 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'mssql',
-        'NAME': 'ExamManagementDB',          # Tên database SQL Server của bạn
-        'USER': '',                          # Bỏ trống nếu dùng Windows Authentication
-        'PASSWORD': '',                      
-        'HOST': 'localhost\\ANHPHUONG',      # Đã tự động đổi sang đúng Tên Server của máy bạn
-        'OPTIONS': {
-            'driver': 'ODBC Driver 17 for SQL Server',
-            'extra_params': 'Trusted_Connection=yes;',
-        },
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
 
@@ -150,9 +143,10 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Cấu hình API Key cho Google Gemini (Tính năng AI)
-# Truy cập https://aistudio.google.com/app/apikey để tạo key miễn phí.
-GEMINI_API_KEY = 'AQ.Ab8RN6L56jmWc2V5y8kKaXJcVaHRJwUKjktGnWMwUkIchw93RA'
+# Cấu hình API Key cho Groq (Tính năng AI)
+# Truy cập https://console.groq.com/keys để tạo key miễn phí.
+GROQ_API_KEY = os.getenv('GROQ_API_KEY', '')
+GROQ_MODEL = os.getenv('GROQ_MODEL', 'openai/gpt-oss-120b')
 
 # Allow iframes from the same origin (for popup modals)
 X_FRAME_OPTIONS = 'SAMEORIGIN'

@@ -3,12 +3,12 @@
     <ul class="pagination justify-content-center mb-0">
         {% if page_obj.has_previous %}
             <li class="page-item">
-                <a class="page-link shadow-sm text-primary" href="?page=1{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.nam_hoc %}&nam_hoc={{ request.GET.nam_hoc }}{% endif %}{% if request.GET.hoc_ky %}&hoc_ky={{ request.GET.hoc_ky }}{% endif %}{% if request.GET.ky_thi %}&ky_thi={{ request.GET.ky_thi }}{% endif %}{% if request.GET.khoi %}&khoi={{ request.GET.khoi }}{% endif %}{% if request.GET.mon %}&mon={{ request.GET.mon }}{% endif %}{% if request.GET.ca %}&ca={{ request.GET.ca }}{% endif %}{% if request.GET.ngay %}&ngay={{ request.GET.ngay }}{% endif %}" aria-label="First">
+                <a class="page-link shadow-sm text-primary" href="?page=1{% for k, v in request.GET.items %}{% if k != 'page' %}&{{ k }}={{ v }}{% endif %}{% endfor %}" aria-label="First">
                     <span aria-hidden="true">&laquo;&laquo;</span>
                 </a>
             </li>
             <li class="page-item">
-                <a class="page-link shadow-sm text-primary" href="?page={{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.nam_hoc %}&nam_hoc={{ request.GET.nam_hoc }}{% endif %}{% if request.GET.hoc_ky %}&hoc_ky={{ request.GET.hoc_ky }}{% endif %}{% if request.GET.ky_thi %}&ky_thi={{ request.GET.ky_thi }}{% endif %}{% if request.GET.khoi %}&khoi={{ request.GET.khoi }}{% endif %}{% if request.GET.mon %}&mon={{ request.GET.mon }}{% endif %}{% if request.GET.ca %}&ca={{ request.GET.ca }}{% endif %}{% if request.GET.ngay %}&ngay={{ request.GET.ngay }}{% endif %}" aria-label="Previous">
+                <a class="page-link shadow-sm text-primary" href="?page={{ page_obj.previous_page_number }}{% for k, v in request.GET.items %}{% if k != 'page' %}&{{ k }}={{ v }}{% endif %}{% endfor %}" aria-label="Previous">
                     <span aria-hidden="true">&laquo;</span>
                 </a>
             </li>
@@ -28,19 +28,19 @@
                 </li>
             {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
                 <li class="page-item">
-                    <a class="page-link shadow-sm text-primary" href="?page={{ num }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.nam_hoc %}&nam_hoc={{ request.GET.nam_hoc }}{% endif %}{% if request.GET.hoc_ky %}&hoc_ky={{ request.GET.hoc_ky }}{% endif %}{% if request.GET.ky_thi %}&ky_thi={{ request.GET.ky_thi }}{% endif %}{% if request.GET.khoi %}&khoi={{ request.GET.khoi }}{% endif %}{% if request.GET.mon %}&mon={{ request.GET.mon }}{% endif %}{% if request.GET.ca %}&ca={{ request.GET.ca }}{% endif %}{% if request.GET.ngay %}&ngay={{ request.GET.ngay }}{% endif %}">{{ num }}</a>
+                    <a class="page-link shadow-sm text-primary" href="?page={{ num }}{% for k, v in request.GET.items %}{% if k != 'page' %}&{{ k }}={{ v }}{% endif %}{% endfor %}">{{ num }}</a>
                 </li>
             {% endif %}
         {% endfor %}
 
         {% if page_obj.has_next %}
             <li class="page-item">
-                <a class="page-link shadow-sm text-primary" href="?page={{ page_obj.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.nam_hoc %}&nam_hoc={{ request.GET.nam_hoc }}{% endif %}{% if request.GET.hoc_ky %}&hoc_ky={{ request.GET.hoc_ky }}{% endif %}{% if request.GET.ky_thi %}&ky_thi={{ request.GET.ky_thi }}{% endif %}{% if request.GET.khoi %}&khoi={{ request.GET.khoi }}{% endif %}{% if request.GET.mon %}&mon={{ request.GET.mon }}{% endif %}{% if request.GET.ca %}&ca={{ request.GET.ca }}{% endif %}{% if request.GET.ngay %}&ngay={{ request.GET.ngay }}{% endif %}" aria-label="Next">
+                <a class="page-link shadow-sm text-primary" href="?page={{ page_obj.next_page_number }}{% for k, v in request.GET.items %}{% if k != 'page' %}&{{ k }}={{ v }}{% endif %}{% endfor %}" aria-label="Next">
                     <span aria-hidden="true">&raquo;</span>
                 </a>
             </li>
             <li class="page-item">
-                <a class="page-link shadow-sm text-primary" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.nam_hoc %}&nam_hoc={{ request.GET.nam_hoc }}{% endif %}{% if request.GET.hoc_ky %}&hoc_ky={{ request.GET.hoc_ky }}{% endif %}{% if request.GET.ky_thi %}&ky_thi={{ request.GET.ky_thi }}{% endif %}{% if request.GET.khoi %}&khoi={{ request.GET.khoi }}{% endif %}{% if request.GET.mon %}&mon={{ request.GET.mon }}{% endif %}{% if request.GET.ca %}&ca={{ request.GET.ca }}{% endif %}{% if request.GET.ngay %}&ngay={{ request.GET.ngay }}{% endif %}" aria-label="Last">
+                <a class="page-link shadow-sm text-primary" href="?page={{ page_obj.paginator.num_pages }}{% for k, v in request.GET.items %}{% if k != 'page' %}&{{ k }}={{ v }}{% endif %}{% endfor %}" aria-label="Last">
                     <span aria-hidden="true">&raquo;&raquo;</span>
                 </a>
             </li>

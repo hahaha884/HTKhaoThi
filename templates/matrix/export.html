@@ -2,40 +2,56 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Xuất Ma trận</title>
+    <title>Xuất Ma trận - {{ matran.TenMaTran }}</title>
     <style>
         table { border-collapse: collapse; width: 100%; font-family: "Times New Roman", Times, serif; font-size: 13pt; }
-        th, td { border: 1px solid black; padding: 5px; text-align: left; vertical-align: middle; }
-        th { font-weight: bold; text-align: center; background-color: #f2f2f2; }
+        th, td { border: 1px solid black; padding: 6px; text-align: left; vertical-align: middle; }
+        th { font-weight: bold; text-align: center; background-color: #D9E1F2; }
         .text-center { text-align: center; }
+        .text-right { text-align: right; }
         .fw-bold { font-weight: bold; }
         .title { text-align: center; font-size: 16pt; font-weight: bold; border: none; }
-        .header-info { border: none; font-weight: bold; }
+        .sub-title { text-align: center; font-size: 13pt; font-weight: bold; border: none; }
+        .school-header { font-weight: bold; font-size: 12pt; border: none; text-align: center; }
+        .header-info { border: none; font-weight: bold; font-size: 12pt; }
+        .bg-gray { background-color: #F2F2F2; }
     </style>
 </head>
 <body>
     <table>
         <tr>
-            <td colspan="8" class="title">MA TRẬN ĐỀ THI</td>
+            <td colspan="4" class="school-header">PHÒNG GD&ĐT QUẬN/HUYỆN<br>TRƯỜNG TIỂU HỌC ĐẶNG VĂN NGỮ</td>
+            <td colspan="5" class="school-header">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM<br>Độc lập - Tự do - Hạnh phúc</td>
         </tr>
         <tr>
-            <td colspan="8" class="title">{{ matran.TenMaTran }}</td>
+            <td colspan="9" style="border: none; height: 15px;"></td>
         </tr>
         <tr>
-            <td colspan="8" style="border: none; height: 20px;"></td>
+            <td colspan="9" class="title">MA TRẬN ĐỀ THI</td>
         </tr>
         <tr>
-            <td colspan="4" class="header-info">Năm học: {{ matran.NamHoc.TenNamHoc }}</td>
-            <td colspan="4" class="header-info">Học kỳ: {{ matran.HocKy }} - {{ matran.KyThi }}</td>
+            <td colspan="9" class="sub-title">{{ matran.TenMaTran|upper }}</td>
         </tr>
         <tr>
-            <td colspan="4" class="header-info">Khối: {{ matran.Khoi.TenKhoi }}</td>
-            <td colspan="4" class="header-info">Môn học: {{ matran.MonHoc.TenMon }}</td>
+            <td colspan="9" style="border: none; height: 15px;"></td>
         </tr>
         <tr>
-            <td colspan="8" style="border: none; height: 10px;"></td>
+            <td colspan="5" class="header-info">Năm học: {{ matran.NamHoc.TenNamHoc|default:"-" }}</td>
+            <td colspan="4" class="header-info">Học kỳ: {{ matran.HocKy|default:"-" }} - Kỳ thi: {{ matran.KyThi|default:"-" }}</td>
         </tr>
         <tr>
+            <td colspan="5" class="header-info">Khối lớp: {{ matran.Khoi.TenKhoi|default:"-" }}</td>
+            <td colspan="4" class="header-info">Môn học: {{ matran.MonHoc.TenMon|default:"-" }}</td>
+        </tr>
+        <tr>
+            <td colspan="5" class="header-info">Người tạo: {{ matran.NguoiTao.HoTen|default:"-" }}</td>
+            <td colspan="4" class="header-info">Trạng thái: {{ matran.TrangThai }}</td>
+        </tr>
+        <tr>
+            <td colspan="9" style="border: none; height: 12px;"></td>
+        </tr>
+        <tr>
+            <th style="width: 50px;">STT</th>
             <th>Mạch kiến thức</th>
             <th>Nội dung kiến thức</th>
             <th>Mức độ</th>
@@ -47,20 +63,21 @@
         </tr>
         {% for ct in chi_tiet %}
         <tr>
+            <td class="text-center">{{ forloop.counter }}</td>
             <td>{{ ct.MachKienThuc.TenMach|default:"-" }}</td>
             <td>{{ ct.NoiDung.TenNoidung }}</td>
             <td class="text-center">{{ ct.MucDo }}</td>
             <td class="text-center">{{ ct.LoaiCauHoi }}</td>
-            <td class="text-center">{{ ct.SoLuongCau }}</td>
+            <td class="text-center fw-bold">{{ ct.SoLuongCau }}</td>
             <td class="text-center">{{ ct.CauSo|default:"-" }}</td>
-            <td class="text-center">{{ ct.Diem }}</td>
-            <td class="text-center">{{ ct.TyLe }}%</td>
+            <td class="text-center fw-bold">{{ ct.Diem }}</td>
+            <td class="text-center fw-bold">{{ ct.TyLe }}%</td>
         </tr>
         {% endfor %}
-        <tr>
-            <td colspan="4" class="text-center fw-bold">TỔNG CỘNG</td>
+        <tr class="bg-gray">
+            <td colspan="5" class="text-right fw-bold">TỔNG CỘNG:</td>
             <td class="text-center fw-bold">{{ matran.TongSoCau }}</td>
-            <td class="text-center fw-bold"></td>
+            <td class="text-center"></td>
             <td class="text-center fw-bold">{{ matran.TongSoDiem }}</td>
             <td class="text-center fw-bold">100%</td>
         </tr>

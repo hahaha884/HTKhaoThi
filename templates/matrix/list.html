@@ -4,168 +4,263 @@
 
 {% block content %}
 <div class="card border-0 shadow-sm mt-3">
-    <div class="card-body">
-        <div class="d-flex justify-content-between mb-3 align-items-center">
-            <h5 class="card-title text-primary mb-0"><i class="fas fa-th me-2"></i>Danh sách Ma trận Đề thi</h5>
-            <div class="d-flex gap-2">
-                <form method="GET" action="{% url 'matrix_list' %}" style="width: 450px;">
-                    <div class="input-group input-group-sm">
-                        <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
-                        <input class="form-control shadow-none border-start-0 border-end-0" type="search" name="search" value="{{ request.GET.search }}" placeholder="Tìm tên ma trận..." onkeydown="if(event.key === 'Enter'){this.form.submit();}">
-                        <button class="btn btn-outline-secondary dropdown-toggle border-start-0 bg-white" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" style="border-color: #dee2e6;">
-                            <i class="fas fa-filter text-muted"></i>
-                        </button>
-                        <div class="dropdown-menu dropdown-menu-end p-3 shadow border-0" style="width: 300px;">
-                            <h6 class="dropdown-header px-0 text-dark fw-bold"><i class="fas fa-filter me-1"></i> Lọc Nâng Cao</h6>
-                            
-                            <div class="mb-2">
-                                <label class="form-label small mb-1">Năm học</label>
-                                <select name="namhoc" class="form-select form-select-sm">
-                                    <option value="">Tất cả</option>
-                                    {% for nh in namhocs %}
-                                    <option value="{{ nh.pk }}" {% if request.GET.namhoc == nh.pk|stringformat:"s" %}selected{% endif %}>{{ nh.TenNamHoc }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            
-                            <div class="mb-2">
-                                <label class="form-label small mb-1">Học kỳ</label>
-                                <select name="hocky" class="form-select form-select-sm">
-                                    <option value="">-- Tất cả --</option>
-                                    <option value="Học kỳ 1" {% if request.GET.hocky == 'Học kỳ 1' %}selected{% endif %}>Học kỳ I</option>
-                                    <option value="Học kỳ 2" {% if request.GET.hocky == 'Học kỳ 2' %}selected{% endif %}>Học kỳ II</option>
-                                </select>
-                            </div>
-
-                            <div class="mb-2">
-                                <label class="form-label small mb-1">Kỳ thi</label>
-                                <select name="kythi" class="form-select form-select-sm">
-                                    <option value="">Tất cả</option>
-                                    <option value="Giữa kỳ" {% if request.GET.kythi == 'Giữa kỳ' %}selected{% endif %}>Giữa kỳ</option>
-                                    <option value="Cuối kỳ" {% if request.GET.kythi == 'Cuối kỳ' %}selected{% endif %}>Cuối kỳ</option>
-                                </select>
-                            </div>
-
-                            <div class="mb-2">
-                                <label class="form-label small mb-1">Khối</label>
-                                <select name="khoi" class="form-select form-select-sm">
-                                    <option value="">Tất cả</option>
-                                    {% for k in khois %}
-                                    <option value="{{ k.pk }}" {% if request.GET.khoi == k.pk|stringformat:"s" %}selected{% endif %}>{{ k.TenKhoi }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-
-                            <div class="mb-2">
-                                <label class="form-label small mb-1">Môn học</label>
-                                <select name="monhoc" class="form-select form-select-sm">
-                                    <option value="">Tất cả</option>
-                                    {% for mh in monhocs %}
-                                    <option value="{{ mh.pk }}" {% if request.GET.monhoc == mh.pk|stringformat:"s" %}selected{% endif %}>{{ mh.TenMon }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            
-                            <div class="mb-2">
-                                <label class="form-label small mb-1">Trạng thái</label>
-                                <select name="trangthai" class="form-select form-select-sm">
-                                    <option value="">Tất cả</option>
-                                    <option value="Nháp" {% if request.GET.trangthai == 'Nháp' %}selected{% endif %}>Nháp</option>
-                                    <option value="Chờ duyệt" {% if request.GET.trangthai == 'Chờ duyệt' %}selected{% endif %}>Chờ duyệt</option>
-                                    <option value="Đã duyệt" {% if request.GET.trangthai == 'Đã duyệt' %}selected{% endif %}>Đã duyệt</option>
-                                    <option value="Từ chối" {% if request.GET.trangthai == 'Từ chối' %}selected{% endif %}>Từ chối</option>
-                                </select>
-                            </div>
-                            
-                            <div class="mb-2">
-                                <label class="form-label small mb-1">Người tạo</label>
-                                <select name="nguoitao" class="form-select form-select-sm">
-                                    <option value="">Tất cả</option>
-                                    {% for gv in giaoviens %}
-                                    <option value="{{ gv.pk }}" {% if request.GET.nguoitao == gv.pk|stringformat:"s" %}selected{% endif %}>{{ gv.HoTen }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="mt-3">
-                                <button type="submit" class="btn btn-primary btn-sm w-100">Áp dụng</button>
-                                <a href="{% url 'matrix_list' %}" class="btn btn-light btn-sm w-100 mt-2">Xóa bộ lọc</a>
-                            </div>
-                        </div>
-                    </div>
-                </form>
+    <div class="card-body p-4">
+        <!-- TIÊU ĐỀ & THANH CÔNG CỤ -->
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3 pb-3 border-bottom">
+            <div>
+                <h5 class="card-title text-primary fw-bold mb-1"><i class="fas fa-th me-2"></i>Quản lý Ma trận Đề thi</h5>
+                <small class="text-muted">Danh mục cấu trúc ma trận dùng để sinh đề kiểm tra định kỳ</small>
+            </div>
+            
+            <div class="d-flex align-items-center gap-2">
                 {% if request.user.is_superuser or request.user|is_to_chuyen_mon %}
-                <a href="{% url 'matrix_create' %}" class="btn btn-primary btn-sm d-flex align-items-center px-3"><i class="fas fa-plus me-1"></i>Thêm ma trận</a>
+                <a href="{% url 'matrix_create' %}" class="btn btn-primary btn-sm px-3 shadow-sm d-flex align-items-center">
+                    <i class="fas fa-plus me-1"></i> Thêm ma trận
+                </a>
                 {% endif %}
             </div>
         </div>
+
+        <!-- BỘ LỌC VÀ TÌM KIẾM (UC 9.4) -->
+        <form method="GET" action="{% url 'matrix_list' %}" class="card bg-light border-0 mb-4 p-3 rounded">
+            <div class="row g-2 align-items-center">
+                <!-- Từ khóa tìm kiếm -->
+                <div class="col-lg-4 col-md-6">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white text-muted border-end-0"><i class="fas fa-search"></i></span>
+                        <input type="text" name="search" class="form-control border-start-0" placeholder="Nhập tên ma trận cần tìm..." value="{{ request.GET.search|default:'' }}">
+                    </div>
+                </div>
+
+                <!-- Năm học -->
+                <div class="col-lg-2 col-md-3 col-6">
+                    <select name="namhoc" class="form-select form-select-sm">
+                        <option value="">-- Năm học --</option>
+                        {% for nh in namhocs %}
+                        <option value="{{ nh.pk }}" {% if request.GET.namhoc == nh.pk|stringformat:"s" %}selected{% endif %}>{{ nh.TenNamHoc }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Học kỳ -->
+                <div class="col-lg-2 col-md-3 col-6">
+                    <select name="hocky" class="form-select form-select-sm">
+                        <option value="">-- Học kỳ --</option>
+                        <option value="Học kỳ 1" {% if request.GET.hocky == 'Học kỳ 1' %}selected{% endif %}>Học kỳ I</option>
+                        <option value="Học kỳ 2" {% if request.GET.hocky == 'Học kỳ 2' %}selected{% endif %}>Học kỳ II</option>
+                    </select>
+                </div>
+
+                <!-- Kỳ thi -->
+                <div class="col-lg-2 col-md-3 col-6">
+                    <select name="kythi" class="form-select form-select-sm">
+                        <option value="">-- Kỳ thi --</option>
+                        <option value="Giữa kỳ" {% if request.GET.kythi == 'Giữa kỳ' %}selected{% endif %}>Giữa kỳ</option>
+                        <option value="Cuối kỳ" {% if request.GET.kythi == 'Cuối kỳ' %}selected{% endif %}>Cuối kỳ</option>
+                    </select>
+                </div>
+
+                <!-- Khối -->
+                <div class="col-lg-2 col-md-3 col-6">
+                    <select name="khoi" class="form-select form-select-sm">
+                        <option value="">-- Khối lớp --</option>
+                        {% for k in khois %}
+                        <option value="{{ k.pk }}" {% if request.GET.khoi == k.pk|stringformat:"s" %}selected{% endif %}>{{ k.TenKhoi }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Môn học -->
+                <div class="col-lg-3 col-md-4 col-6">
+                    <select name="monhoc" class="form-select form-select-sm">
+                        <option value="">-- Môn học --</option>
+                        {% for mh in monhocs %}
+                        <option value="{{ mh.pk }}" {% if request.GET.monhoc == mh.pk|stringformat:"s" %}selected{% endif %}>{{ mh.TenMon }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Trạng thái -->
+                <div class="col-lg-3 col-md-4 col-6">
+                    <select name="trangthai" class="form-select form-select-sm">
+                        <option value="">-- Trạng thái --</option>
+                        <option value="Nháp" {% if request.GET.trangthai == 'Nháp' %}selected{% endif %}>Nháp</option>
+                        <option value="Chờ duyệt" {% if request.GET.trangthai == 'Chờ duyệt' %}selected{% endif %}>Chờ duyệt</option>
+                        <option value="Đã duyệt" {% if request.GET.trangthai == 'Đã duyệt' %}selected{% endif %}>Đã duyệt</option>
+                        <option value="Từ chối" {% if request.GET.trangthai == 'Từ chối' %}selected{% endif %}>Từ chối</option>
+                    </select>
+                </div>
+
+                <!-- Người tạo -->
+                <div class="col-lg-3 col-md-4 col-6">
+                    <select name="nguoitao" class="form-select form-select-sm">
+                        <option value="">-- Người tạo --</option>
+                        {% for gv in giaoviens %}
+                        <option value="{{ gv.pk }}" {% if request.GET.nguoitao == gv.pk|stringformat:"s" %}selected{% endif %}>{{ gv.HoTen }}{% if gv.ChucVu %} ({{ gv.ChucVu }}){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Nút thao tác lọc -->
+                <div class="col-lg-3 col-md-12 col-12 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary btn-sm flex-grow-1 shadow-sm">
+                        <i class="fas fa-filter me-1"></i> Áp dụng
+                    </button>
+                    {% if is_filtered %}
+                    <a href="{% url 'matrix_list' %}" class="btn btn-outline-secondary btn-sm" title="Xóa toàn bộ bộ lọc">
+                        <i class="fas fa-undo"></i>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </form>
         
+        <!-- THÔNG BÁO HỆ THỐNG -->
         {% if messages %}
             {% for message in messages %}
-                <div class="alert alert-{{ message.tags }} py-2">{{ message }}</div>
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show py-2" role="alert">
+                    <i class="fas fa-info-circle me-1"></i> {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
             {% endfor %}
         {% endif %}
         
+        <!-- BẢNG DANH SÁCH MA TRẬN -->
         <div class="table-responsive">
-            <table class="table table-hover align-middle">
-                <thead class="table-light">
+            <table class="table table-hover align-middle border">
+                <thead class="table-light small text-uppercase">
                     <tr>
-                        <th>Tên ma trận</th>
+                        <th style="min-width: 200px;">Tên ma trận</th>
                         <th>Năm học</th>
                         <th>Học kỳ & Kỳ thi</th>
                         <th>Khối / Môn</th>
-                        <th class="text-center">Số câu / Tổng điểm</th>
+                        <th class="text-center">Số câu / Điểm</th>
                         <th>Người tạo</th>
-                        <th>Trạng thái</th>
-                        <th class="text-center">Thao tác</th>
+                        <th class="text-center">Trạng thái</th>
+                        <th class="text-center" style="min-width: 130px;">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for mt in matrans %}
                     <tr>
-                        <td class="fw-medium text-primary">{{ mt.TenMaTran }}</td>
-                        <td>{{ mt.NamHoc.TenNamHoc }}</td>
                         <td>
-                            {% if mt.HocKy == 'Học kỳ 1' %}Học kỳ I{% elif mt.HocKy == 'Học kỳ 2' %}Học kỳ II{% else %}{{ mt.HocKy }}{% endif %}<br>
-                            <small class="text-primary fw-bold">{{ mt.KyThi }} {% if mt.HocKy == 'Học kỳ 1' %}I{% elif mt.HocKy == 'Học kỳ 2' %}II{% endif %}</small>
+                            <a href="{% url 'matrix_detail' mt.pk %}" class="fw-bold text-decoration-none text-primary">
+                                {{ mt.TenMaTran }}
+                            </a>
+                            {% if mt.MoTa %}
+                            <div class="small text-muted text-truncate" style="max-width: 280px;" title="{{ mt.MoTa }}">{{ mt.MoTa }}</div>
+                            {% endif %}
                         </td>
-                        <td>{{ mt.Khoi.TenKhoi }}<br><small class="text-muted">{{ mt.MonHoc.TenMon }}</small></td>
-                        <td class="text-center fw-bold">{{ mt.TongSoCau }} câu<br><span class="text-danger">{{ mt.TongSoDiem }}đ</span></td>
-                        <td>{{ mt.NguoiTao.HoTen|default:"-" }}</td>
+                        <td>{{ mt.NamHoc.TenNamHoc|default:"-" }}</td>
                         <td>
+                            <div>{% if mt.HocKy == 'Học kỳ 1' %}Học kỳ I{% elif mt.HocKy == 'Học kỳ 2' %}Học kỳ II{% else %}{{ mt.HocKy }}{% endif %}</div>
+                            <span class="badge bg-light text-primary border border-primary-subtle">{{ mt.KyThi }}</span>
+                        </td>
+                        <td>
+                            <div class="fw-semibold">{{ mt.Khoi.TenKhoi|default:"-" }}</div>
+                            <small class="text-muted">{{ mt.MonHoc.TenMon|default:"-" }}</small>
+                        </td>
+                        <td class="text-center">
+                            <span class="fw-bold">{{ mt.TongSoCau }} câu</span>
+                            <div class="text-danger small fw-bold">{{ mt.TongSoDiem }} điểm</div>
+                        </td>
+                        <td>
+                            <div class="small fw-semibold">{{ mt.NguoiTao.HoTen|default:"-" }}</div>
+                            {% if mt.NguoiTao.ChucVu %}
+                            <div class="small text-muted">{{ mt.NguoiTao.ChucVu }}</div>
+                            {% endif %}
+                            <small class="text-muted">{{ mt.NgayCapNhat|date:"d/m/Y H:i" }}</small>
+                        </td>
+                        <td class="text-center">
                             {% if mt.TrangThai == 'Đã duyệt' %}
-                                <span class="badge bg-success">Đã duyệt</span>
+                                <span class="badge bg-success px-2 py-1"><i class="fas fa-check me-1"></i>Đã duyệt</span>
                             {% elif mt.TrangThai == 'Chờ duyệt' %}
-                                <span class="badge bg-warning text-dark">Chờ duyệt</span>
+                                <span class="badge bg-warning text-dark px-2 py-1"><i class="fas fa-clock me-1"></i>Chờ duyệt</span>
                             {% elif mt.TrangThai == 'Từ chối' %}
-                                <span class="badge bg-danger">Từ chối</span>
+                                <span class="badge bg-danger px-2 py-1"><i class="fas fa-times me-1"></i>Từ chối</span>
                             {% else %}
-                                <span class="badge bg-secondary">Nháp</span>
+                                <span class="badge bg-secondary px-2 py-1"><i class="fas fa-pencil-alt me-1"></i>Nháp</span>
                             {% endif %}
                         </td>
                         <td class="text-center">
-                            <a href="{% url 'matrix_detail' mt.pk %}" class="btn btn-sm btn-outline-secondary" title="Xem chi tiết"><i class="fas fa-eye"></i></a>
-                            <a href="{% url 'matrix_export' mt.pk %}" class="btn btn-sm btn-outline-info" title="Xuất Excel"><i class="fas fa-file-excel"></i></a>
-                            {% if mt.TrangThai == 'Nháp' or mt.TrangThai == 'Từ chối' %}
-                            <a href="{% url 'matrix_update' mt.pk %}" class="btn btn-sm btn-outline-primary" title="Sửa"><i class="fas fa-edit"></i></a>
-                            <form method="POST" action="{% url 'matrix_delete' mt.pk %}" class="d-inline" onsubmit="return confirm('Bạn có chắc chắn muốn xóa ma trận này? Toàn bộ chi tiết ma trận sẽ bị xóa theo!');">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Xóa"><i class="fas fa-trash"></i></button>
-                            </form>
-                            {% endif %}
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'matrix_detail' mt.pk %}" class="btn btn-outline-secondary" title="Xem chi tiết">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{% url 'matrix_export' mt.pk %}?format=docx" class="btn btn-outline-primary" title="Xuất file Word (.docx)">
+                                    <i class="fas fa-file-word"></i>
+                                </a>
+                                
+                                {% if mt.TrangThai == 'Nháp' or mt.TrangThai == 'Từ chối' %}
+                                <a href="{% url 'matrix_update' mt.pk %}" class="btn btn-outline-warning text-dark" title="Sửa ma trận">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <button type="button" class="btn btn-outline-danger" title="Xóa ma trận" onclick="openDeleteModal('{% url 'matrix_delete' mt.pk %}', '{{ mt.TenMaTran|escapejs }}')">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
-
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="text-center text-muted py-4">Chưa có dữ liệu ma trận, hoặc không tìm thấy kết quả.</td>
+                        <td colspan="8" class="text-center text-muted py-5">
+                            <i class="fas fa-search fa-2x mb-3 text-secondary d-block"></i>
+                            {% if is_filtered %}
+                                <span class="fw-bold text-dark fs-6">Không tìm thấy ma trận phù hợp.</span>
+                                <div class="mt-2">
+                                    <a href="{% url 'matrix_list' %}" class="btn btn-sm btn-outline-primary">Xóa bộ lọc</a>
+                                </div>
+                            {% else %}
+                                <span>Chưa có dữ liệu ma trận nào trong hệ thống.</span>
+                            {% endif %}
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-        <div class="card-footer bg-white">
+
+        <!-- PHÂN TRANG -->
+        <div class="mt-3">
             {% include 'pagination.html' %}
         </div>
     </div>
 </div>
+
+<!-- MODAL XÁC NHẬN XÓA MA TRẬN (UC 9.3) -->
+<div class="modal fade" id="deleteMatrixModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" id="deleteMatrixForm">
+                {% csrf_token %}
+                <div class="modal-header bg-danger text-white py-2">
+                    <h6 class="modal-title fw-bold"><i class="fas fa-exclamation-triangle me-1"></i> Xác nhận xóa ma trận</h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body py-4 text-center">
+                    <p class="mb-2">Bạn có chắc chắn muốn xóa ma trận này?</p>
+                    <p class="fw-bold text-danger fs-6 mb-3" id="deleteMatrixName"></p>
+                    <div class="alert alert-warning py-2 small mb-0">
+                        <i class="fas fa-info-circle me-1"></i> Lưu ý: Toàn bộ thông tin chi tiết của ma trận cũng sẽ bị xóa vĩnh viễn khỏi hệ thống!
+                    </div>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-sm btn-secondary px-3" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-sm btn-danger px-4">Đồng ý Xóa</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openDeleteModal(actionUrl, matrixName) {
+        const form = document.getElementById('deleteMatrixForm');
+        form.action = actionUrl;
+        document.getElementById('deleteMatrixName').textContent = matrixName;
+        const modal = new bootstrap.Modal(document.getElementById('deleteMatrixModal'));
+        modal.show();
+    }
+</script>
 {% endblock %}

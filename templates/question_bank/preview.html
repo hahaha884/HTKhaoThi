@@ -22,6 +22,26 @@
     </div>
     
     <div class="mb-4" style="font-size: 1.1rem; color: #333;">
+        {% if cau_hoi.DangCauHoi == 'TF' %}
+            {% if cau_hoi.NhomCauHoi %}
+            <div class="alert alert-info py-2 px-3 mb-3 fw-bold">
+                <i class="fas fa-book-open me-2"></i>Chọn đáp án đúng/sai theo đoạn văn sau:
+            </div>
+            {% if cau_hoi.NhomCauHoi.NoiDungChung %}
+            <div class="p-3 bg-light rounded border mb-3 text-dark" style="white-space: pre-line;">{{ cau_hoi.NhomCauHoi.NoiDungChung }}</div>
+            {% endif %}
+            {% if cau_hoi.NhomCauHoi.HinhAnh %}
+            <div class="mb-3 text-center">
+                <img src="{{ cau_hoi.NhomCauHoi.HinhAnh.url }}" alt="Hình ảnh đoạn văn" class="img-fluid rounded border" style="max-height: 250px;">
+            </div>
+            {% endif %}
+            {% else %}
+            <div class="alert alert-info py-2 px-3 mb-3 fw-bold">
+                <i class="fas fa-balance-scale me-2"></i>Chọn đáp án đúng/sai cho câu sau:
+            </div>
+            {% endif %}
+        {% endif %}
+
         {{ cau_hoi.NoiDungCauHoi|safe }}
         {% if cau_hoi.HinhAnh %}
         <div class="mt-2 text-center">
@@ -61,33 +81,103 @@
             {% endfor %}
             
         {% elif dang == 'Matching' %}
-            {% for da in dap_ans %}
-            <div class="d-flex align-items-center answer-row">
-                <strong class="me-2 text-secondary">{{ forloop.counter }}.</strong>
-                <div class="flex-grow-1 d-flex align-items-center">
-                    <span class="text-primary fw-bold flex-grow-1 text-end">{{ da.NoiDungTrai|safe }}</span>
-                    {% if da.HinhAnhTrai %}
-                    <img src="{{ da.HinhAnhTrai.url }}" class="img-fluid mx-2 rounded" style="max-height: 40px;">
-                    {% endif %}
-                    
-                    <i class="fas fa-arrow-right mx-3 text-muted"></i>
-                    
-                    <span class="text-success fw-bold flex-grow-1">{{ da.NoiDung|safe }}</span>
-                    {% if da.HinhAnh %}
-                    <img src="{{ da.HinhAnh.url }}" class="img-fluid mx-2 rounded" style="max-height: 40px;">
-                    {% endif %}
+            <!-- Chế độ làm bài thử ghép nối -->
+            <div class="card mb-3 border-0 bg-light p-3">
+                <div class="fw-bold text-primary mb-2"><i class="fas fa-hand-pointer me-1"></i>Làm thử bài ghép nối:</div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <h6 class="fw-bold text-secondary border-bottom pb-1 mb-2">Cột A (Vế trái)</h6>
+                        <div id="matchColA">
+                            {% for da in dap_ans %}
+                            <div class="p-2 mb-2 bg-white rounded border d-flex align-items-center justify-content-between" data-index="{{ forloop.counter0 }}">
+                                <div class="d-flex align-items-center">
+                                    <span class="badge bg-primary me-2">{{ forloop.counter }}</span>
+                                    <span>{{ da.NoiDungTrai|safe }}</span>
+                                    {% if da.HinhAnhTrai %}<img src="{{ da.HinhAnhTrai.url }}" class="ms-2 rounded" style="max-height: 35px;">{% endif %}
+                                </div>
+                                <select class="form-select form-select-sm w-auto match-select ms-2" data-left-index="{{ forloop.counter0 }}">
+                                    <option value="">-- Ghép với --</option>
+                                    {% for da_right in dap_ans %}
+                                    <option value="{{ forloop.counter0 }}">Mục {{ forloop.counter|stringformat:"d" }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="fw-bold text-secondary border-bottom pb-1 mb-2">Cột B (Vế phải)</h6>
+                        <div id="matchColB">
+                            {% for da in dap_ans %}
+                            <div class="p-2 mb-2 bg-white rounded border d-flex align-items-center" data-index="{{ forloop.counter0 }}">
+                                <span class="badge bg-success me-2">Mục {{ forloop.counter }}</span>
+                                <span class="flex-grow-1">{{ da.NoiDung|safe }}</span>
+                                {% if da.HinhAnh %}<img src="{{ da.HinhAnh.url }}" class="ms-2 rounded" style="max-height: 35px;">{% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-3 d-flex align-items-center gap-2">
+                    <button type="button" class="btn btn-primary btn-sm px-3" onclick="gradeMatching()"><i class="fas fa-check-double me-1"></i>Chấm điểm ghép nối</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="toggleKey('matchKeyBlock')"><i class="fas fa-eye me-1"></i>Xem đáp án đúng</button>
+                    <span id="matchGradeResult" class="fw-bold ms-2"></span>
                 </div>
             </div>
-            {% endfor %}
-            
-        {% elif dang == 'FIB' %}
-            {% for da in dap_ans %}
-            <div class="d-flex align-items-center answer-row correct mb-1 py-1">
-                {% if dap_ans|length > 1 %}<strong class="me-2 text-secondary">{{ forloop.counter }}.</strong>{% endif %}
-                <span class="fw-bold text-success">{{ da.NoiDung|safe }}</span>
+
+            <!-- Đáp án chi tiết (Ẩn/Hiện) -->
+            <div id="matchKeyBlock" class="d-none mt-2">
+                <h6 class="fw-bold text-success mb-2"><i class="fas fa-key me-1"></i>Đáp án chính xác:</h6>
+                {% for da in dap_ans %}
+                <div class="d-flex align-items-center answer-row">
+                    <strong class="me-2 text-secondary">{{ forloop.counter }}.</strong>
+                    <div class="flex-grow-1 d-flex align-items-center">
+                        <span class="text-primary fw-bold flex-grow-1 text-end">{{ da.NoiDungTrai|safe }}</span>
+                        {% if da.HinhAnhTrai %}
+                        <img src="{{ da.HinhAnhTrai.url }}" class="img-fluid mx-2 rounded" style="max-height: 40px;">
+                        {% endif %}
+                        <i class="fas fa-arrow-right mx-3 text-muted"></i>
+                        <span class="text-success fw-bold flex-grow-1">{{ da.NoiDung|safe }}</span>
+                        {% if da.HinhAnh %}
+                        <img src="{{ da.HinhAnh.url }}" class="img-fluid mx-2 rounded" style="max-height: 40px;">
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
             </div>
-            {% endfor %}
-            
+
+        {% elif dang == 'FIB' %}
+            <!-- Chế độ làm thử điền khuyết -->
+            <div class="card mb-3 border-0 bg-light p-3">
+                <div class="fw-bold text-primary mb-2"><i class="fas fa-keyboard me-1"></i>Nhập câu trả lời vào các ô trống:</div>
+                <div class="row g-2 mb-2" id="fibInputsContainer">
+                    {% for da in dap_ans %}
+                    <div class="col-md-6">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-white fw-bold text-secondary">Chỗ trống [{{ forloop.counter }}]</span>
+                            <input type="text" class="form-control fib-user-input" data-index="{{ forloop.counter0 }}" placeholder="Nhập từ cần điền...">
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="mt-2 d-flex align-items-center gap-2">
+                    <button type="button" class="btn btn-primary btn-sm px-3" onclick="gradeFIB()"><i class="fas fa-check-double me-1"></i>Chấm điểm điền khuyết</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="toggleKey('fibKeyBlock')"><i class="fas fa-eye me-1"></i>Xem đáp án đúng</button>
+                    <span id="fibGradeResult" class="fw-bold ms-2"></span>
+                </div>
+            </div>
+
+            <!-- Đáp án chi tiết (Ẩn/Hiện) -->
+            <div id="fibKeyBlock" class="d-none mt-2">
+                <h6 class="fw-bold text-success mb-2"><i class="fas fa-key me-1"></i>Đáp án chính xác:</h6>
+                {% for da in dap_ans %}
+                <div class="d-flex align-items-center answer-row correct mb-1 py-1">
+                    <strong class="me-2 text-secondary">{{ forloop.counter }}.</strong>
+                    <span class="fw-bold text-success">{{ da.NoiDung|safe }}</span>
+                </div>
+                {% endfor %}
+            </div>
+
         {% else %}
             {% if cau_hoi.DapAnMau %}
             <div class="p-3 bg-light border rounded text-dark">
@@ -106,5 +196,103 @@
         
         {% endwith %}
     </div>
+
+    <script>
+    function toggleKey(id) {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('d-none');
+    }
+
+    // Chấm điểm Matching
+    function gradeMatching() {
+        const selects = document.querySelectorAll('.match-select');
+        let correctCount = 0;
+        let total = selects.length;
+        let notSelected = false;
+
+        selects.forEach(sel => {
+            const leftIdx = sel.getAttribute('data-left-index');
+            const userChoice = sel.value;
+            const parentRow = sel.closest('.border');
+
+            if (userChoice === '') {
+                notSelected = true;
+                parentRow.style.borderColor = '#ffc107';
+                return;
+            }
+
+            // Đối với matching, đáp án lưu theo thứ tự: left[i] ghép với right[i]
+            if (userChoice === leftIdx) {
+                correctCount++;
+                parentRow.style.borderColor = '#198754';
+                parentRow.style.backgroundColor = '#d1e7dd';
+            } else {
+                parentRow.style.borderColor = '#dc3545';
+                parentRow.style.backgroundColor = '#f8d7da';
+            }
+        });
+
+        const resEl = document.getElementById('matchGradeResult');
+        if (notSelected) {
+            resEl.className = 'fw-bold text-warning ms-2';
+            resEl.textContent = 'Vui lòng chọn ghép nối cho tất cả các mục!';
+        } else {
+            const percent = Math.round((correctCount / total) * 100);
+            if (correctCount === total) {
+                resEl.className = 'fw-bold text-success ms-2';
+                resEl.textContent = `Chính xác tuyệt đối! (${correctCount}/${total} cặp - 100%)`;
+            } else {
+                resEl.className = 'fw-bold text-danger ms-2';
+                resEl.textContent = `Đúng ${correctCount}/${total} cặp (${percent}%). Hãy thử lại!`;
+            }
+        }
+    }
+
+    // Chấm điểm FIB
+    function gradeFIB() {
+        const inputs = document.querySelectorAll('.fib-user-input');
+        const correctAnswers = [
+            {% for da in cau_hoi.dap_ans.all %}
+            "{{ da.NoiDung|escapejs }}",
+            {% endfor %}
+        ];
+
+        let correctCount = 0;
+        let total = inputs.length;
+        let hasEmpty = false;
+
+        inputs.forEach(inp => {
+            const idx = parseInt(inp.getAttribute('data-index'));
+            const userVal = inp.value.trim().toLowerCase();
+            const correctVal = (correctAnswers[idx] || '').trim().toLowerCase();
+
+            if (!userVal) hasEmpty = true;
+
+            if (userVal && userVal === correctVal) {
+                correctCount++;
+                inp.style.borderColor = '#198754';
+                inp.style.backgroundColor = '#d1e7dd';
+            } else {
+                inp.style.borderColor = '#dc3545';
+                inp.style.backgroundColor = '#f8d7da';
+            }
+        });
+
+        const resEl = document.getElementById('fibGradeResult');
+        if (hasEmpty) {
+            resEl.className = 'fw-bold text-warning ms-2';
+            resEl.textContent = 'Bạn chưa điền đầy đủ các ô trống!';
+        } else {
+            const percent = Math.round((correctCount / total) * 100);
+            if (correctCount === total) {
+                resEl.className = 'fw-bold text-success ms-2';
+                resEl.textContent = `Chính xác tuyệt đối! (${correctCount}/${total} ô trống - 100%)`;
+            } else {
+                resEl.className = 'fw-bold text-danger ms-2';
+                resEl.textContent = `Đúng ${correctCount}/${total} ô trống (${percent}%). Hãy thử lại!`;
+            }
+        }
+    }
+    </script>
 </body>
 </html>

@@ -76,6 +76,16 @@
                     <option value="Mức 3" {% if request.GET.muc_do == 'Mức 3' %}selected{% endif %}>Mức 3</option>
                 </select>
             </div>
+            <div class="col-md-3 mt-3">
+                <select name="nguoi_tao" class="form-select">
+                    <option value="">-- Tất cả người tạo --</option>
+                    {% for gv in giaoviens %}
+                    <option value="{{ gv.pk }}" {% if selected_nguoi_tao == gv.pk|stringformat:"s" %}selected{% endif %}>
+                        {{ gv.HoTen }}{% if gv.ChucVu %} ({{ gv.ChucVu }}){% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
             <div class="col-md-1 mt-3">
                 <a href="{% url 'question_list' %}" class="btn btn-outline-secondary w-100" title="Xóa lọc"><i class="fas fa-sync"></i></a>
             </div>

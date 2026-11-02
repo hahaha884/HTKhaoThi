@@ -4,6 +4,13 @@ from core.models import GiaoVien
 register = template.Library()
 
 @register.filter
+def get_item(dictionary, key):
+    if isinstance(dictionary, dict):
+        return dictionary.get(key) or dictionary.get(str(key)) or dictionary.get(int(key) if str(key).isdigit() else key)
+    return None
+
+
+@register.filter
 def is_admin(user):
     if user.is_superuser:
         return True
@@ -44,3 +51,14 @@ def is_khao_thi(user):
     except:
         pass
     return False
+
+@register.filter
+def can_create_exam(user):
+    if user.is_superuser:
+        return True
+    try:
+        if user.giaovien.ChucVu in ['Hiệu trưởng', 'Phó hiệu trưởng']:
+            return False
+        return True
+    except:
+        return False

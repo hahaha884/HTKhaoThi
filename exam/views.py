@@ -142,6 +142,12 @@ def exam_list(request):
 @khao_thi_required
 def exam_wizard_start(request):
     """ UC 3.1: Thêm đề thi (Chọn cấu hình và sinh đề tự động/thủ công) """
+    # BGH không được tạo đề thi mới trực tiếp, phải clone từ đề thi đã có
+    gv = getattr(request.user, 'giaovien', None)
+    if not request.user.is_superuser and gv and gv.ChucVu in ['Hiệu trưởng', 'Phó hiệu trưởng']:
+        messages.error(request, "Ban Giám hiệu không được tạo đề thi mới trực tiếp. Vui lòng tạo bản sao từ đề thi đã có.")
+        return redirect('exam_list')
+
     if request.method == 'POST':
         nam_hoc = request.POST.get('nam_hoc')
         hoc_ky = request.POST.get('hoc_ky')

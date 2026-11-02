@@ -1,128 +1,201 @@
 {% extends 'base.html' %}
-{% block page_title %}Chi tiết Ma trận Đề thi{% endblock %}
+{% block page_title %}Chi tiết Ma trận: {{ matran.TenMaTran }}{% endblock %}
 
 {% block content %}
 <div class="card border-0 shadow-sm mt-3 mb-4">
-    <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
-            <h5 class="card-title text-primary mb-0"><i class="fas fa-file-alt me-2"></i>Ma trận: {{ matran.TenMaTran }}</h5>
+    <div class="card-body p-4">
+        <!-- HEADER CHI TIẾT -->
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 pb-3 border-bottom gap-2">
             <div>
+                <h5 class="card-title text-primary fw-bold mb-1">
+                    <i class="fas fa-th me-2"></i>{{ matran.TenMaTran }}
+                </h5>
+                <small class="text-muted">Cập nhật lần cuối: {{ matran.NgayCapNhat|date:"d/m/Y H:i" }} | Người tạo: <strong>{{ matran.NguoiTao.HoTen|default:"-" }}{% if matran.NguoiTao.ChucVu %} ({{ matran.NguoiTao.ChucVu }}){% endif %}</strong></small>
+            </div>
+            
+            <div class="d-flex align-items-center gap-2">
                 {% if matran.TrangThai == 'Đã duyệt' %}
-                    <span class="badge bg-success fs-6 px-3 py-2">Đã duyệt</span>
+                    <span class="badge bg-success fs-6 px-3 py-2"><i class="fas fa-check-circle me-1"></i> Đã duyệt</span>
                 {% elif matran.TrangThai == 'Chờ duyệt' %}
-                    <span class="badge bg-warning text-dark fs-6 px-3 py-2">Chờ duyệt</span>
+                    <span class="badge bg-warning text-dark fs-6 px-3 py-2"><i class="fas fa-clock me-1"></i> Chờ duyệt</span>
                 {% elif matran.TrangThai == 'Từ chối' %}
-                    <span class="badge bg-danger fs-6 px-3 py-2">Từ chối</span>
+                    <span class="badge bg-danger fs-6 px-3 py-2"><i class="fas fa-times-circle me-1"></i> Từ chối</span>
                 {% else %}
-                    <span class="badge bg-secondary fs-6 px-3 py-2">Nháp</span>
+                    <span class="badge bg-secondary fs-6 px-3 py-2"><i class="fas fa-pencil-alt me-1"></i> Nháp</span>
                 {% endif %}
             </div>
         </div>
 
+        <!-- THÔNG BÁO HỆ THỐNG -->
         {% if messages %}
             {% for message in messages %}
-                <div class="alert alert-{{ message.tags }} py-2">{{ message }}</div>
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show py-2" role="alert">
+                    <i class="fas fa-info-circle me-1"></i> {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
             {% endfor %}
         {% endif %}
 
-        <!-- Thông tin chung -->
-        <h6 class="fw-bold text-secondary mb-3">Thông tin chung</h6>
-        <div class="row mb-4 bg-light p-3 rounded">
-            <div class="col-md-3 mb-2">
-                <span class="text-muted d-block small">Năm học</span>
-                <strong>{{ matran.NamHoc.TenNamHoc|default:"-" }}</strong>
-            </div>
-            <div class="col-md-3 mb-2">
-                <span class="text-muted d-block small">Học kỳ</span>
-                <strong>{{ matran.HocKy|default:"-" }}</strong>
-            </div>
-            <div class="col-md-3 mb-2">
-                <span class="text-muted d-block small">Kỳ thi</span>
-                <strong>{{ matran.KyThi|default:"-" }}</strong>
-            </div>
-            <div class="col-md-3 mb-2">
-                <span class="text-muted d-block small">Khối</span>
-                <strong>{{ matran.Khoi.TenKhoi|default:"-" }}</strong>
-            </div>
-            <div class="col-md-3 mb-2">
-                <span class="text-muted d-block small">Môn học</span>
-                <strong>{{ matran.MonHoc.TenMon|default:"-" }}</strong>
-            </div>
-            <div class="col-md-9 mb-2">
-                <span class="text-muted d-block small">Mô tả</span>
-                <strong>{{ matran.MoTa|default:"Không có mô tả" }}</strong>
+        <!-- THÔNG TIN CHUNG -->
+        <div class="card bg-light border-0 mb-4 p-3 rounded">
+            <h6 class="fw-bold text-secondary mb-3"><i class="fas fa-info-circle me-1"></i> Thông tin chung</h6>
+            <div class="row g-3">
+                <div class="col-md-3 col-6">
+                    <span class="text-muted d-block small">Năm học</span>
+                    <strong class="text-dark">{{ matran.NamHoc.TenNamHoc|default:"-" }}</strong>
+                </div>
+                <div class="col-md-3 col-6">
+                    <span class="text-muted d-block small">Học kỳ</span>
+                    <strong class="text-dark">{{ matran.HocKy|default:"-" }}</strong>
+                </div>
+                <div class="col-md-3 col-6">
+                    <span class="text-muted d-block small">Kỳ thi</span>
+                    <strong class="text-dark">{{ matran.KyThi|default:"-" }}</strong>
+                </div>
+                <div class="col-md-3 col-6">
+                    <span class="text-muted d-block small">Khối lớp</span>
+                    <strong class="text-dark">{{ matran.Khoi.TenKhoi|default:"-" }}</strong>
+                </div>
+                <div class="col-md-3 col-6">
+                    <span class="text-muted d-block small">Môn học</span>
+                    <strong class="text-dark">{{ matran.MonHoc.TenMon|default:"-" }}</strong>
+                </div>
+                <div class="col-md-3 col-6">
+                    <span class="text-muted d-block small">Tổng số câu hỏi</span>
+                    <strong class="text-primary">{{ matran.TongSoCau }} câu</strong>
+                </div>
+                <div class="col-md-3 col-6">
+                    <span class="text-muted d-block small">Tổng điểm quy định</span>
+                    <strong class="text-danger">{{ matran.TongSoDiem }} điểm</strong>
+                </div>
+                <div class="col-md-3 col-6">
+                    <span class="text-muted d-block small">Mô tả</span>
+                    <span class="text-dark">{{ matran.MoTa|default:"Không có mô tả" }}</span>
+                </div>
             </div>
         </div>
 
-        <!-- Bảng chi tiết -->
-        <h6 class="fw-bold text-secondary mb-3">Chi tiết ma trận</h6>
-        <div class="table-responsive mb-4">
-            <table class="table table-bordered align-middle">
-                <thead class="table-light text-center">
+        <!-- BẢNG CHI TIẾT MA TRẬN -->
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="fw-bold text-secondary mb-0"><i class="fas fa-table me-1"></i> Bảng chi tiết cấu trúc ma trận</h6>
+            <span class="badge bg-light text-dark border">{{ chi_tiet|length }} mục phân bổ</span>
+        </div>
+        
+        <div class="table-responsive mb-4 border rounded shadow-sm">
+            <table class="table table-bordered align-middle mb-0">
+                <thead class="table-light text-center small text-uppercase fw-bold">
                     <tr>
-                        <th width="15%">Mạch kiến thức</th>
-                        <th width="20%">Nội dung kiến thức</th>
-                        <th width="12%">Mức độ</th>
-                        <th width="12%">Loại câu hỏi</th>
-                        <th width="8%">Số câu</th>
-                        <th width="15%">Câu số</th>
-                        <th width="8%">Điểm</th>
-                        <th width="10%">Tỷ lệ (%)</th>
+                        <th style="width: 45px;">STT</th>
+                        <th style="width: 18%;">Mạch kiến thức</th>
+                        <th style="width: 22%;">Nội dung kiến thức</th>
+                        <th style="width: 10%;">Mức độ</th>
+                        <th style="width: 12%;">Loại câu</th>
+                        <th style="width: 8%;">Số câu</th>
+                        <th style="width: 12%;">Câu số</th>
+                        <th style="width: 8%;">Điểm</th>
+                        <th style="width: 8%;">Tỷ lệ (%)</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for ct in chi_tiet %}
                     <tr>
+                        <td class="text-center text-muted fw-bold">{{ forloop.counter }}</td>
                         <td>{{ ct.MachKienThuc.TenMach|default:"-" }}</td>
-                        <td>{{ ct.NoiDung.TenNoidung }}</td>
-                        <td class="text-center">{{ ct.MucDo }}</td>
+                        <td class="fw-semibold text-dark">{{ ct.NoiDung.TenNoidung }}</td>
+                        <td class="text-center">
+                            <span class="badge bg-light text-dark border">{{ ct.MucDo }}</span>
+                        </td>
                         <td class="text-center">{{ ct.LoaiCauHoi }}</td>
-                        <td class="text-center">{{ ct.SoLuongCau }}</td>
-                        <td>{{ ct.CauSo|default:"-" }}</td>
-                        <td class="text-center">{{ ct.Diem }}</td>
-                        <td class="text-center">{{ ct.TyLe }}%</td>
+                        <td class="text-center fw-bold">{{ ct.SoLuongCau }}</td>
+                        <td class="text-center text-primary font-monospace">{{ ct.CauSo|default:"-" }}</td>
+                        <td class="text-center fw-bold">{{ ct.Diem }}đ</td>
+                        <td class="text-center fw-bold">{{ ct.TyLe }}%</td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="8" class="text-center py-4 text-muted">Chưa có chi tiết ma trận.</td>
+                        <td colspan="9" class="text-center py-4 text-muted">Chưa có chi tiết ma trận nào.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
                 <tfoot class="table-light fw-bold text-center">
                     <tr>
-                        <td colspan="4" class="text-end pe-3 text-primary">TỔNG CỘNG</td>
-                        <td class="text-danger">{{ matran.TongSoCau }}</td>
+                        <td colspan="5" class="text-end pe-3 text-primary">TỔNG CỘNG:</td>
+                        <td class="text-primary fs-6">{{ matran.TongSoCau }}</td>
                         <td></td>
-                        <td class="text-danger">{{ matran.TongSoDiem }}</td>
-                        <td class="text-danger">100%</td>
+                        <td class="text-danger fs-6">{{ matran.TongSoDiem }}đ</td>
+                        <td class="text-success fs-6">100%</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <!-- BẢNG ĐỐI SOÁT MỨC ĐỘ NHẬN THỨC -->
+        <h6 class="fw-bold text-secondary mb-2"><i class="fas fa-chart-pie me-1"></i> Phân bố tỷ lệ theo Mức độ nhận thức (Làm tròn hàng chục)</h6>
+        <div class="table-responsive mb-4 border rounded">
+            <table class="table table-sm table-bordered text-center align-middle mb-0">
+                <thead class="table-light small">
+                    <tr>
+                        <th>Mức độ nhận thức</th>
+                        <th>Số lượng câu</th>
+                        <th>Tổng số điểm</th>
+                        <th>Tỷ lệ khai báo (%)</th>
+                        <th>Tỷ lệ thực tế theo điểm (%)</th>
+                        <th>Tỷ lệ làm tròn hàng chục (%)</th>
+                        <th>Đánh giá</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lvl, st in muc_stats.items %}
+                    <tr>
+                        <td class="fw-bold text-start ps-3">{{ lvl }}</td>
+                        <td>{{ st.cau }} câu</td>
+                        <td class="fw-bold">{{ st.diem }}đ</td>
+                        <td>{{ st.tyle }}%</td>
+                        <td class="text-muted">{{ st.thucte }}%</td>
+                        <td class="fw-bold text-primary">{{ st.lamtron }}%</td>
+                        <td><span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>Hợp lệ ({{ st.lamtron }}%)</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-light fw-bold">
+                    <tr>
+                        <td class="text-start ps-3 text-primary">TỔNG CỘNG</td>
+                        <td>{{ matran.TongSoCau }} câu</td>
+                        <td class="text-danger">{{ matran.TongSoDiem }}đ</td>
+                        <td>100%</td>
+                        <td class="text-muted">100%</td>
+                        <td class="text-primary">100%</td>
+                        <td><span class="badge bg-success">Hợp lệ</span></td>
                     </tr>
                 </tfoot>
             </table>
         </div>
         
-        <!-- Lịch sử phê duyệt -->
+        <!-- LỊCH SỬ PHÊ DUYỆT (NẾU CÓ) -->
         {% if lich_su %}
-        <h6 class="fw-bold text-secondary mb-3 mt-5">Lịch sử phê duyệt</h6>
-        <div class="table-responsive mb-4">
-            <table class="table table-sm table-hover">
-                <thead class="table-light">
+        <h6 class="fw-bold text-secondary mb-2 mt-4"><i class="fas fa-history me-1"></i> Lịch sử phê duyệt</h6>
+        <div class="table-responsive mb-4 border rounded">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="table-light small">
                     <tr>
                         <th>Thời gian</th>
-                        <th>Người thao tác</th>
-                        <th>Trạng thái</th>
-                        <th>Ghi chú</th>
+                        <th>Người thực hiện</th>
+                        <th>Chức vụ</th>
+                        <th>Hành động</th>
+                        <th>Ý kiến / Ghi chú</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for ls in lich_su %}
                     <tr>
-                        <td>{{ ls.ThoiGian|date:"d/m/Y H:i" }}</td>
-                        <td>{{ ls.NguoiPheDuyet.HoTen }} <small class="text-muted">({{ ls.NguoiPheDuyet.ChucVu }})</small></td>
+                        <td class="small">{{ ls.ThoiGian|date:"d/m/Y H:i" }}</td>
+                        <td class="fw-semibold">{{ ls.NguoiPheDuyet.HoTen }}</td>
+                        <td class="small text-muted">{{ ls.NguoiPheDuyet.ChucVu }}</td>
                         <td>
                             {% if ls.TrangThai == 'Đã duyệt' %}
-                                <span class="text-success fw-bold"><i class="fas fa-check-circle me-1"></i>Đã duyệt</span>
+                                <span class="badge bg-success"><i class="fas fa-check me-1"></i>Phê duyệt</span>
                             {% elif ls.TrangThai == 'Từ chối' %}
-                                <span class="text-danger fw-bold"><i class="fas fa-times-circle me-1"></i>Từ chối</span>
+                                <span class="badge bg-danger"><i class="fas fa-times me-1"></i>Từ chối</span>
                             {% else %}
                                 {{ ls.TrangThai }}
                             {% endif %}
@@ -135,76 +208,179 @@
         </div>
         {% endif %}
 
-        <!-- Action Buttons -->
-        <div class="d-flex justify-content-between mt-5 border-top pt-4">
+        <!-- THANH CÔNG CỤ / NÚT HÀNH ĐỘNG -->
+        <div class="d-flex flex-wrap justify-content-between align-items-center mt-5 pt-3 border-top gap-2">
             <div>
-                <a href="{% url 'matrix_list' %}" class="btn btn-secondary px-4"><i class="fas fa-arrow-left me-2"></i>Quay lại</a>
-                <a href="{% url 'matrix_export' matran.pk %}" class="btn btn-info px-4 ms-2 text-white"><i class="fas fa-file-excel me-2"></i>Xuất Excel</a>
+                <a href="{% url 'matrix_list' %}" class="btn btn-outline-secondary px-4 me-2">
+                    <i class="fas fa-arrow-left me-1"></i> Quay lại danh sách
+                </a>
+                
+                <!-- NÚT XUẤT MA TRẬN (UC 9.5) -->
+                <button type="button" class="btn btn-primary px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#exportModal">
+                    <i class="fas fa-file-export me-1"></i> Xuất ma trận
+                </button>
             </div>
             
-            {% if is_bgh and matran.TrangThai == 'Chờ duyệt' %}
-            <div>
-                <button type="button" class="btn btn-danger px-4 me-2" data-bs-toggle="modal" data-bs-target="#rejectModal">
-                    <i class="fas fa-times me-2"></i>Từ chối
+            <div class="d-flex gap-2">
+                {% if matran.TrangThai == 'Nháp' or matran.TrangThai == 'Từ chối' %}
+                    {% if is_owner or request.user.is_superuser %}
+                    <a href="{% url 'matrix_update' matran.pk %}" class="btn btn-warning px-3 text-dark">
+                        <i class="fas fa-edit me-1"></i> Sửa ma trận
+                    </a>
+                    <button type="button" class="btn btn-outline-danger px-3" data-bs-toggle="modal" data-bs-target="#deleteDetailModal">
+                        <i class="fas fa-trash-alt me-1"></i> Xóa
+                    </button>
+                    {% endif %}
+                {% endif %}
+
+                <!-- PHÊ DUYỆT (DÀNH CHO BAN GIÁM HIỆU) -->
+                {% if is_bgh and matran.TrangThai == 'Chờ duyệt' %}
+                <button type="button" class="btn btn-outline-danger px-3" data-bs-toggle="modal" data-bs-target="#rejectModal">
+                    <i class="fas fa-times me-1"></i> Từ chối
                 </button>
                 <button type="button" class="btn btn-success px-4" data-bs-toggle="modal" data-bs-target="#approveModal">
-                    <i class="fas fa-check me-2"></i>Phê duyệt
+                    <i class="fas fa-check me-1"></i> Phê duyệt ma trận
                 </button>
+                {% endif %}
             </div>
-            {% endif %}
         </div>
     </div>
 </div>
 
-<!-- Modal Từ chối -->
-<div class="modal fade" id="rejectModal" tabindex="-1">
-    <div class="modal-dialog">
+<!-- MODAL XUẤT MA TRẬN (UC 9.5) -->
+<div class="modal fade" id="exportModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header py-2 bg-primary text-white">
+                <h6 class="modal-title fw-bold"><i class="fas fa-file-export me-1"></i> Tùy chọn Xuất Ma trận</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body py-4">
+                <p class="mb-3 text-center fs-6">Bạn có chắc chắn muốn xuất ma trận này không?</p>
+                
+                <div class="mb-3">
+                    <label class="form-label fw-bold small text-secondary">Chọn định dạng file xuất:</label>
+                    <div class="d-flex gap-3">
+                        <div class="form-check p-3 border rounded flex-fill bg-light">
+                            <input class="form-check-input" type="radio" name="exportFormatRadio" id="fmtWord" value="docx" checked>
+                            <label class="form-check-label fw-bold text-primary" for="fmtWord">
+                                <i class="fas fa-file-word fa-lg me-1"></i> Microsoft Word (.docx)
+                                <div class="small text-muted fw-normal">Định dạng văn bản chuẩn in ấn, ký duyệt</div>
+                            </label>
+                        </div>
+                        <div class="form-check p-3 border rounded flex-fill bg-light">
+                            <input class="form-check-input" type="radio" name="exportFormatRadio" id="fmtExcel" value="excel">
+                            <label class="form-check-label fw-bold text-success" for="fmtExcel">
+                                <i class="fas fa-file-excel fa-lg me-1"></i> Microsoft Excel (.xls)
+                                <div class="small text-muted fw-normal">Bảng tính phân tích, lưu trữ số liệu</div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-info py-2 small mb-0">
+                    <i class="fas fa-info-circle me-1"></i> File sẽ tự động tải về thiết bị của bạn sau khi xác nhận xuất.
+                </div>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-sm btn-secondary px-3" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-sm btn-primary px-4 shadow-sm" onclick="triggerExport('{% url 'matrix_export' matran.pk %}')">
+                    <i class="fas fa-download me-1"></i> Xuất ngay
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL XÓA MA TRẬN TẠI TRANG CHI TIẾT (UC 9.3) -->
+<div class="modal fade" id="deleteDetailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" action="{% url 'matrix_delete' matran.pk %}">
+                {% csrf_token %}
+                <div class="modal-header bg-danger text-white py-2">
+                    <h6 class="modal-title fw-bold"><i class="fas fa-trash-alt me-1"></i> Xác nhận xóa ma trận</h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body py-4 text-center">
+                    <p class="mb-2">Bạn có chắc chắn muốn xóa ma trận <strong>"{{ matran.TenMaTran }}"</strong>?</p>
+                    <div class="alert alert-warning py-2 small mb-0">
+                        <i class="fas fa-exclamation-triangle me-1"></i> Toàn bộ chi tiết ma trận sẽ bị xóa vĩnh viễn và không thể khôi phục!
+                    </div>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-sm btn-secondary px-3" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-sm btn-danger px-4">Xác nhận Xóa</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL TỪ CHỐI DUYỆT (BGH) -->
+<div class="modal fade" id="rejectModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form method="POST" action="{% url 'matrix_approve' matran.pk %}">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="reject">
-                <div class="modal-header bg-danger text-white">
-                    <h5 class="modal-title">Từ chối Ma trận</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <div class="modal-header bg-danger text-white py-2">
+                    <h6 class="modal-title fw-bold"><i class="fas fa-times me-1"></i> Từ chối phê duyệt ma trận</h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body">
-                    <p>Bạn có chắc chắn muốn từ chối ma trận này?</p>
+                <div class="modal-body py-3">
+                    <p class="mb-2">Bạn có chắc chắn muốn từ chối ma trận này?</p>
                     <div class="mb-3">
-                        <label class="form-label">Lý do từ chối (Ghi chú):</label>
-                        <textarea name="GhiChu" class="form-control" rows="3" required placeholder="Nhập lý do..."></textarea>
+                        <label class="form-label fw-bold small">Lý do từ chối (yêu cầu điều chỉnh) <span class="text-danger">*</span>:</label>
+                        <textarea name="GhiChu" class="form-control" rows="3" required placeholder="Nhập lý do hoặc chỉ đạo chỉnh sửa..."></textarea>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
-                    <button type="submit" class="btn btn-danger">Xác nhận Từ chối</button>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-sm btn-secondary px-3" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-sm btn-danger px-4">Xác nhận Từ chối</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-<!-- Modal Phê duyệt -->
-<div class="modal fade" id="approveModal" tabindex="-1">
-    <div class="modal-dialog">
+<!-- MODAL PHÊ DUYỆT (BGH) -->
+<div class="modal fade" id="approveModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form method="POST" action="{% url 'matrix_approve' matran.pk %}">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="approve">
-                <div class="modal-header bg-success text-white">
-                    <h5 class="modal-title">Phê duyệt Ma trận</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <div class="modal-header bg-success text-white py-2">
+                    <h6 class="modal-title fw-bold"><i class="fas fa-check-circle me-1"></i> Phê duyệt ma trận đề thi</h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body">
-                    <p class="fs-5 text-center my-3">Bạn có chắc chắn muốn <strong>Phê duyệt</strong> ma trận này?</p>
-                    <p class="text-muted text-center small mb-0"><i class="fas fa-info-circle me-1"></i>Ma trận sau khi duyệt sẽ được sử dụng để tạo đề thi chính thức.</p>
+                <div class="modal-body py-4 text-center">
+                    <i class="fas fa-check-circle text-success fa-3x mb-3"></i>
+                    <p class="fs-6 mb-2">Bạn có chắc chắn muốn <strong>Phê duyệt</strong> ma trận này?</p>
+                    <p class="text-muted small mb-0">Ma trận sau khi duyệt sẽ chính thức có hiệu lực làm căn cứ sinh đề thi cho kỳ thi tương ứng.</p>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
-                    <button type="submit" class="btn btn-success">Xác nhận</button>
+                <div class="modal-footer py-2 justify-content-center">
+                    <button type="button" class="btn btn-sm btn-secondary px-3" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-sm btn-success px-4">Xác nhận Duyệt</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
+<script>
+    function triggerExport(baseUrl) {
+        const format = document.querySelector('input[name="exportFormatRadio"]:checked')?.value || 'docx';
+        const url = `${baseUrl}?format=${format}`;
+        
+        // Ẩn modal
+        const modalEl = document.getElementById('exportModal');
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+        
+        // Kích hoạt tải file
+        window.location.href = url;
+    }
+</script>
 {% endblock %}

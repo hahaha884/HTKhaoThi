@@ -393,7 +393,12 @@
 
             } else if (dang === 'TF') {
                 const savedLabels = "{{ cau_hoi.DapAnMau|default:'Đúng, Sai'|escapejs }}";
+                const isGroupTF = {% if cau_hoi.NhomCauHoi %}true{% else %}false{% endif %};
+                const guideText = isGroupTF ? "Chọn đáp án đúng/sai theo đoạn văn sau:" : "Chọn đáp án đúng/sai cho câu sau:";
                 answersContainer.innerHTML = `
+                    <div class="alert alert-info py-2 px-3 mb-3 fw-bold small">
+                        <i class="fas fa-info-circle me-2"></i>Hướng dẫn hiển thị: <span class="text-primary">${guideText}</span>
+                    </div>
                     <div class="mb-3">
                         <label class="form-label small">Các ký hiệu lựa chọn (Cách nhau bởi dấu phẩy, VD: Đ, S hoặc T, F, NG)</label>
                         <div class="input-group input-group-sm">
@@ -415,7 +420,7 @@
             } else if (dang === 'Matching') {
                 answersContainer.innerHTML = `
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span class="text-muted">Nhập các cặp nội dung ghép nối:</span>
+                        <span class="text-muted fw-bold">Nhập các cặp nội dung ghép nối (Cột A và Cột B tương ứng):</span>
                         <button type="button" class="btn btn-sm btn-outline-success" onclick="addMatchRow()"><i class="fas fa-plus me-1"></i>Thêm cặp ghép</button>
                     </div>
                     <div id="matchList"></div>`;
@@ -428,8 +433,27 @@
             } else if (dang === 'FIB') {
                 const fibValue = isEditMode ? existingDapAns.map(function(da) { return da.NoiDung; }).join('\n') : '';
                 answersContainer.innerHTML = `
-                    <span class="text-muted d-block mb-2">Nhập các đáp án điền khuyết (mỗi đáp án 1 dòng):</span>
-                    <textarea name="DapAnFIB" class="form-control" rows="3" placeholder="Ví dụ:\nĐáp án 1\nĐáp án 2" required>${fibValue}</textarea>`;
+                    <div class="alert alert-light border py-2 px-3 mb-3 small d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="fas fa-info-circle text-primary me-1"></i>
+                            <strong>Mẹo điền khuyết:</strong> Trong nội dung câu hỏi, bạn có thể dùng ký hiệu <code>[...]</code> cho các vị trí khuyết.
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="insertFIBBlank()">
+                            <i class="fas fa-plus-circle me-1"></i>Chèn [...] vào đề
+                        </button>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-muted fw-bold">Danh sách đáp án cho từng vị trí khuyết (theo thứ tự):</span>
+                        <button type="button" class="btn btn-sm btn-outline-success" onclick="addFIBRow()"><i class="fas fa-plus me-1"></i>Thêm vị trí khuyết</button>
+                    </div>
+                    <div id="fibList"></div>
+                    <textarea name="DapAnFIB" id="dapAnFIBHidden" class="d-none">${fibValue}</textarea>`;
+                if (isEditMode && existingDapAns.length > 0) {
+                    existingDapAns.forEach(function(da) { addFIBRow(da.NoiDung); });
+                } else {
+                    addFIBRow();
+                    addFIBRow();
+                }
 
             } else if (isEssayDang(dang)) {
                 const essayBlock = document.getElementById('__essayAnswerBlock');
@@ -558,38 +582,112 @@
         });
     }
 
+    function insertFIBBlank() {
+        const textarea = document.getElementById('noiDungCauHoi');
+        if (!textarea) return;
+        const start = textarea.selectionStart !== undefined ? textarea.selectionStart : textarea.value.length;
+        const end = textarea.selectionEnd !== undefined ? textarea.selectionEnd : textarea.value.length;
+        const text = textarea.value;
+        textarea.value = text.substring(0, start) + ' [...] ' + text.substring(end);
+        textarea.selectionStart = textarea.selectionEnd = start + 7;
+        textarea.focus();
+        textarea.dispatchEvent(new Event('input'));
+        addFIBRow();
+    }
+
+    function addFIBRow(val) {
+        try {
+            const list = document.getElementById('fibList');
+            if (!list) return;
+            const row = document.createElement('div');
+            row.className = 'input-group mb-2 fib-row';
+            row.innerHTML = `
+                <span class="input-group-text bg-light fw-bold text-secondary fib-label" style="min-width: 120px;">Vị trí [...]</span>
+                <input type="text" name="FIBAnswer" class="form-control" placeholder="Nhập đáp án đúng cho ô trống..." value="${(val || '').replace(/"/g, '&quot;')}" required oninput="syncFIBHidden()">
+                <button class="btn btn-outline-danger px-3" type="button" onclick="this.parentElement.remove(); reindexFIBRows(); syncFIBHidden();"><i class="fas fa-times"></i></button>
+            `;
+            list.appendChild(row);
+            reindexFIBRows();
+            syncFIBHidden();
+        } catch(e) { console.error("Lỗi addFIBRow", e); }
+    }
+
+    function reindexFIBRows() {
+        const rows = document.querySelectorAll('#fibList .fib-row');
+        rows.forEach((r, idx) => {
+            const lbl = r.querySelector('.fib-label');
+            if (lbl) lbl.textContent = `Vị trí [${idx + 1}]`;
+        });
+    }
+
+    function syncFIBHidden() {
+        const ta = document.getElementById('dapAnFIBHidden');
+        if (!ta) return;
+        const inputs = document.querySelectorAll('input[name="FIBAnswer"]');
+        ta.value = Array.from(inputs).map(inp => inp.value.trim()).filter(Boolean).join('\n');
+    }
+
     function addMatchRow(data) {
         try {
             const list = document.getElementById('matchList');
-            const index = list.children.length;
+            if (!list) return;
             const row = document.createElement('div');
-            row.className = 'input-group mb-2';
-            const leftVal = data ? data.NoiDungTrai : '';
-            const rightVal = data ? data.NoiDung : '';
-            const imgLeft = data ? data.HinhAnhTrai : '';
-            const imgRight = data ? data.HinhAnh : '';
+            row.className = 'input-group mb-2 match-row';
+            const leftVal = data ? (data.NoiDungTrai || '') : '';
+            const rightVal = data ? (data.NoiDung || '') : '';
+            const imgLeft = data ? (data.HinhAnhTrai || '') : '';
+            const imgRight = data ? (data.HinhAnh || '') : '';
             row.innerHTML = `
+                <input type="hidden" name="ExistingMatchImageLeft" value="${imgLeft}">
+                <input type="hidden" name="ExistingMatchImageRight" value="${imgRight}">
                 <label class="input-group-text bg-white cursor-pointer px-2" title="Ảnh vế trái" style="cursor:pointer;">
                     <i class="fas fa-camera text-primary camera-icon ${imgLeft ? 'd-none' : ''}"></i>
                     <img class="img-preview ${imgLeft ? '' : 'd-none'}" style="height: 20px; max-width: 40px; object-fit: contain;" src="${imgLeft}">
-                    <input type="file" name="MatchImageLeft_${index}" class="d-none" accept="image/*" onchange="previewIcon(this)">
+                    <input type="file" class="match-img-left d-none" accept="image/*" onchange="previewIcon(this)">
                 </label>
-                <a class="btn btn-outline-primary ${imgLeft ? '' : 'd-none'} px-3" href="${imgLeft}" target="_blank" title="Xem ảnh"><i class="fas fa-external-link-alt"></i></a>
-                <button class="btn btn-outline-danger ${imgLeft ? '' : 'd-none'} px-3" type="button" title="Xóa ảnh" onclick="const inp = this.previousElementSibling.previousElementSibling.querySelector('input[type=file]'); inp.value=''; previewIcon(inp);"><i class="fas fa-trash-alt"></i></button>
-                <input type="text" name="MatchLeft" class="form-control" placeholder="Vế trái..." value="${leftVal.replace(/"/g, '&quot;')}" required>
-                <span class="input-group-text bg-light"><i class="fas fa-arrow-right"></i></span>
-                <input type="text" name="MatchRight" class="form-control" placeholder="Vế phải..." value="${rightVal.replace(/"/g, '&quot;')}" required>
+                <a class="btn btn-outline-primary ${imgLeft ? '' : 'd-none'} px-2" href="${imgLeft}" target="_blank" title="Xem ảnh"><i class="fas fa-external-link-alt"></i></a>
+                <button class="btn btn-outline-danger ${imgLeft ? '' : 'd-none'} px-2" type="button" title="Xóa ảnh" onclick="clearMatchImg(this, 'left')"><i class="fas fa-trash-alt"></i></button>
+                <input type="text" name="MatchLeft" class="form-control" placeholder="Cột A (Vế trái)..." value="${leftVal.replace(/"/g, '&quot;')}" required>
+                <span class="input-group-text bg-light text-primary"><i class="fas fa-arrows-alt-h"></i></span>
+                <input type="text" name="MatchRight" class="form-control" placeholder="Cột B (Vế phải)..." value="${rightVal.replace(/"/g, '&quot;')}" required>
                 <label class="input-group-text bg-white cursor-pointer px-2" title="Ảnh vế phải" style="cursor:pointer;">
                     <i class="fas fa-camera text-primary camera-icon ${imgRight ? 'd-none' : ''}"></i>
                     <img class="img-preview ${imgRight ? '' : 'd-none'}" style="height: 20px; max-width: 40px; object-fit: contain;" src="${imgRight}">
-                    <input type="file" name="MatchImageRight_${index}" class="d-none" accept="image/*" onchange="previewIcon(this)">
+                    <input type="file" class="match-img-right d-none" accept="image/*" onchange="previewIcon(this)">
                 </label>
-                <a class="btn btn-outline-primary ${imgRight ? '' : 'd-none'} px-3" href="${imgRight}" target="_blank" title="Xem ảnh"><i class="fas fa-external-link-alt"></i></a>
-                <button class="btn btn-outline-danger ${imgRight ? '' : 'd-none'} px-3" type="button" title="Xóa ảnh" onclick="const inp = this.previousElementSibling.previousElementSibling.querySelector('input[type=file]'); inp.value=''; previewIcon(inp);"><i class="fas fa-trash-alt"></i></button>
-                <button class="btn btn-outline-danger px-2" type="button" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>
+                <a class="btn btn-outline-primary ${imgRight ? '' : 'd-none'} px-2" href="${imgRight}" target="_blank" title="Xem ảnh"><i class="fas fa-external-link-alt"></i></a>
+                <button class="btn btn-outline-danger ${imgRight ? '' : 'd-none'} px-2" type="button" title="Xóa ảnh" onclick="clearMatchImg(this, 'right')"><i class="fas fa-trash-alt"></i></button>
+                <button class="btn btn-outline-danger px-2" type="button" onclick="this.parentElement.remove(); reindexMatchRows();"><i class="fas fa-times"></i></button>
             `;
             list.appendChild(row);
+            reindexMatchRows();
         } catch(e) { console.error("Lỗi addMatchRow", e); }
+    }
+
+    function clearMatchImg(btn, side) {
+        const row = btn.closest('.match-row');
+        if (!row) return;
+        if (side === 'left') {
+            row.querySelector('input[name="ExistingMatchImageLeft"]').value = '';
+            const inp = row.querySelector('.match-img-left');
+            if (inp) { inp.value = ''; previewIcon(inp); }
+        } else {
+            row.querySelector('input[name="ExistingMatchImageRight"]').value = '';
+            const inp = row.querySelector('.match-img-right');
+            if (inp) { inp.value = ''; previewIcon(inp); }
+        }
+        btn.classList.add('d-none');
+        if (btn.previousElementSibling) btn.previousElementSibling.classList.add('d-none');
+    }
+
+    function reindexMatchRows() {
+        const rows = document.querySelectorAll('#matchList .match-row');
+        rows.forEach((r, idx) => {
+            const leftInp = r.querySelector('.match-img-left');
+            const rightInp = r.querySelector('.match-img-right');
+            if (leftInp) leftInp.name = `MatchImageLeft_${idx}`;
+            if (rightInp) rightInp.name = `MatchImageRight_${idx}`;
+        });
     }
 
     try {
@@ -840,7 +938,35 @@
                 textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
 
-            status.innerHTML = '<span class="text-success"><i class="fas fa-check-circle me-1"></i>AI đã tạo câu hỏi!</span>';
+            // Tự động điền các thành phần đáp án tương ứng nếu AI sinh đồng thời
+            if (data.matching_pairs && data.matching_pairs.length > 0) {
+                const matchList = document.getElementById('matchList');
+                if (matchList) {
+                    matchList.innerHTML = '';
+                    data.matching_pairs.forEach(function(p) {
+                        addMatchRow({NoiDungTrai: p.left, NoiDung: p.right});
+                    });
+                }
+            } else if (data.fib_answers && data.fib_answers.length > 0) {
+                const fibList = document.getElementById('fibList');
+                if (fibList) {
+                    fibList.innerHTML = '';
+                    data.fib_answers.forEach(function(ans) {
+                        addFIBRow(ans);
+                    });
+                    syncFIBHidden();
+                }
+            } else if (data.tf_statements && data.tf_statements.length > 0) {
+                const tfList = document.getElementById('tfList');
+                if (tfList) {
+                    tfList.innerHTML = '';
+                    data.tf_statements.forEach(function(stmt) {
+                        addTFRow({NoiDung: stmt.statement, NoiDungTrai: stmt.correct});
+                    });
+                }
+            }
+
+            status.innerHTML = '<span class="text-success"><i class="fas fa-check-circle me-1"></i>AI đã tạo câu hỏi và cấu trúc hoàn chỉnh!</span>';
 
         } catch (err) {
             alert('Lỗi kết nối: ' + err);
@@ -939,6 +1065,48 @@
                      essayTa.focus();
                 }
                 status.innerHTML = '<span class="text-success"><i class="fas fa-check-circle me-1"></i>AI đã gợi ý đáp án mẫu!</span>';
+            } else if (dang === 'Matching') {
+                renderAnswerArea();
+                await new Promise(r => setTimeout(r, 100));
+                const matchList = document.getElementById('matchList');
+                if (matchList) {
+                    matchList.innerHTML = '';
+                    const pairs = q.matching_pairs || q.answers || [];
+                    pairs.forEach(function(pair) {
+                        const left = (typeof pair === 'object') ? (pair.left || pair.NoiDungTrai || '') : '';
+                        const right = (typeof pair === 'object') ? (pair.right || pair.NoiDung || '') : '';
+                        addMatchRow({NoiDungTrai: left, NoiDung: right});
+                    });
+                    status.innerHTML = `<span class="text-success"><i class="fas fa-check-circle me-1"></i>AI đã gợi ý ${pairs.length} cặp ghép nối!</span>`;
+                }
+            } else if (dang === 'FIB') {
+                renderAnswerArea();
+                await new Promise(r => setTimeout(r, 100));
+                const fibList = document.getElementById('fibList');
+                if (fibList) {
+                    fibList.innerHTML = '';
+                    const fibAnswers = q.fib_answers || q.answers || [];
+                    fibAnswers.forEach(function(ans) {
+                        const val = (typeof ans === 'object') ? (ans.text || ans.NoiDung || '') : ans;
+                        addFIBRow(val);
+                    });
+                    syncFIBHidden();
+                    status.innerHTML = `<span class="text-success"><i class="fas fa-check-circle me-1"></i>AI đã gợi ý ${fibAnswers.length} đáp án điền khuyết!</span>`;
+                }
+            } else if (dang === 'TF') {
+                renderAnswerArea();
+                await new Promise(r => setTimeout(r, 100));
+                const tfList = document.getElementById('tfList');
+                if (tfList) {
+                    tfList.innerHTML = '';
+                    const statements = q.tf_statements || q.answers || [];
+                    statements.forEach(function(item) {
+                        const stmt = (typeof item === 'object') ? (item.statement || item.NoiDung || '') : item;
+                        const label = (typeof item === 'object') ? (item.correct || item.NoiDungTrai || 'Đúng') : 'Đúng';
+                        addTFRow({NoiDung: stmt, NoiDungTrai: label});
+                    });
+                    status.innerHTML = `<span class="text-success"><i class="fas fa-check-circle me-1"></i>AI đã gợi ý ${statements.length} mệnh đề Đúng/Sai!</span>`;
+                }
             }
 
         } catch (err) {
@@ -948,5 +1116,15 @@
             btn.innerHTML = '<i class="fas fa-robot me-1"></i>✨ Gợi ý đáp án bằng AI';
         }
     }
+
+    try {
+        const formElem = document.querySelector('form');
+        if (formElem) {
+            formElem.addEventListener('submit', function() {
+                if (typeof syncFIBHidden === 'function') syncFIBHidden();
+                if (typeof reindexMatchRows === 'function') reindexMatchRows();
+            });
+        }
+    } catch(e) {}
 </script>
 {% endblock %}
