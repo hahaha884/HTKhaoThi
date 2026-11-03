@@ -98,6 +98,18 @@ def schedule_create_step1(request):
         messages.error(request, "Chỉ Ban Giám Hiệu mới có quyền tạo lịch thi.")
         return redirect('schedule_list')
     
+    def _render_step1_err(req, field_errors, pd=None):
+        """Helper: render lại Bước 1 với lỗi field, giữ dữ liệu đã nhập."""
+        from schedule.models import NamHoc, Khoi
+        from subject.models import MonHoc
+        return render(req, 'schedule/create_step1.html', {
+            'step1_data': pd or {},
+            'field_errors': field_errors,
+            'nam_hoc_list': NamHoc.objects.all(),
+            'khoi_list': Khoi.objects.all(),
+            'mon_list': MonHoc.objects.filter(TrangThai='Đang hoạt động'),
+        })
+
     if request.method == 'POST':
         nam_hoc_id = request.POST.get('nam_hoc')
         khoi_id = request.POST.get('khoi')
@@ -109,94 +121,121 @@ def schedule_create_step1(request):
         gio_bat_dau_str = request.POST.get('gio_bat_dau')
         gio_ket_thuc_str = request.POST.get('gio_ket_thuc')
         ghi_chu = request.POST.get('ghi_chu', '')
-        
+
+        # Giữ lại giá trị form để hiển thị lại khi có lỗi
+        post_data = {
+            'nam_hoc_id': nam_hoc_id,
+            'khoi_id': khoi_id,
+            'mon_id': mon_id,
+            'hoc_ky': hoc_ky,
+            'ky_thi': ky_thi,
+            'ca_thi': ca_thi,
+            'ngay_thi': ngay_thi_str,
+            'gio_bat_dau': gio_bat_dau_str,
+            'gio_ket_thuc': gio_ket_thuc_str,
+            'ghi_chu': ghi_chu,
+        }
+
+        field_errors = {}
+
         # Exception 6a1: Thiếu trường bắt buộc
-        if not all([nam_hoc_id, khoi_id, mon_id, hoc_ky, ky_thi, ca_thi, ngay_thi_str, gio_bat_dau_str, gio_ket_thuc_str]):
-            messages.error(request, "Vui lòng điền đầy đủ các trường bắt buộc.")
-            return redirect('schedule_create_step1')
-        
+        missing = []
+        if not nam_hoc_id: missing.append('nam_hoc')
+        if not hoc_ky: missing.append('hoc_ky')
+        if not ky_thi: missing.append('ky_thi')
+        if not khoi_id: missing.append('khoi')
+        if not mon_id: missing.append('mon')
+        if not ca_thi: missing.append('ca_thi')
+        if not ngay_thi_str: missing.append('ngay_thi')
+        if not gio_bat_dau_str: missing.append('gio_bat_dau')
+        if not gio_ket_thuc_str: missing.append('gio_ket_thuc')
+        if missing:
+            for f in missing:
+                field_errors[f] = "Trường này là bắt buộc."
+            return _render_step1_err(request, field_errors, post_data)
+
         try:
             ngay_thi = datetime.strptime(ngay_thi_str, '%Y-%m-%d').date()
             gio_bat_dau = datetime.strptime(gio_bat_dau_str, '%H:%M').time()
             gio_ket_thuc = datetime.strptime(gio_ket_thuc_str, '%H:%M').time()
-        except:
-            messages.error(request, "Định dạng ngày hoặc giờ không hợp lệ.")
-            return redirect('schedule_create_step1')
-        
+        except Exception:
+            field_errors['ngay_thi'] = "Định dạng ngày không hợp lệ."
+            return _render_step1_err(request, field_errors, post_data)
+
         # Exception 6b: Giờ kết thúc < Giờ bắt đầu
         if gio_ket_thuc <= gio_bat_dau:
-            messages.error(request, "Giờ kết thúc phải lớn hơn giờ bắt đầu.")
-            return redirect('schedule_create_step1')
-            
+            field_errors['gio_ket_thuc'] = "Giờ kết thúc phải lớn hơn giờ bắt đầu."
+            return _render_step1_err(request, field_errors, post_data)
+
         # Exception 6b2: Ràng buộc giờ theo ca thi
         if ca_thi == 'Buổi sáng' and gio_bat_dau.hour >= 12:
-            messages.error(request, "Buổi sáng phải có giờ bắt đầu trước 12:00 trưa.")
-            return redirect('schedule_create_step1')
+            field_errors['gio_bat_dau'] = "Buổi sáng phải có giờ bắt đầu trước 12:00 trưa."
+            return _render_step1_err(request, field_errors, post_data)
         if ca_thi == 'Buổi chiều' and gio_bat_dau.hour < 12:
-            messages.error(request, "Buổi chiều phải có giờ bắt đầu từ 12:00 trưa trở đi.")
-            return redirect('schedule_create_step1')
-        
+            field_errors['gio_bat_dau'] = "Buổi chiều phải có giờ bắt đầu từ 12:00 trưa trở đi."
+            return _render_step1_err(request, field_errors, post_data)
+
         # Exception 6c: Kiểm tra ngày thi nằm trong khoảng thời gian của kỳ thi đã chọn
         if nam_hoc_id:
             nam_hoc = NamHoc.objects.filter(id=nam_hoc_id).first()
             if nam_hoc:
                 hop_le = True
                 khoang_thoi_gian = ""
-                
+
                 if hoc_ky == 'Học kỳ 1' and ky_thi == 'Giữa kỳ':
                     if not (nam_hoc.GiuaKI_BatDau and nam_hoc.GiuaKI_KetThuc) or not (nam_hoc.GiuaKI_BatDau <= ngay_thi <= nam_hoc.GiuaKI_KetThuc):
                         hop_le = False
-                        khoang_thoi_gian = f"{nam_hoc.GiuaKI_BatDau.strftime('%d/%m/%Y')} - {nam_hoc.GiuaKI_KetThuc.strftime('%d/%m/%Y')}" if nam_hoc.GiuaKI_BatDau else "Chưa cấu hình"
+                        khoang_thoi_gian = f"{nam_hoc.GiuaKI_BatDau.strftime('%d/%m/%Y')} – {nam_hoc.GiuaKI_KetThuc.strftime('%d/%m/%Y')}" if nam_hoc.GiuaKI_BatDau else "Chưa cấu hình"
                 elif hoc_ky == 'Học kỳ 1' and ky_thi == 'Cuối kỳ':
                     if not (nam_hoc.CuoiKI_BatDau and nam_hoc.CuoiKI_KetThuc) or not (nam_hoc.CuoiKI_BatDau <= ngay_thi <= nam_hoc.CuoiKI_KetThuc):
                         hop_le = False
-                        khoang_thoi_gian = f"{nam_hoc.CuoiKI_BatDau.strftime('%d/%m/%Y')} - {nam_hoc.CuoiKI_KetThuc.strftime('%d/%m/%Y')}" if nam_hoc.CuoiKI_BatDau else "Chưa cấu hình"
+                        khoang_thoi_gian = f"{nam_hoc.CuoiKI_BatDau.strftime('%d/%m/%Y')} – {nam_hoc.CuoiKI_KetThuc.strftime('%d/%m/%Y')}" if nam_hoc.CuoiKI_BatDau else "Chưa cấu hình"
                 elif hoc_ky == 'Học kỳ 2' and ky_thi == 'Giữa kỳ':
                     if not (nam_hoc.GiuaKII_BatDau and nam_hoc.GiuaKII_KetThuc) or not (nam_hoc.GiuaKII_BatDau <= ngay_thi <= nam_hoc.GiuaKII_KetThuc):
                         hop_le = False
-                        khoang_thoi_gian = f"{nam_hoc.GiuaKII_BatDau.strftime('%d/%m/%Y')} - {nam_hoc.GiuaKII_KetThuc.strftime('%d/%m/%Y')}" if nam_hoc.GiuaKII_BatDau else "Chưa cấu hình"
+                        khoang_thoi_gian = f"{nam_hoc.GiuaKII_BatDau.strftime('%d/%m/%Y')} – {nam_hoc.GiuaKII_KetThuc.strftime('%d/%m/%Y')}" if nam_hoc.GiuaKII_BatDau else "Chưa cấu hình"
                 elif hoc_ky == 'Học kỳ 2' and ky_thi == 'Cuối kỳ':
                     if not (nam_hoc.CuoiKII_BatDau and nam_hoc.CuoiKII_KetThuc) or not (nam_hoc.CuoiKII_BatDau <= ngay_thi <= nam_hoc.CuoiKII_KetThuc):
                         hop_le = False
-                        khoang_thoi_gian = f"{nam_hoc.CuoiKII_BatDau.strftime('%d/%m/%Y')} - {nam_hoc.CuoiKII_KetThuc.strftime('%d/%m/%Y')}" if nam_hoc.CuoiKII_BatDau else "Chưa cấu hình"
-                
+                        khoang_thoi_gian = f"{nam_hoc.CuoiKII_BatDau.strftime('%d/%m/%Y')} – {nam_hoc.CuoiKII_KetThuc.strftime('%d/%m/%Y')}" if nam_hoc.CuoiKII_BatDau else "Chưa cấu hình"
+
                 if not hop_le:
-                    messages.error(request, f"Ngày thi không hợp lệ! Khoảng thời gian thi {ky_thi} - {hoc_ky} là: {khoang_thoi_gian}")
-                    return redirect('schedule_create_step1')
-        
+                    field_errors['ngay_thi'] = f"Ngày thi không hợp lệ! Khoảng thời gian thi {ky_thi} - {hoc_ky} là: {khoang_thoi_gian}"
+                    return _render_step1_err(request, field_errors, post_data)
+
         # Bỏ kiểm tra trùng Buổi (CaThi) vì 1 buổi có thể thi nhiều môn, chỉ cần không trùng giờ (đã kiểm tra bên dưới)
         # Business rule: Kiểm tra tối đa 3 ca/ngày cho 1 khối
         ca_count = LichThi.objects.filter(Khoi_id=khoi_id, NgayThi=ngay_thi).count()
         if ca_count >= 3:
-            messages.error(request, "Khối này đã có 3 ca thi trong ngày. Không thể thêm ca thi mới.")
-            return redirect('schedule_create_step1')
-        
+            field_errors['ngay_thi'] = "Khối này đã có 3 ca thi trong ngày. Không thể thêm ca thi mới."
+            return _render_step1_err(request, field_errors, post_data)
+
         # Business rule: Khoảng cách tối thiểu 5 phút giữa các ca trong cùng ngày
         cac_ca_cung_ngay = LichThi.objects.filter(
             Khoi_id=khoi_id,
             NgayThi=ngay_thi
         ).exclude(id=None)
-        
+
         for ca in cac_ca_cung_ngay:
             # Kiểm tra khoảng cách
             if ca.GioKetThuc <= gio_bat_dau:
                 # Ca này kết thúc trước ca mới bắt đầu
-                khoang_cach = (datetime.combine(date.today(), gio_bat_dau) - 
+                khoang_cach = (datetime.combine(date.today(), gio_bat_dau) -
                                datetime.combine(date.today(), ca.GioKetThuc)).seconds // 60
                 if khoang_cach < 5:
-                    messages.error(request, f"Khoảng cách với ca thi trước phải tối thiểu 5 phút.")
-                    return redirect('schedule_create_step1')
+                    field_errors['gio_bat_dau'] = "Khoảng cách với ca thi trước phải tối thiểu 5 phút."
+                    return _render_step1_err(request, field_errors, post_data)
             elif gio_ket_thuc <= ca.GioBatDau:
                 # Ca mới kết thúc trước ca này bắt đầu
-                khoang_cach = (datetime.combine(date.today(), ca.GioBatDau) - 
+                khoang_cach = (datetime.combine(date.today(), ca.GioBatDau) -
                                datetime.combine(date.today(), gio_ket_thuc)).seconds // 60
                 if khoang_cach < 5:
-                    messages.error(request, f"Khoảng cách với ca thi sau phải tối thiểu 5 phút.")
-                    return redirect('schedule_create_step1')
+                    field_errors['gio_ket_thuc'] = "Khoảng cách với ca thi sau phải tối thiểu 5 phút."
+                    return _render_step1_err(request, field_errors, post_data)
             else:
                 # Trùng giờ
-                messages.error(request, "Giờ thi bị trùng với ca thi khác trong cùng ngày.")
-                return redirect('schedule_create_step1')
+                field_errors['gio_bat_dau'] = "Giờ thi bị trùng với ca thi khác trong cùng ngày."
+                return _render_step1_err(request, field_errors, post_data)
         
         # Lưu vào session để chuyển sang bước 2
         request.session['schedule_step1_data'] = {
@@ -216,6 +255,7 @@ def schedule_create_step1(request):
     
     context = {
         'step1_data': request.session.get('schedule_step1_data', {}),
+        'field_errors': {},
         'nam_hoc_list': NamHoc.objects.all(),
         'khoi_list': Khoi.objects.all(),
         'mon_list': MonHoc.objects.filter(TrangThai='Đang hoạt động'),

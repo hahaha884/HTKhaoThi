@@ -31,84 +31,99 @@
                     
                     <div class="row g-3 mb-3">
                         <div class="col-md-3">
-                            <label class="form-label fw-semibold">Năm học <span class="text-danger">*</span></label>
-                            <select name="nam_hoc" class="form-select" required>
+                            <label class="form-label fw-semibold {% if field_errors.nam_hoc %}text-danger{% endif %}">Năm học <span class="text-danger">*</span></label>
+                            <select name="nam_hoc" id="field_nam_hoc" class="form-select {% if field_errors.nam_hoc %}is-invalid{% endif %}" required>
                                 <option value="">-- Chọn năm học --</option>
                                 {% for nh in nam_hoc_list %}
                                 <option value="{{ nh.id }}" {% if step1_data.nam_hoc_id == nh.id|stringformat:"s" %}selected{% endif %}>{{ nh.TenNamHoc }}</option>
                                 {% endfor %}
                             </select>
+                            {% if field_errors.nam_hoc %}<div class="invalid-feedback">{{ field_errors.nam_hoc }}</div>{% endif %}
                         </div>
                         
                         <div class="col-md-3">
-                            <label class="form-label fw-semibold">Học kỳ <span class="text-danger">*</span></label>
-                            <select name="hoc_ky" class="form-select" required>
+                            <label class="form-label fw-semibold {% if field_errors.hoc_ky %}text-danger{% endif %}">Học kỳ <span class="text-danger">*</span></label>
+                            <select name="hoc_ky" id="field_hoc_ky" class="form-select {% if field_errors.hoc_ky %}is-invalid{% endif %}" required>
                                 <option value="">-- Chọn học kỳ --</option>
                                 <option value="Học kỳ 1" {% if step1_data.hoc_ky == 'Học kỳ 1' %}selected{% endif %}>Học kỳ 1</option>
                                 <option value="Học kỳ 2" {% if step1_data.hoc_ky == 'Học kỳ 2' %}selected{% endif %}>Học kỳ 2</option>
                             </select>
+                            {% if field_errors.hoc_ky %}<div class="invalid-feedback">{{ field_errors.hoc_ky }}</div>{% endif %}
                         </div>
                         
                         <div class="col-md-3">
-                            <label class="form-label fw-semibold">Kỳ thi <span class="text-danger">*</span></label>
-                            <select name="ky_thi" class="form-select" required>
+                            <label class="form-label fw-semibold {% if field_errors.ky_thi %}text-danger{% endif %}">Kỳ thi <span class="text-danger">*</span></label>
+                            <select name="ky_thi" id="field_ky_thi" class="form-select {% if field_errors.ky_thi %}is-invalid{% endif %}" required>
                                 <option value="">-- Chọn kỳ thi --</option>
                                 <option value="Giữa kỳ" {% if step1_data.ky_thi == 'Giữa kỳ' %}selected{% endif %}>Giữa kỳ</option>
                                 <option value="Cuối kỳ" {% if step1_data.ky_thi == 'Cuối kỳ' %}selected{% endif %}>Cuối kỳ</option>
                             </select>
+                            {% if field_errors.ky_thi %}<div class="invalid-feedback">{{ field_errors.ky_thi }}</div>{% endif %}
                         </div>
                         
                         <div class="col-md-3">
-                            <label class="form-label fw-semibold">Khối <span class="text-danger">*</span></label>
-                            <select name="khoi" id="khoiSelect" class="form-select" required>
+                            <label class="form-label fw-semibold {% if field_errors.khoi %}text-danger{% endif %}">Khối <span class="text-danger">*</span></label>
+                            <select name="khoi" id="khoiSelect" class="form-select {% if field_errors.khoi %}is-invalid{% endif %}" required>
                                 <option value="">-- Chọn khối --</option>
                                 {% for k in khoi_list %}
                                 <option value="{{ k.id }}" {% if step1_data.khoi_id == k.id|stringformat:"s" %}selected{% endif %}>{{ k.TenKhoi }}</option>
                                 {% endfor %}
                             </select>
+                            {% if field_errors.khoi %}<div class="invalid-feedback">{{ field_errors.khoi }}</div>{% endif %}
                         </div>
                     </div>
 
                     <div class="row g-3 mb-3">
                         <div class="col-md-8">
-                            <label class="form-label fw-semibold">
+                            <label class="form-label fw-semibold {% if field_errors.mon %}text-danger{% endif %}">
                                 Môn học <span class="text-danger">*</span>
                                 <span id="monLoadingSpinner" class="d-none ms-2">
                                     <span class="spinner-border spinner-border-sm text-secondary" role="status"></span>
                                 </span>
                             </label>
-                            <select name="mon" id="monSelect" class="form-select" required disabled>
+                            <select name="mon" id="monSelect" class="form-select {% if field_errors.mon %}is-invalid{% endif %}" required disabled>
                                 <option value="">-- Chọn khối trước --</option>
                             </select>
+                            {% if field_errors.mon %}<div class="invalid-feedback">{{ field_errors.mon }}</div>{% endif %}
                             <div id="monHint" class="form-text text-muted d-none">
                                 <i class="fas fa-info-circle me-1"></i>Chỉ hiển thị môn học thuộc khối đã chọn
                             </div>
                         </div>
                         
                         <div class="col-md-4">
-                            <label class="form-label fw-semibold">Buổi <span class="text-danger">*</span></label>
-                            <select name="ca_thi" class="form-select" required>
+                            <label class="form-label fw-semibold {% if field_errors.ca_thi %}text-danger{% endif %}">Buổi <span class="text-danger">*</span></label>
+                            <select name="ca_thi" id="field_ca_thi" class="form-select {% if field_errors.ca_thi %}is-invalid{% endif %}" required>
                                 <option value="">-- Chọn buổi --</option>
                                 <option value="Buổi sáng" {% if step1_data.ca_thi == 'Buổi sáng' %}selected{% endif %}>Buổi sáng</option>
                                 <option value="Buổi chiều" {% if step1_data.ca_thi == 'Buổi chiều' %}selected{% endif %}>Buổi chiều</option>
                             </select>
+                            {% if field_errors.ca_thi %}<div class="invalid-feedback">{{ field_errors.ca_thi }}</div>{% endif %}
                         </div>
                     </div>
 
                     <div class="row g-3 mb-3">
                         <div class="col-md-4">
-                            <label class="form-label fw-semibold">Ngày thi <span class="text-danger">*</span></label>
-                            <input type="date" name="ngay_thi" class="form-control" value="{{ step1_data.ngay_thi|default:'' }}" required>
+                            <label class="form-label fw-semibold {% if field_errors.ngay_thi %}text-danger{% endif %}">Ngày thi <span class="text-danger">*</span></label>
+                            <input type="date" name="ngay_thi" id="field_ngay_thi"
+                                class="form-control {% if field_errors.ngay_thi %}is-invalid{% endif %}"
+                                value="{{ step1_data.ngay_thi|default:'' }}" required>
+                            {% if field_errors.ngay_thi %}<div class="invalid-feedback">{{ field_errors.ngay_thi }}</div>{% endif %}
                         </div>
                         
                         <div class="col-md-4">
-                            <label class="form-label fw-semibold">Giờ bắt đầu <span class="text-danger">*</span></label>
-                            <input type="time" name="gio_bat_dau" class="form-control" value="{{ step1_data.gio_bat_dau|default:'' }}" required>
+                            <label class="form-label fw-semibold {% if field_errors.gio_bat_dau %}text-danger{% endif %}">Giờ bắt đầu <span class="text-danger">*</span></label>
+                            <input type="time" name="gio_bat_dau" id="field_gio_bat_dau"
+                                class="form-control {% if field_errors.gio_bat_dau %}is-invalid{% endif %}"
+                                value="{{ step1_data.gio_bat_dau|default:'' }}" required>
+                            {% if field_errors.gio_bat_dau %}<div class="invalid-feedback">{{ field_errors.gio_bat_dau }}</div>{% endif %}
                         </div>
                         
                         <div class="col-md-4">
-                            <label class="form-label fw-semibold">Giờ kết thúc <span class="text-danger">*</span></label>
-                            <input type="time" name="gio_ket_thuc" class="form-control" value="{{ step1_data.gio_ket_thuc|default:'' }}" required>
+                            <label class="form-label fw-semibold {% if field_errors.gio_ket_thuc %}text-danger{% endif %}">Giờ kết thúc <span class="text-danger">*</span></label>
+                            <input type="time" name="gio_ket_thuc" id="field_gio_ket_thuc"
+                                class="form-control {% if field_errors.gio_ket_thuc %}is-invalid{% endif %}"
+                                value="{{ step1_data.gio_ket_thuc|default:'' }}" required>
+                            {% if field_errors.gio_ket_thuc %}<div class="invalid-feedback">{{ field_errors.gio_ket_thuc }}</div>{% endif %}
                         </div>
                     </div>
 
@@ -140,6 +155,27 @@
         </div>
     </div>
 </div>
+
+{# ===== Toast thông báo lỗi ở góc dưới phải ===== #}
+{% if field_errors %}
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1100">
+    {% for field, msg in field_errors.items %}
+    <div class="toast align-items-center text-bg-danger border-0 shadow show mb-2 step1-error-toast"
+         role="alert" aria-live="assertive" aria-atomic="true"
+         data-field-id="field_{{ field }}">
+        <div class="d-flex">
+            <div class="toast-body d-flex align-items-start gap-2">
+                <i class="fas fa-exclamation-circle mt-1 flex-shrink-0"></i>
+                <div>
+                    <strong class="d-block">{{ msg }}</strong>
+                </div>
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
 
 <script>
 const API_URL = "{% url 'schedule_api_mon_theo_khoi' %}";
@@ -205,14 +241,83 @@ document.getElementById('step1Form').addEventListener('submit', function(e) {
         
         if (caThi === 'Buổi sáng' && gio >= 12) {
             e.preventDefault();
-            alert('Lỗi: Buổi sáng phải có giờ bắt đầu trước 12:00 trưa.');
+            showFieldError('field_gio_bat_dau', 'Buổi sáng phải có giờ bắt đầu trước 12:00 trưa.');
             return false;
         }
         
         if (caThi === 'Buổi chiều' && gio < 12) {
             e.preventDefault();
-            alert('Lỗi: Buổi chiều phải có giờ bắt đầu từ 12:00 trưa trở đi.');
+            showFieldError('field_gio_bat_dau', 'Buổi chiều phải có giờ bắt đầu từ 12:00 trưa trở đi.');
             return false;
+        }
+    }
+});
+
+/**
+ * Highlight field lỗi + hiện toast nhỏ + scroll đến field
+ */
+function showFieldError(fieldId, message) {
+    const field = document.getElementById(fieldId);
+    if (!field) return;
+
+    // Thêm class is-invalid
+    field.classList.add('is-invalid');
+
+    // Thêm hoặc cập nhật invalid-feedback
+    let fb = field.nextElementSibling;
+    if (!fb || !fb.classList.contains('invalid-feedback')) {
+        fb = document.createElement('div');
+        fb.className = 'invalid-feedback';
+        field.parentNode.insertBefore(fb, field.nextSibling);
+    }
+    fb.textContent = message;
+
+    // Hiện toast
+    showToast(message, fieldId);
+
+    // Scroll đến field
+    field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    field.focus();
+}
+
+function showToast(message, fieldId) {
+    let container = document.getElementById('toastContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toastContainer';
+        container.className = 'position-fixed bottom-0 end-0 p-3';
+        container.style.zIndex = '1100';
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = 'toast align-items-center text-bg-danger border-0 shadow show mb-2';
+    toast.setAttribute('role', 'alert');
+    if (fieldId) toast.dataset.fieldId = fieldId;
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body d-flex align-items-start gap-2">
+                <i class="fas fa-exclamation-circle mt-1 flex-shrink-0"></i>
+                <div><strong class="d-block">${message}</strong></div>
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>`;
+    container.appendChild(toast);
+
+    // Tự đóng sau 6 giây
+    const bsToast = new bootstrap.Toast(toast, { delay: 6000 });
+    bsToast.show();
+    toast.addEventListener('hidden.bs.toast', () => toast.remove());
+}
+
+// Khi click vào toast: scroll đến field tương ứng
+document.addEventListener('click', function(e) {
+    const toast = e.target.closest('[data-field-id]');
+    if (toast && !e.target.closest('.btn-close')) {
+        const field = document.getElementById(toast.dataset.fieldId);
+        if (field) {
+            field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            field.focus();
         }
     }
 });
@@ -221,6 +326,29 @@ document.getElementById('step1Form').addEventListener('submit', function(e) {
 if (khoiSelect.value) {
     khoiSelect.dispatchEvent(new Event('change'));
 }
+
+// ====== Xử lý sau khi page load: scroll đến field lỗi đầu tiên ======
+(function() {
+    const errorToasts = document.querySelectorAll('.step1-error-toast[data-field-id]');
+    if (errorToasts.length > 0) {
+        // Scroll đến field lỗi đầu tiên
+        const firstFieldId = errorToasts[0].dataset.fieldId;
+        const firstField = document.getElementById(firstFieldId);
+        if (firstField) {
+            setTimeout(() => {
+                firstField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                firstField.focus();
+            }, 200);
+        }
+
+        // Auto-dismiss toasts sau 6 giây
+        errorToasts.forEach(toastEl => {
+            const bsToast = new bootstrap.Toast(toastEl, { delay: 6000 });
+            bsToast.show();
+            toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
+        });
+    }
+})();
 </script>
 
 {% endblock %}
