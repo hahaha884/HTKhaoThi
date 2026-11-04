@@ -1,16 +1,18 @@
 import unicodedata
+from datetime import date
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db import transaction, IntegrityError
 from django.db.models import Q
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.core.paginator import Paginator
+from django.utils import timezone
 
 from core.decorators import khao_thi_required
 from core.models import NamHoc, Khoi, MonHoc, GiaoVien
 from question_bank.models import MachKienThuc, NoiDungKienThuc
-from .models import MaTran, CT_MaTran, LichSuPheDuyetMaTran
+from .models import MaTran, CT_MaTran, LichSuPheDuyetMaTran, DeadlineGiaoVien
 from .services import validate_matrix_data, generate_matrix_docx
 
 
@@ -91,6 +93,7 @@ def matrix_list(request):
         'giaoviens': GiaoVien.objects.all(),
         'is_bgh': is_bgh,
         'is_filtered': is_filtered,
+        'today': date.today(),
     }
     return render(request, 'matrix/list.html', context)
 
@@ -487,13 +490,31 @@ def matrix_detail(request, pk):
 
     lich_su = matran.lich_su.all().order_by('-ThoiGian')
 
+    # Deadline info
+    deadline_gv_list = matran.deadline_gv.all().select_related('GiaoVien', 'NguoiSet').order_by('Deadline')
+    is_tcm = False
+    if gv and gv.ChucVu in ['Tổ trưởng chuyên môn', 'Tổ phó chuyên môn']:
+        is_tcm = True
+    if request.user.is_superuser:
+        is_tcm = True
+
+    # Danh sách GV có thể được set deadline (TCM dùng)
+    from core.models import GiaoVien as GV_Model
+    gv_list_for_deadline = GV_Model.objects.filter(
+        ChucVu__in=['Giáo viên bộ môn', 'Giáo viên chủ nhiệm']
+    ).order_by('HoTen')
+
     context = {
         'matran': matran,
         'chi_tiet': chi_tiet,
         'is_bgh': is_bgh,
         'is_owner': is_owner,
+        'is_tcm': is_tcm,
         'lich_su': lich_su,
         'muc_stats': muc_stats,
+        'deadline_gv_list': deadline_gv_list,
+        'gv_list_for_deadline': gv_list_for_deadline,
+        'today': date.today(),
     }
     return render(request, 'matrix/detail.html', context)
 
@@ -503,6 +524,7 @@ def matrix_detail(request, pk):
 def matrix_approve(request, pk):
     """
     Phê duyệt hoặc từ chối ma trận đề thi (dành cho Ban Giám Hiệu).
+    Khi duyệt, BGH có thể nhập DeadlineNopDe (hạn nộp đề thi cho TCM).
     """
     matran = get_object_or_404(MaTran, pk=pk)
 
@@ -515,12 +537,34 @@ def matrix_approve(request, pk):
 
         action = request.POST.get('action')
         ghi_chu = (request.POST.get('GhiChu') or '').strip()
+        deadline_nop_str = request.POST.get('DeadlineNopDe', '').strip()
+        deadline_sua_str = request.POST.get('DeadlineSuaDe', '').strip()
 
         trang_thai_moi = 'Đã duyệt' if action == 'approve' else 'Từ chối'
 
         try:
             with transaction.atomic():
                 matran.TrangThai = trang_thai_moi
+
+                # BGH set deadline nộp đề khi duyệt
+                if action == 'approve' and deadline_nop_str:
+                    try:
+                        matran.DeadlineNopDe = date.fromisoformat(deadline_nop_str)
+                        matran.DeadlineSuaDe = None  # reset deadline sửa khi duyệt mới
+                        matran.NguoiSetDeadline = gv
+                        matran.NgaySetDeadline = timezone.now()
+                    except ValueError:
+                        messages.warning(request, 'Định dạng ngày deadline không hợp lệ, bỏ qua.')
+
+                # BGH set deadline sửa khi từ chối (yêu cầu chỉnh sửa)
+                if action == 'reject' and deadline_sua_str:
+                    try:
+                        matran.DeadlineSuaDe = date.fromisoformat(deadline_sua_str)
+                        matran.NguoiSetDeadline = gv
+                        matran.NgaySetDeadline = timezone.now()
+                    except ValueError:
+                        messages.warning(request, 'Định dạng ngày deadline sửa không hợp lệ, bỏ qua.')
+
                 matran.save()
 
                 if gv:
@@ -590,3 +634,128 @@ def matrix_export(request, pk):
         response['Content-Type'] = 'application/vnd.ms-excel; charset=utf-8'
         response['Content-Disposition'] = f'attachment; filename="{clean_filename}.xls"'
         return response
+
+
+@login_required
+@khao_thi_required
+def matrix_set_deadline(request, pk):
+    """
+    BGH set/cập nhật deadline nộp đề hoặc deadline sửa cho một ma trận.
+    POST params: deadline_type ('nop'|'sua'), deadline_date (YYYY-MM-DD)
+    """
+    matran = get_object_or_404(MaTran, pk=pk)
+    gv = getattr(request.user, 'giaovien', None)
+
+    if not request.user.is_superuser:
+        if not gv or gv.ChucVu not in ['Hiệu trưởng', 'Phó hiệu trưởng']:
+            messages.error(request, 'Chỉ Ban Giám Hiệu mới có quyền đặt deadline.')
+            return redirect('matrix_detail', pk=pk)
+
+    if request.method == 'POST':
+        deadline_type = request.POST.get('deadline_type', 'nop')
+        deadline_date_str = request.POST.get('deadline_date', '').strip()
+
+        if not deadline_date_str:
+            messages.error(request, 'Vui lòng nhập ngày deadline.')
+            return redirect('matrix_detail', pk=pk)
+
+        try:
+            deadline_date = date.fromisoformat(deadline_date_str)
+        except ValueError:
+            messages.error(request, 'Định dạng ngày không hợp lệ. Vui lòng dùng định dạng YYYY-MM-DD.')
+            return redirect('matrix_detail', pk=pk)
+
+        if deadline_date < date.today():
+            messages.error(request, 'Ngày deadline không được ở trong quá khứ.')
+            return redirect('matrix_detail', pk=pk)
+
+        if deadline_type == 'sua':
+            matran.DeadlineSuaDe = deadline_date
+        else:
+            matran.DeadlineNopDe = deadline_date
+
+        matran.NguoiSetDeadline = gv
+        matran.NgaySetDeadline = timezone.now()
+        matran.save(update_fields=[
+            'DeadlineNopDe', 'DeadlineSuaDe', 'NguoiSetDeadline', 'NgaySetDeadline'
+        ])
+
+        label = 'sửa đề' if deadline_type == 'sua' else 'nộp đề'
+        messages.success(request, f'Đã đặt hạn {label}: {deadline_date.strftime("%d/%m/%Y")}.')
+
+    return redirect('matrix_detail', pk=pk)
+
+
+@login_required
+@khao_thi_required
+def matrix_set_deadline_gv(request, pk):
+    """
+    TCM set/cập nhật deadline làm đề cho từng giáo viên,
+    sau khi ma trận đã được BGH duyệt.
+    POST params: gv_id, deadline_date (YYYY-MM-DD), ghi_chu
+    """
+    matran = get_object_or_404(MaTran, pk=pk)
+    gv = getattr(request.user, 'giaovien', None)
+
+    if not request.user.is_superuser:
+        if not gv or gv.ChucVu not in ['Tổ trưởng chuyên môn', 'Tổ phó chuyên môn']:
+            messages.error(request, 'Chỉ Tổ chuyên môn mới có quyền đặt deadline cho giáo viên.')
+            return redirect('matrix_detail', pk=pk)
+
+    if matran.TrangThai != 'Đã duyệt':
+        messages.error(request, 'Chỉ được đặt deadline sau khi ma trận đã được phê duyệt.')
+        return redirect('matrix_detail', pk=pk)
+
+    if request.method == 'POST':
+        gv_id = request.POST.get('gv_id')
+        deadline_date_str = request.POST.get('deadline_date', '').strip()
+        ghi_chu = request.POST.get('ghi_chu', '').strip()
+
+        if not gv_id or not deadline_date_str:
+            messages.error(request, 'Vui lòng chọn giáo viên và nhập ngày deadline.')
+            return redirect('matrix_detail', pk=pk)
+
+        try:
+            deadline_date = date.fromisoformat(deadline_date_str)
+        except ValueError:
+            messages.error(request, 'Định dạng ngày không hợp lệ.')
+            return redirect('matrix_detail', pk=pk)
+
+        from core.models import GiaoVien as GV_Model
+        target_gv = get_object_or_404(GV_Model, pk=gv_id)
+
+        obj, created = DeadlineGiaoVien.objects.update_or_create(
+            MaTran=matran,
+            GiaoVien=target_gv,
+            defaults={
+                'NguoiSet': gv,
+                'Deadline': deadline_date,
+                'GhiChu': ghi_chu,
+            }
+        )
+
+        action_label = 'Đặt' if created else 'Cập nhật'
+        messages.success(request, f'{action_label} deadline cho {target_gv.HoTen}: {deadline_date.strftime("%d/%m/%Y")}.')
+
+    return redirect('matrix_detail', pk=pk)
+
+
+@login_required
+@khao_thi_required
+def matrix_delete_deadline_gv(request, pk, deadline_pk):
+    """Xóa deadline của một giáo viên khỏi ma trận (TCM thực hiện)."""
+    matran = get_object_or_404(MaTran, pk=pk)
+    gv = getattr(request.user, 'giaovien', None)
+
+    if not request.user.is_superuser:
+        if not gv or gv.ChucVu not in ['Tổ trưởng chuyên môn', 'Tổ phó chuyên môn']:
+            messages.error(request, 'Không có quyền thực hiện thao tác này.')
+            return redirect('matrix_detail', pk=pk)
+
+    if request.method == 'POST':
+        dl = get_object_or_404(DeadlineGiaoVien, pk=deadline_pk, MaTran=matran)
+        ten_gv = dl.GiaoVien.HoTen
+        dl.delete()
+        messages.success(request, f'Đã xóa deadline của {ten_gv}.')
+
+    return redirect('matrix_detail', pk=pk)

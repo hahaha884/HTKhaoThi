@@ -137,6 +137,7 @@
                         <th class="text-center">Số câu / Điểm</th>
                         <th>Người tạo</th>
                         <th class="text-center">Trạng thái</th>
+                        <th class="text-center">Hạn nộp / Sửa đề</th>
                         <th class="text-center" style="min-width: 130px;">Thao tác</th>
                     </tr>
                 </thead>
@@ -183,6 +184,27 @@
                             {% endif %}
                         </td>
                         <td class="text-center">
+                            {% if mt.DeadlineSuaDe %}
+                                <div class="small fw-bold text-danger">Hạn sửa:</div>
+                                <span class="badge {% if mt.DeadlineSuaDe < today %}bg-danger{% else %}bg-warning text-dark{% endif %} font-monospace">
+                                    {{ mt.DeadlineSuaDe|date:"d/m/Y" }}
+                                </span>
+                            {% elif mt.DeadlineNopDe %}
+                                <div class="small text-muted">Hạn nộp:</div>
+                                {% if mt.DeadlineNopDe < today %}
+                                    <span class="badge bg-danger font-monospace" title="Đã hết hạn nộp đề">
+                                        <i class="fas fa-exclamation-triangle me-1"></i>{{ mt.DeadlineNopDe|date:"d/m/Y" }}
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-info text-dark font-monospace">
+                                        {{ mt.DeadlineNopDe|date:"d/m/Y" }}
+                                    </span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted small">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
                             <div class="btn-group btn-group-sm">
                                 <a href="{% url 'matrix_detail' mt.pk %}" class="btn btn-outline-secondary" title="Xem chi tiết">
                                     <i class="fas fa-eye"></i>
@@ -204,7 +226,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="8" class="text-center text-muted py-5">
+                        <td colspan="9" class="text-center text-muted py-5">
                             <i class="fas fa-search fa-2x mb-3 text-secondary d-block"></i>
                             {% if is_filtered %}
                                 <span class="fw-bold text-dark fs-6">Không tìm thấy ma trận phù hợp.</span>

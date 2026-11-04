@@ -31,7 +31,7 @@
             {% for message in messages %}
                 <div class="alert alert-{{ message.tags }} alert-dismissible fade show py-2" role="alert">
                     <i class="fas fa-info-circle me-1"></i> {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    <button type="button" class="btn-close data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
             {% endfor %}
         {% endif %}
@@ -75,6 +75,77 @@
             </div>
         </div>
 
+        <!-- THÔNG TIN DEADLINE (BGH ĐẶT & TCM GIAO) -->
+        {% if matran.DeadlineNopDe or matran.DeadlineSuaDe or is_bgh or is_tcm %}
+        <div class="card border-0 mb-4 shadow-sm {% if matran.deadline_status == 'expired' %}border-start border-danger border-4 bg-danger bg-opacity-10{% elif matran.deadline_status == 'urgent' %}border-start border-warning border-4 bg-warning bg-opacity-10{% else %}bg-light{% endif %} p-3 rounded">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="fw-bold mb-0 {% if matran.deadline_status == 'expired' %}text-danger{% elif matran.deadline_status == 'urgent' %}text-warning text-dark{% else %}text-secondary{% endif %}">
+                    <i class="fas fa-calendar-alt me-1"></i> Quản lý Deadline nộp đề & sửa đề (BGH quy định)
+                </h6>
+                {% if is_bgh %}
+                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#setDeadlineModal">
+                    <i class="fas fa-clock me-1"></i> {% if matran.DeadlineNopDe or matran.DeadlineSuaDe %}Cập nhật hạn{% else %}Thiết lập hạn nộp/sửa{% endif %}
+                </button>
+                {% endif %}
+            </div>
+            <div class="row g-3 mt-1">
+                <div class="col-md-6">
+                    <div class="p-3 border rounded bg-white shadow-sm h-100">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="small text-muted fw-bold">Hạn nộp đề thi (Tổ chuyên môn):</span>
+                            {% if matran.DeadlineNopDe %}
+                                {% if matran.DeadlineNopDe < today %}
+                                    <span class="badge bg-danger px-2 py-1"><i class="fas fa-exclamation-circle me-1"></i> Đã hết hạn</span>
+                                {% elif matran.DeadlineNopDe <= today %}
+                                    <span class="badge bg-danger px-2 py-1"><i class="fas fa-hourglass-end me-1"></i> Hạn chót hôm nay!</span>
+                                {% else %}
+                                    <span class="badge bg-success px-2 py-1"><i class="fas fa-check-circle me-1"></i> Đang còn hạn</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge bg-secondary">Chưa thiết lập</span>
+                            {% endif %}
+                        </div>
+                        <div class="fs-4 fw-bold {% if matran.DeadlineNopDe and matran.DeadlineNopDe < today %}text-danger{% else %}text-primary{% endif %}">
+                            {{ matran.DeadlineNopDe|date:"d/m/Y"|default:"Chưa có hạn" }}
+                        </div>
+                        {% if matran.NguoiSetDeadline %}
+                        <small class="text-muted d-block mt-2">
+                            <i class="fas fa-user-edit me-1"></i> Người đặt: {{ matran.NguoiSetDeadline.HoTen }} {% if matran.NgaySetDeadline %}({{ matran.NgaySetDeadline|date:"d/m/Y H:i" }}){% endif %}
+                        </small>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="p-3 border rounded bg-white shadow-sm h-100">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="small text-muted fw-bold">Hạn sửa đề / ma trận (khi làm sai):</span>
+                            {% if matran.DeadlineSuaDe %}
+                                {% if matran.DeadlineSuaDe < today %}
+                                    <span class="badge bg-danger px-2 py-1"><i class="fas fa-exclamation-triangle me-1"></i> Hết hạn sửa</span>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark px-2 py-1"><i class="fas fa-tools me-1"></i> Đang yêu cầu sửa</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge bg-light text-muted border">Không có</span>
+                            {% endif %}
+                        </div>
+                        <div class="fs-4 fw-bold {% if matran.DeadlineSuaDe and matran.DeadlineSuaDe < today %}text-danger{% elif matran.DeadlineSuaDe %}text-warning text-dark{% else %}text-muted{% endif %}">
+                            {{ matran.DeadlineSuaDe|date:"d/m/Y"|default:"Không có yêu cầu sửa" }}
+                        </div>
+                        <small class="text-muted d-block mt-2">
+                            {% if matran.DeadlineSuaDe %}
+                                <i class="fas fa-info-circle text-warning me-1"></i> Hạn chót chỉnh sửa theo yêu cầu của Ban Giám hiệu
+                            {% else %}
+                                Áp dụng khi đề thi hoặc ma trận bị yêu cầu chỉnh sửa lại
+                            {% endif %}
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- BẢNG CHI TIẾT MA TRẬN -->
         <div class="d-flex justify-content-between align-items-center mb-2">
             <h6 class="fw-bold text-secondary mb-0"><i class="fas fa-table me-1"></i> Bảng chi tiết cấu trúc ma trận</h6>
@@ -108,68 +179,118 @@
                         <td class="text-center">{{ ct.LoaiCauHoi }}</td>
                         <td class="text-center fw-bold">{{ ct.SoLuongCau }}</td>
                         <td class="text-center text-primary font-monospace">{{ ct.CauSo|default:"-" }}</td>
-                        <td class="text-center fw-bold">{{ ct.Diem }}đ</td>
-                        <td class="text-center fw-bold">{{ ct.TyLe }}%</td>
+                        <td class="text-center fw-bold text-danger">{{ ct.Diem }}đ</td>
+                        <td class="text-center">{{ ct.TyLe }}%</td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="9" class="text-center py-4 text-muted">Chưa có chi tiết ma trận nào.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-                <tfoot class="table-light fw-bold text-center">
-                    <tr>
-                        <td colspan="5" class="text-end pe-3 text-primary">TỔNG CỘNG:</td>
-                        <td class="text-primary fs-6">{{ matran.TongSoCau }}</td>
-                        <td></td>
-                        <td class="text-danger fs-6">{{ matran.TongSoDiem }}đ</td>
-                        <td class="text-success fs-6">100%</td>
-                    </tr>
-                </tfoot>
-            </table>
-        </div>
-
-        <!-- BẢNG ĐỐI SOÁT MỨC ĐỘ NHẬN THỨC -->
-        <h6 class="fw-bold text-secondary mb-2"><i class="fas fa-chart-pie me-1"></i> Phân bố tỷ lệ theo Mức độ nhận thức (Làm tròn hàng chục)</h6>
-        <div class="table-responsive mb-4 border rounded">
-            <table class="table table-sm table-bordered text-center align-middle mb-0">
-                <thead class="table-light small">
-                    <tr>
-                        <th>Mức độ nhận thức</th>
-                        <th>Số lượng câu</th>
-                        <th>Tổng số điểm</th>
-                        <th>Tỷ lệ khai báo (%)</th>
-                        <th>Tỷ lệ thực tế theo điểm (%)</th>
-                        <th>Tỷ lệ làm tròn hàng chục (%)</th>
-                        <th>Đánh giá</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for lvl, st in muc_stats.items %}
-                    <tr>
-                        <td class="fw-bold text-start ps-3">{{ lvl }}</td>
-                        <td>{{ st.cau }} câu</td>
-                        <td class="fw-bold">{{ st.diem }}đ</td>
-                        <td>{{ st.tyle }}%</td>
-                        <td class="text-muted">{{ st.thucte }}%</td>
-                        <td class="fw-bold text-primary">{{ st.lamtron }}%</td>
-                        <td><span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>Hợp lệ ({{ st.lamtron }}%)</span></td>
+                        <td colspan="9" class="text-center py-4 text-muted">Chưa có chi tiết ma trận nào được thiết lập.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
                 <tfoot class="table-light fw-bold">
                     <tr>
                         <td class="text-start ps-3 text-primary">TỔNG CỘNG</td>
-                        <td>{{ matran.TongSoCau }} câu</td>
-                        <td class="text-danger">{{ matran.TongSoDiem }}đ</td>
-                        <td>100%</td>
-                        <td class="text-muted">100%</td>
-                        <td class="text-primary">100%</td>
-                        <td><span class="badge bg-success">Hợp lệ</span></td>
+                        <td colspan="4"></td>
+                        <td class="text-center">{{ matran.TongSoCau }} câu</td>
+                        <td></td>
+                        <td class="text-center text-danger">{{ matran.TongSoDiem }}đ</td>
+                        <td class="text-center text-primary">100%</td>
                     </tr>
                 </tfoot>
             </table>
         </div>
+
+        <!-- BẢNG DEADLINE LÀM ĐỀ CHO GIÁO VIÊN (DO TỔ CHUYÊN MÔN GIAO) -->
+        {% if matran.TrangThai == 'Đã duyệt' %}
+        <div class="card border-0 mb-4 shadow-sm">
+            <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="fw-bold mb-0 text-primary">
+                        <i class="fas fa-user-clock me-2"></i>Deadline làm đề cho Giáo viên (Tổ chuyên môn phân công)
+                    </h6>
+                    <small class="text-muted">Theo dõi tiến độ, cảnh báo cận hạn (&lt; 2 ngày) và trễ hạn</small>
+                </div>
+                {% if is_tcm or is_bgh %}
+                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#assignGvDeadlineModal">
+                    <i class="fas fa-plus me-1"></i> Giao deadline cho Giáo viên
+                </button>
+                {% endif %}
+            </div>
+            <div class="card-body p-0">
+                {% if deadline_gv_list %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light small text-uppercase">
+                            <tr>
+                                <th style="width: 50px;" class="text-center">STT</th>
+                                <th>Giáo viên</th>
+                                <th>Chức vụ</th>
+                                <th>Hạn chót nộp đề</th>
+                                <th>Tình trạng thời hạn</th>
+                                <th>Ghi chú / Yêu cầu</th>
+                                <th>Người giao</th>
+                                {% if is_tcm or is_bgh %}
+                                <th style="width: 100px;" class="text-center">Thao tác</th>
+                                {% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for d in deadline_gv_list %}
+                            <tr class="{% if d.deadline_status == 'expired' %}table-danger{% elif d.deadline_status == 'urgent' %}table-warning{% endif %}">
+                                <td class="text-center text-muted fw-bold">{{ forloop.counter }}</td>
+                                <td>
+                                    <div class="fw-bold text-dark">{{ d.GiaoVien.HoTen }}</div>
+                                    <small class="text-muted">{{ d.GiaoVien.Email|default:"" }}</small>
+                                </td>
+                                <td><span class="badge bg-light text-dark border">{{ d.GiaoVien.ChucVu }}</span></td>
+                                <td>
+                                    <strong class="font-monospace text-primary fs-6">{{ d.Deadline|date:"d/m/Y" }}</strong>
+                                </td>
+                                <td>
+                                    {% if d.deadline_status == 'expired' %}
+                                        <span class="badge bg-danger px-2 py-1 fs-7 shadow-sm">
+                                            <i class="fas fa-exclamation-triangle me-1"></i> ĐÃ HẾT HẠN (Quá {{ d.days_remaining|stringformat:"d"|slice:"1:" }} ngày)
+                                        </span>
+                                    {% elif d.deadline_status == 'urgent' %}
+                                        <span class="badge bg-warning text-dark px-2 py-1 fs-7 border border-danger shadow-sm">
+                                            <i class="fas fa-bell text-danger me-1"></i> CẬN HẠN (&lt; 2 ngày: {% if d.days_remaining == 0 %}Hôm nay!{% elif d.days_remaining == 1 %}Còn 1 ngày{% else %}Còn {{ d.days_remaining }} ngày{% endif %})
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-success px-2 py-1 fs-7">
+                                            <i class="fas fa-check-circle me-1"></i> Còn {{ d.days_remaining }} ngày
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td class="small">{{ d.GhiChu|default:"-" }}</td>
+                                <td class="small text-muted">{{ d.NguoiSet.HoTen|default:"TCM" }}</td>
+                                {% if is_tcm or is_bgh %}
+                                <td class="text-center">
+                                    <form method="POST" action="{% url 'matrix_delete_deadline_gv' matran.pk d.pk %}" class="d-inline" onsubmit="return confirm('Bạn có chắc muốn xóa phân công deadline của giáo viên này?');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Xóa phân công">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4 text-muted">
+                    <i class="fas fa-user-clock fa-2x mb-2 text-secondary opacity-50"></i>
+                    <p class="mb-0">Chưa có giáo viên nào được giao deadline làm đề cho ma trận này.</p>
+                    {% if is_tcm %}
+                    <small class="text-primary">Tổ chuyên môn bấm nút <strong>"Giao deadline cho Giáo viên"</strong> ở trên để phân công.</small>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
         
         <!-- LỊCH SỬ PHÊ DUYỆT (NẾU CÓ) -->
         {% if lich_su %}
@@ -239,7 +360,7 @@
                     <i class="fas fa-times me-1"></i> Từ chối
                 </button>
                 <button type="button" class="btn btn-success px-4" data-bs-toggle="modal" data-bs-target="#approveModal">
-                    <i class="fas fa-check me-1"></i> Phê duyệt ma trận
+                    <i class="fas fa-check me-1"></i> Phê duyệt & Đặt Deadline
                 </button>
                 {% endif %}
             </div>
@@ -317,7 +438,7 @@
     </div>
 </div>
 
-<!-- MODAL TỪ CHỐI DUYỆT (BGH) -->
+<!-- MODAL TỪ CHỐI DUYỆT (BGH) - HỖ TRỢ NHẬP DEADLINE SỬA -->
 <div class="modal fade" id="rejectModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -325,7 +446,7 @@
                 {% csrf_token %}
                 <input type="hidden" name="action" value="reject">
                 <div class="modal-header bg-danger text-white py-2">
-                    <h6 class="modal-title fw-bold"><i class="fas fa-times me-1"></i> Từ chối phê duyệt ma trận</h6>
+                    <h6 class="modal-title fw-bold"><i class="fas fa-times me-1"></i> Từ chối phê duyệt / Yêu cầu sửa ma trận</h6>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body py-3">
@@ -334,17 +455,27 @@
                         <label class="form-label fw-bold small">Lý do từ chối (yêu cầu điều chỉnh) <span class="text-danger">*</span>:</label>
                         <textarea name="GhiChu" class="form-control" rows="3" required placeholder="Nhập lý do hoặc chỉ đạo chỉnh sửa..."></textarea>
                     </div>
+                    
+                    <div class="p-3 bg-light border rounded mb-2">
+                        <label class="form-label fw-bold text-dark small">
+                            <i class="fas fa-tools text-danger me-1"></i> Hạn chót sửa lại ma trận (Deadline sửa):
+                        </label>
+                        <input type="date" name="DeadlineSuaDe" class="form-control" min="{{ today|date:'Y-m-d' }}" value="{{ matran.DeadlineSuaDe|date:'Y-m-d'|default:'' }}">
+                        <small class="form-text text-muted">
+                            Thời hạn để người tạo/Tổ chuyên môn chỉnh sửa lại và nộp lại ma trận.
+                        </small>
+                    </div>
                 </div>
                 <div class="modal-footer py-2">
                     <button type="button" class="btn btn-sm btn-secondary px-3" data-bs-dismiss="modal">Hủy</button>
-                    <button type="submit" class="btn btn-sm btn-danger px-4">Xác nhận Từ chối</button>
+                    <button type="submit" class="btn btn-sm btn-danger px-4">Xác nhận Từ chối & Giao hạn sửa</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-<!-- MODAL PHÊ DUYỆT (BGH) -->
+<!-- MODAL PHÊ DUYỆT (BGH) - BẮT BUỘC / KHUYẾN NGHỊ NHẬP DEADLINE NỘP ĐỀ -->
 <div class="modal fade" id="approveModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -355,14 +486,117 @@
                     <h6 class="modal-title fw-bold"><i class="fas fa-check-circle me-1"></i> Phê duyệt ma trận đề thi</h6>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body py-4 text-center">
-                    <i class="fas fa-check-circle text-success fa-3x mb-3"></i>
-                    <p class="fs-6 mb-2">Bạn có chắc chắn muốn <strong>Phê duyệt</strong> ma trận này?</p>
-                    <p class="text-muted small mb-0">Ma trận sau khi duyệt sẽ chính thức có hiệu lực làm căn cứ sinh đề thi cho kỳ thi tương ứng.</p>
+                <div class="modal-body py-3">
+                    <div class="text-center mb-3">
+                        <i class="fas fa-check-circle text-success fa-3x mb-2"></i>
+                        <p class="fs-6 mb-1">Bạn có chắc chắn muốn <strong>Phê duyệt</strong> ma trận này?</p>
+                        <p class="text-muted small mb-0">Ma trận sau khi duyệt sẽ chính thức có hiệu lực làm căn cứ sinh đề thi cho kỳ thi tương ứng.</p>
+                    </div>
+                    
+                    <div class="p-3 bg-light border rounded mb-3 text-start">
+                        <label class="form-label fw-bold text-dark small">
+                            <i class="fas fa-calendar-alt text-primary me-1"></i> Hạn chót Tổ chuyên môn nộp đề thi (Deadline) <span class="text-danger">*</span>:
+                        </label>
+                        <input type="date" name="DeadlineNopDe" class="form-control" required min="{{ today|date:'Y-m-d' }}" value="{{ matran.DeadlineNopDe|date:'Y-m-d'|default:'' }}">
+                        <small class="form-text text-muted">
+                            Quy định ngày cuối cùng Tổ chuyên môn phải hoàn thành và nộp đề thi lên BGH.
+                        </small>
+                    </div>
+
+                    <div class="mb-2 text-start">
+                        <label class="form-label fw-bold small text-secondary">Ghi chú phê duyệt (không bắt buộc):</label>
+                        <textarea name="GhiChu" class="form-control" rows="2" placeholder="Ghi chú hoặc ý kiến chỉ đạo..."></textarea>
+                    </div>
                 </div>
-                <div class="modal-footer py-2 justify-content-center">
+                <div class="modal-footer py-2 justify-content-end">
                     <button type="button" class="btn btn-sm btn-secondary px-3" data-bs-dismiss="modal">Hủy</button>
-                    <button type="submit" class="btn btn-sm btn-success px-4">Xác nhận Duyệt</button>
+                    <button type="submit" class="btn btn-sm btn-success px-4">Xác nhận Duyệt & Đặt Deadline</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL THIẾT LẬP / CẬP NHẬT DEADLINE (BGH) -->
+<div class="modal fade" id="setDeadlineModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" action="{% url 'matrix_set_deadline' matran.pk %}">
+                {% csrf_token %}
+                <div class="modal-header bg-primary text-white py-2">
+                    <h6 class="modal-title fw-bold"><i class="fas fa-calendar-alt me-1"></i> Thiết lập / Điều chỉnh Deadline</h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body py-3">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">Loại hạn chót cần đặt:</label>
+                        <select name="deadline_type" class="form-select" id="deadlineTypeSelect" onchange="toggleDeadlineType(this.value)">
+                            <option value="nop" selected>Hạn nộp đề thi (Tổ chuyên môn)</option>
+                            <option value="sua">Hạn sửa đề / sửa ma trận (khi làm sai / có sai sót)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">Ngày hạn chót (Deadline) <span class="text-danger">*</span>:</label>
+                        <input type="date" name="deadline_date" id="deadlineDateInput" class="form-control" required min="{{ today|date:'Y-m-d' }}" value="{{ matran.DeadlineNopDe|date:'Y-m-d'|default:'' }}">
+                        <small class="form-text text-muted" id="deadlineHelpText">
+                            Hạn để Tổ chuyên môn nộp đề thi cho kỳ thi này.
+                        </small>
+                    </div>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-sm btn-secondary px-3" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-sm btn-primary px-4">Lưu thời hạn</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL GIAO DEADLINE CHO GIÁO VIÊN (TCM) -->
+<div class="modal fade" id="assignGvDeadlineModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" action="{% url 'matrix_set_deadline_gv' matran.pk %}">
+                {% csrf_token %}
+                <div class="modal-header bg-primary text-white py-2">
+                    <h6 class="modal-title fw-bold"><i class="fas fa-user-clock me-1"></i> Giao Deadline làm đề cho Giáo viên</h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body py-3">
+                    <div class="alert alert-info py-2 small mb-3">
+                        <i class="fas fa-info-circle me-1"></i> Ma trận: <strong>{{ matran.TenMaTran }}</strong> (Môn: {{ matran.MonHoc.TenMon }}, Khối: {{ matran.Khoi.TenKhoi }})
+                        {% if matran.DeadlineNopDe %}
+                        <br><span class="text-danger fw-bold"><i class="fas fa-exclamation-triangle me-1"></i> Hạn chót TCM phải nộp đề cho BGH là {{ matran.DeadlineNopDe|date:"d/m/Y" }}.</span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">Chọn giáo viên làm đề <span class="text-danger">*</span>:</label>
+                        <select name="gv_id" class="form-select" required>
+                            <option value="">-- Chọn giáo viên --</option>
+                            {% for gv_item in gv_list_for_deadline %}
+                            <option value="{{ gv_item.id }}">{{ gv_item.HoTen }} ({{ gv_item.ChucVu }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">Hạn chót nộp đề (Deadline) <span class="text-danger">*</span>:</label>
+                        <input type="date" name="deadline_date" class="form-control" required min="{{ today|date:'Y-m-d' }}" {% if matran.DeadlineNopDe %}max="{{ matran.DeadlineNopDe|date:'Y-m-d' }}"{% endif %}>
+                        <small class="form-text text-muted">
+                            Nếu trễ hạn &lt; 2 ngày hoặc quá hạn, hệ thống sẽ tự động cảnh báo nổi bật.
+                        </small>
+                    </div>
+                    
+                    <div class="mb-2">
+                        <label class="form-label fw-bold small text-secondary">Ghi chú / Yêu cầu cụ thể:</label>
+                        <textarea name="ghi_chu" class="form-control" rows="2" placeholder="Ví dụ: Đề xuất 2 đề, bám sát ma trận mức 1,2..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-sm btn-secondary px-3" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-sm btn-primary px-4">Giao Deadline</button>
                 </div>
             </form>
         </div>
@@ -381,6 +615,18 @@
         
         // Kích hoạt tải file
         window.location.href = url;
+    }
+
+    function toggleDeadlineType(val) {
+        const input = document.getElementById('deadlineDateInput');
+        const help = document.getElementById('deadlineHelpText');
+        if (val === 'sua') {
+            input.value = "{{ matran.DeadlineSuaDe|date:'Y-m-d'|default:'' }}";
+            help.textContent = "Hạn để hoàn tất sửa đề/ma trận khi có yêu cầu chỉnh sửa.";
+        } else {
+            input.value = "{{ matran.DeadlineNopDe|date:'Y-m-d'|default:'' }}";
+            help.textContent = "Hạn để Tổ chuyên môn nộp đề thi cho kỳ thi này.";
+        }
     }
 </script>
 {% endblock %}

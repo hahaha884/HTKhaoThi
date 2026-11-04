@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 from core.models import GiaoVien, NamHoc, Khoi, MonHoc
 from question_bank.models import NoiDungKienThuc, MachKienThuc
 
@@ -16,10 +17,46 @@ class MaTran(models.Model):
     TongSoDiem = models.FloatField(default=0)
     TrangThai = models.CharField(max_length=50, default='Nháp')
     NgayCapNhat = models.DateTimeField(auto_now=True, null=True)
-    
+
+    # ===== DEADLINE FIELDS (BGH set sau khi duyệt) =====
+    # Deadline Tổ chuyên môn nộp đề thi
+    DeadlineNopDe = models.DateField(null=True, blank=True, help_text="Hạn nộp đề thi (BGH set sau khi duyệt ma trận)")
+    # Deadline sửa (BGH set khi yêu cầu chỉnh sửa)
+    DeadlineSuaDe = models.DateField(null=True, blank=True, help_text="Hạn sửa đề thi (BGH set khi yêu cầu sửa lại)")
+    # Người set deadline
+    NguoiSetDeadline = models.ForeignKey(GiaoVien, on_delete=models.SET_NULL, null=True, blank=True,
+                                          related_name='matran_deadline_set', help_text="BGH đã set deadline")
+    NgaySetDeadline = models.DateTimeField(null=True, blank=True, help_text="Thời điểm BGH set deadline")
+
     class Meta:
         db_table = 'MA_TRAN'
         unique_together = ('NamHoc', 'HocKy', 'KyThi', 'Khoi', 'MonHoc')
+
+    @property
+    def deadline_hien_tai(self):
+        """Trả về deadline hiện tại (ưu tiên DeadlineSuaDe nếu có)."""
+        return self.DeadlineSuaDe or self.DeadlineNopDe
+
+    @property
+    def deadline_status(self):
+        """
+        Trả về trạng thái deadline:
+        - 'expired'  : đã hết hạn
+        - 'urgent'   : còn < 2 ngày
+        - 'ok'       : còn >= 2 ngày
+        - None       : không có deadline
+        """
+        dl = self.deadline_hien_tai
+        if not dl:
+            return None
+        today = timezone.now().date()
+        delta = (dl - today).days
+        if delta < 0:
+            return 'expired'
+        elif delta < 2:
+            return 'urgent'
+        return 'ok'
+
 
 class CT_MaTran(models.Model):
     MaTran = models.ForeignKey(MaTran, on_delete=models.CASCADE, related_name='chi_tiet')
@@ -43,3 +80,42 @@ class LichSuPheDuyetMaTran(models.Model):
     
     class Meta:
         db_table = 'LICH_SU_PHE_DUYET_MA_TRAN'
+
+
+class DeadlineGiaoVien(models.Model):
+    """
+    TCM set deadline làm đề cho từng giáo viên,
+    gắn với ma trận đã được duyệt.
+    """
+    MaTran = models.ForeignKey(MaTran, on_delete=models.CASCADE, related_name='deadline_gv')
+    GiaoVien = models.ForeignKey('core.GiaoVien', on_delete=models.CASCADE, related_name='deadline_lam_de')
+    NguoiSet = models.ForeignKey('core.GiaoVien', on_delete=models.CASCADE, related_name='deadline_set_boi_tcm')
+    Deadline = models.DateField(help_text="Hạn chót GV phải nộp đề thi")
+    GhiChu = models.TextField(null=True, blank=True)
+    NgayTao = models.DateTimeField(auto_now_add=True)
+    NgayCapNhat = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'DEADLINE_GIAO_VIEN'
+        unique_together = ('MaTran', 'GiaoVien')
+
+    @property
+    def deadline_status(self):
+        """
+        Trạng thái deadline:
+        - 'expired': đã hết hạn
+        - 'urgent' : còn < 2 ngày
+        - 'ok'     : còn >= 2 ngày
+        """
+        today = timezone.now().date()
+        delta = (self.Deadline - today).days
+        if delta < 0:
+            return 'expired'
+        elif delta < 2:
+            return 'urgent'
+        return 'ok'
+
+    @property
+    def days_remaining(self):
+        today = timezone.now().date()
+        return (self.Deadline - today).days
