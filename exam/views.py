@@ -127,11 +127,6 @@ def exam_list(request):
     page_obj = paginator.get_page(page_number)
     danh_sach = page_obj
 
-    my_deadlines = []
-    if gv:
-        from matrix.models import DeadlineGiaoVien
-        my_deadlines = DeadlineGiaoVien.objects.filter(GiaoVien=gv).select_related('MaTran', 'MaTran__MonHoc', 'MaTran__Khoi').order_by('Deadline')
-
     context = {
         'danh_sach': danh_sach,
         'page_obj': page_obj,
@@ -140,7 +135,6 @@ def exam_list(request):
         'mon_list': MonHoc.objects.filter(TrangThai='Đang hoạt động'),
         'nam_list': NamHoc.objects.all(),
         'gv_list': GiaoVien.objects.all(),
-        'my_deadlines': my_deadlines,
         'today': timezone.now().date(),
     }
     return render(request, 'exam/list.html', context)

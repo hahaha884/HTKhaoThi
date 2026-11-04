@@ -490,19 +490,11 @@ def matrix_detail(request, pk):
 
     lich_su = matran.lich_su.all().order_by('-ThoiGian')
 
-    # Deadline info
-    deadline_gv_list = matran.deadline_gv.all().select_related('GiaoVien', 'NguoiSet').order_by('Deadline')
     is_tcm = False
     if gv and gv.ChucVu in ['Tổ trưởng chuyên môn', 'Tổ phó chuyên môn']:
         is_tcm = True
     if request.user.is_superuser:
         is_tcm = True
-
-    # Danh sách GV có thể được set deadline (TCM dùng)
-    from core.models import GiaoVien as GV_Model
-    gv_list_for_deadline = GV_Model.objects.filter(
-        ChucVu__in=['Giáo viên bộ môn', 'Giáo viên chủ nhiệm']
-    ).order_by('HoTen')
 
     context = {
         'matran': matran,
@@ -512,8 +504,6 @@ def matrix_detail(request, pk):
         'is_tcm': is_tcm,
         'lich_su': lich_su,
         'muc_stats': muc_stats,
-        'deadline_gv_list': deadline_gv_list,
-        'gv_list_for_deadline': gv_list_for_deadline,
         'today': date.today(),
     }
     return render(request, 'matrix/detail.html', context)

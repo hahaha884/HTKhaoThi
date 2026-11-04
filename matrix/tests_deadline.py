@@ -3,7 +3,7 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth.models import User
 from core.models import NamHoc, Khoi, MonHoc, GiaoVien
-from matrix.models import MaTran, DeadlineGiaoVien
+from matrix.models import MaTran
 
 class MatrixDeadlineTestCase(TestCase):
     def setUp(self):
@@ -96,7 +96,7 @@ class MatrixDeadlineTestCase(TestCase):
         self.client.login(username='hieutruong', password='password123')
         new_dl = date.today() + timedelta(days=10)
 
-        # Cập nhật hạn nộp
+        # Cập nhật hạn nộp cho TCM
         res1 = self.client.post(reverse('matrix_set_deadline', args=[self.matran.pk]), {
             'deadline_type': 'nop',
             'deadline_date': new_dl.isoformat()
@@ -105,7 +105,7 @@ class MatrixDeadlineTestCase(TestCase):
         self.matran.refresh_from_db()
         self.assertEqual(self.matran.DeadlineNopDe, new_dl)
 
-        # Cập nhật hạn sửa
+        # Cập nhật hạn sửa cho TCM
         new_sua = date.today() + timedelta(days=5)
         res2 = self.client.post(reverse('matrix_set_deadline', args=[self.matran.pk]), {
             'deadline_type': 'sua',
@@ -115,73 +115,19 @@ class MatrixDeadlineTestCase(TestCase):
         self.matran.refresh_from_db()
         self.assertEqual(self.matran.DeadlineSuaDe, new_sua)
 
-    def test_tcm_set_deadline_for_giaovien(self):
-        """TCM khi nhận ma trận đã duyệt thì set deadline làm đề cho giáo viên."""
-        # Chuyển ma trận sang Đã duyệt
+    def test_detail_view_shows_bgh_deadline_and_no_gv_deadline_table(self):
+        """Màn hình chi tiết ma trận chỉ hiển thị hạn nộp/sửa của BGH, không hiển thị item deadline cho giáo viên."""
         self.matran.TrangThai = 'Đã duyệt'
+        self.matran.DeadlineNopDe = date.today() + timedelta(days=5)
         self.matran.save()
 
+        # Đăng nhập bằng tài khoản TCM
         self.client.login(username='totruong', password='password123')
-        dl_gv = date.today() + timedelta(days=4)
+        response = self.client.get(reverse('matrix_detail', args=[self.matran.pk]))
+        self.assertEqual(response.status_code, 200)
 
-        response = self.client.post(reverse('matrix_set_deadline_gv', args=[self.matran.pk]), {
-            'gv_id': self.gv_bm.pk,
-            'deadline_date': dl_gv.isoformat(),
-            'ghi_chu': 'Thầy D làm đề 1 bám sát ma trận'
-        })
-        self.assertEqual(response.status_code, 302)
-
-        gv_deadline = DeadlineGiaoVien.objects.filter(MaTran=self.matran, GiaoVien=self.gv_bm).first()
-        self.assertIsNotNone(gv_deadline)
-        self.assertEqual(gv_deadline.Deadline, dl_gv)
-        self.assertEqual(gv_deadline.NguoiSet, self.gv_tcm)
-
-    def test_deadline_status_logic(self):
-        """Kiểm tra logic trễ hạn < 2 ngày ('urgent') hoặc hết hạn ('expired')."""
-        today = date.today()
-
-        # 1. Quá hạn (< 0 ngày) -> 'expired'
-        dl_expired = DeadlineGiaoVien(
-            MaTran=self.matran, GiaoVien=self.gv_bm, NguoiSet=self.gv_tcm,
-            Deadline=today - timedelta(days=1)
-        )
-        self.assertEqual(dl_expired.deadline_status, 'expired')
-
-        # 2. Hạn hôm nay (0 ngày) -> 'urgent' (< 2 ngày)
-        dl_today = DeadlineGiaoVien(
-            MaTran=self.matran, GiaoVien=self.gv_bm, NguoiSet=self.gv_tcm,
-            Deadline=today
-        )
-        self.assertEqual(dl_today.deadline_status, 'urgent')
-
-        # 3. Còn 1 ngày (1 ngày) -> 'urgent' (< 2 ngày)
-        dl_tomorrow = DeadlineGiaoVien(
-            MaTran=self.matran, GiaoVien=self.gv_bm, NguoiSet=self.gv_tcm,
-            Deadline=today + timedelta(days=1)
-        )
-        self.assertEqual(dl_tomorrow.deadline_status, 'urgent')
-
-        # 4. Còn >= 2 ngày -> 'ok'
-        dl_safe = DeadlineGiaoVien(
-            MaTran=self.matran, GiaoVien=self.gv_bm, NguoiSet=self.gv_tcm,
-            Deadline=today + timedelta(days=2)
-        )
-        self.assertEqual(dl_safe.deadline_status, 'ok')
-
-    def test_tcm_delete_deadline_gv(self):
-        """TCM có thể xóa phân công deadline của giáo viên."""
-        self.matran.TrangThai = 'Đã duyệt'
-        self.matran.save()
-
-        dl_record = DeadlineGiaoVien.objects.create(
-            MaTran=self.matran,
-            GiaoVien=self.gv_bm,
-            NguoiSet=self.gv_tcm,
-            Deadline=date.today() + timedelta(days=5)
-        )
-
-        self.client.login(username='totruong', password='password123')
-        res = self.client.post(reverse('matrix_delete_deadline_gv', args=[self.matran.pk, dl_record.pk]))
-        self.assertEqual(res.status_code, 302)
-        self.assertFalse(DeadlineGiaoVien.objects.filter(pk=dl_record.pk).exists())
-
+        # Có hiển thị hạn nộp đề thi cho TCM
+        self.assertContains(response, 'Hạn nộp đề thi (Tổ chuyên môn)')
+        # KHÔNG hiển thị item/bảng giao deadline cho giáo viên
+        self.assertNotContains(response, 'Deadline làm đề cho Giáo viên (Tổ chuyên môn phân công)')
+        self.assertNotContains(response, 'assignGvDeadlineModal')
