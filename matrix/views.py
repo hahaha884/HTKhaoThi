@@ -539,7 +539,11 @@ def matrix_approve(request, pk):
                 # BGH set deadline nộp đề khi duyệt
                 if action == 'approve' and deadline_nop_str:
                     try:
-                        matran.DeadlineNopDe = date.fromisoformat(deadline_nop_str)
+                        d_nop = date.fromisoformat(deadline_nop_str)
+                        if d_nop < date.today():
+                            messages.error(request, 'Hạn nộp đề thi không được ở trong quá khứ.')
+                            return redirect('matrix_detail', pk=pk)
+                        matran.DeadlineNopDe = d_nop
                         matran.DeadlineSuaDe = None  # reset deadline sửa khi duyệt mới
                         matran.NguoiSetDeadline = gv
                         matran.NgaySetDeadline = timezone.now()
@@ -549,7 +553,11 @@ def matrix_approve(request, pk):
                 # BGH set deadline sửa khi từ chối (yêu cầu chỉnh sửa)
                 if action == 'reject' and deadline_sua_str:
                     try:
-                        matran.DeadlineSuaDe = date.fromisoformat(deadline_sua_str)
+                        d_sua = date.fromisoformat(deadline_sua_str)
+                        if d_sua < date.today():
+                            messages.error(request, 'Hạn sửa ma trận không được ở trong quá khứ.')
+                            return redirect('matrix_detail', pk=pk)
+                        matran.DeadlineSuaDe = d_sua
                         matran.NguoiSetDeadline = gv
                         matran.NgaySetDeadline = timezone.now()
                     except ValueError:

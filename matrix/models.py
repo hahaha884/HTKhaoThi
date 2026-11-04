@@ -57,6 +57,15 @@ class MaTran(models.Model):
             return 'urgent'
         return 'ok'
 
+    @property
+    def days_remaining(self):
+        """Số ngày còn lại đến deadline (số âm nếu đã quá hạn)."""
+        dl = self.deadline_hien_tai
+        if not dl:
+            return None
+        today = timezone.now().date()
+        return (dl - today).days
+
 
 class CT_MaTran(models.Model):
     MaTran = models.ForeignKey(MaTran, on_delete=models.CASCADE, related_name='chi_tiet')

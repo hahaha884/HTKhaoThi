@@ -461,13 +461,24 @@ def exam_editor(request, pk):
                         de_thi.NguoiDoc = None
                         de_thi.save()
                         
+                        # Kiểm tra tính kịp thời so với Deadline nộp đề của Ma trận
+                        ghi_chu_duyet = f'Gửi đến {approver.HoTen} ({approver.ChucVu})'
+                        tre_han = False
+                        if de_thi.MaMaTran and de_thi.MaMaTran.DeadlineNopDe:
+                            if timezone.now().date() > de_thi.MaMaTran.DeadlineNopDe:
+                                tre_han = True
+                                ghi_chu_duyet += f' [NỘP TRỄ HẠN - Hạn chót: {de_thi.MaMaTran.DeadlineNopDe.strftime("%d/%m/%Y")}]'
+
                         LichSuPheDuyetDeThi.objects.create(
                             MaDe=de_thi,
                             NguoiThucHien=nguoi_gui,
                             HanhDong='Gửi duyệt',
-                            GhiChu=f'Gửi đến {approver.HoTen} ({approver.ChucVu})'
+                            GhiChu=ghi_chu_duyet
                         )
-                        messages.success(request, "Gửi đề thi phê duyệt thành công.")
+                        if tre_han:
+                            messages.warning(request, f"Gửi đề thi phê duyệt thành công, nhưng TRỄ HẠN so với hạn nộp của Ban Giám hiệu ({de_thi.MaMaTran.DeadlineNopDe.strftime('%d/%m/%Y')}).")
+                        else:
+                            messages.success(request, "Gửi đề thi phê duyệt thành công.")
                     else:
                         messages.error(request, "Không tìm thấy người phê duyệt phù hợp trên hệ thống. Vui lòng liên hệ Admin.")
                         return redirect('exam_editor', pk=pk)

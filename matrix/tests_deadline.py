@@ -115,6 +115,39 @@ class MatrixDeadlineTestCase(TestCase):
         self.matran.refresh_from_db()
         self.assertEqual(self.matran.DeadlineSuaDe, new_sua)
 
+    def test_bgh_cannot_set_past_deadline(self):
+        """Logic kiểm tra: Không cho phép đặt deadline trong quá khứ."""
+        self.client.login(username='hieutruong', password='password123')
+        past_date = date.today() - timedelta(days=1)
+
+        # Thử duyệt với ngày quá khứ
+        res = self.client.post(reverse('matrix_approve', args=[self.matran.pk]), {
+            'action': 'approve',
+            'DeadlineNopDe': past_date.isoformat()
+        })
+        self.matran.refresh_from_db()
+        # Ma trận không bị đổi sang Đã duyệt nếu ngày nộp không hợp lệ
+        self.assertNotEqual(self.matran.DeadlineNopDe, past_date)
+
+    def test_deadline_status_and_days_remaining(self):
+        """Kiểm tra logic tính toán deadline_status và days_remaining."""
+        today = date.today()
+
+        # 1. Hết hạn (quá hạn)
+        self.matran.DeadlineNopDe = today - timedelta(days=2)
+        self.assertEqual(self.matran.deadline_status, 'expired')
+        self.assertEqual(self.matran.days_remaining, -2)
+
+        # 2. Cận hạn (còn 1 ngày)
+        self.matran.DeadlineNopDe = today + timedelta(days=1)
+        self.assertEqual(self.matran.deadline_status, 'urgent')
+        self.assertEqual(self.matran.days_remaining, 1)
+
+        # 3. Còn hạn (còn 5 ngày)
+        self.matran.DeadlineNopDe = today + timedelta(days=5)
+        self.assertEqual(self.matran.deadline_status, 'ok')
+        self.assertEqual(self.matran.days_remaining, 5)
+
     def test_detail_view_shows_bgh_deadline_and_no_gv_deadline_table(self):
         """Màn hình chi tiết ma trận chỉ hiển thị hạn nộp/sửa của BGH, không hiển thị item deadline cho giáo viên."""
         self.matran.TrangThai = 'Đã duyệt'
