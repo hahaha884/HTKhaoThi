@@ -189,13 +189,7 @@ window.addEventListener('DOMContentLoaded', function() {
     </div>
     
     <div class="card-body p-0">
-        {% if messages %}
-            <div class="px-3 pt-3">
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags }} py-2">{{ message }}</div>
-            {% endfor %}
-            </div>
-        {% endif %}
+        
 
         {% if questions %}
         <div class="table-responsive">

@@ -136,19 +136,87 @@
         <div class="topbar d-flex justify-content-between align-items-center">
             <h5 class="mb-0 text-secondary-emphasis">{% block page_title %}Tổng quan{% endblock %}</h5>
         </div>
-        {% if messages %}
-        <div class="mb-3">
-            {% for message in messages %}
-            <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show shadow-sm border-0" role="alert" style="border-left: 4px solid currentColor !important;">
-                {% if message.tags == 'error' %}<i class="fas fa-exclamation-circle me-2"></i>{% elif message.tags == 'success' %}<i class="fas fa-check-circle me-2"></i>{% elif message.tags == 'warning' %}<i class="fas fa-exclamation-triangle me-2"></i>{% else %}<i class="fas fa-info-circle me-2"></i>{% endif %}
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-            {% endfor %}
-        </div>
-        {% endif %}
         {% block content %}{% endblock %}
     </div>
+
+    <!-- GLOBAL TOAST NOTIFICATION CONTAINER (POPUP THÔNG BÁO Ở GÓC DƯỚI) -->
+    <div id="globalToastContainer" class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 2000;">
+        {% if messages %}
+            {% for message in messages %}
+            <div class="toast align-items-center {% if message.tags == 'error' %}text-bg-danger{% elif message.tags == 'success' %}text-bg-success{% elif message.tags == 'warning' %}text-bg-warning text-dark{% else %}text-bg-primary{% endif %} border-0 shadow-lg show mb-2 global-toast"
+                 role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="d-flex">
+                    <div class="toast-body d-flex align-items-start gap-2 py-3 fs-6">
+                        {% if message.tags == 'error' %}
+                            <i class="fas fa-exclamation-circle fs-5 mt-1 flex-shrink-0"></i>
+                        {% elif message.tags == 'success' %}
+                            <i class="fas fa-check-circle fs-5 mt-1 flex-shrink-0"></i>
+                        {% elif message.tags == 'warning' %}
+                            <i class="fas fa-exclamation-triangle fs-5 mt-1 flex-shrink-0"></i>
+                        {% else %}
+                            <i class="fas fa-info-circle fs-5 mt-1 flex-shrink-0"></i>
+                        {% endif %}
+                        <div class="pe-2">
+                            {{ message }}
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close {% if message.tags != 'warning' %}btn-close-white{% endif %} me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const toasts = document.querySelectorAll('.global-toast');
+            toasts.forEach(toastEl => {
+                const bsToast = new bootstrap.Toast(toastEl, { delay: 6000, autohide: true });
+                bsToast.show();
+            });
+        });
+
+        // Hàm tiện ích hiển thị popup toast ở góc dưới từ JavaScript
+        window.showToast = function(message, type = 'info') {
+            const container = document.getElementById('globalToastContainer');
+            if (!container) return;
+
+            let bgClass = 'text-bg-primary';
+            let iconClass = 'fa-info-circle';
+            let closeWhite = 'btn-close-white';
+
+            if (type === 'error' || type === 'danger') {
+                bgClass = 'text-bg-danger';
+                iconClass = 'fa-exclamation-circle';
+            } else if (type === 'success') {
+                bgClass = 'text-bg-success';
+                iconClass = 'fa-check-circle';
+            } else if (type === 'warning') {
+                bgClass = 'text-bg-warning text-dark';
+                iconClass = 'fa-exclamation-triangle';
+                closeWhite = '';
+            }
+
+            const toastEl = document.createElement('div');
+            toastEl.className = `toast align-items-center ${bgClass} border-0 shadow-lg show mb-2`;
+            toastEl.setAttribute('role', 'alert');
+            toastEl.setAttribute('aria-live', 'assertive');
+            toastEl.setAttribute('aria-atomic', 'true');
+            toastEl.innerHTML = `
+                <div class="d-flex">
+                    <div class="toast-body d-flex align-items-start gap-2 py-3 fs-6">
+                        <i class="fas ${iconClass} fs-5 mt-1 flex-shrink-0"></i>
+                        <div class="pe-2">${message}</div>
+                    </div>
+                    <button type="button" class="btn-close ${closeWhite} me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            `;
+            container.appendChild(toastEl);
+            const bsToast = new bootstrap.Toast(toastEl, { delay: 6000, autohide: true });
+            bsToast.show();
+            toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
+        };
+    </script>
 </body>
 </html>

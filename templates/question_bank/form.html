@@ -68,11 +68,7 @@
         <h5 class="mb-0 fw-bold text-primary"><i class="fas fa-edit me-2"></i>{% if cau_hoi %}Sửa Câu hỏi{% else %}Thêm Câu hỏi mới{% endif %}</h5>
     </div>
     <div class="card-body">
-        {% if messages %}
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags }} py-2">{{ message }}</div>
-            {% endfor %}
-        {% endif %}
+        
 
             {% if readonly %}
                 <div class="alert alert-info">

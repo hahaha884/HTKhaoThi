@@ -8,11 +8,7 @@
             {% if subject %}Sửa môn học: {{ subject.TenMon }}{% else %}Thêm môn học mới{% endif %}
         </h5>
         
-        {% if messages %}
-            {% for message in messages %}
-                <div class="alert alert-danger py-2">{{ message }}</div>
-            {% endfor %}
-        {% endif %}
+        
 
         <form method="POST">
             {% csrf_token %}

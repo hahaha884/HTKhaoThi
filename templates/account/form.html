@@ -5,11 +5,7 @@
     <div class="card-body">
         <h5 class="card-title text-primary mb-4"><i class="fas fa-user-plus me-2"></i>Cấp tài khoản mới</h5>
         
-        {% if messages %}
-            {% for message in messages %}
-                <div class="alert alert-danger">{{ message }}</div>
-            {% endfor %}
-        {% endif %}
+        
 
         <form method="POST">
             {% csrf_token %}

@@ -8,11 +8,7 @@
             {% if schoolyear %}Chỉnh sửa: {{ schoolyear.TenNamHoc }}{% else %}Khởi tạo Năm học mới{% endif %}
         </h5>
         
-        {% if messages %}
-            {% for message in messages %}
-                <div class="alert alert-danger py-2">{{ message }}</div>
-            {% endfor %}
-        {% endif %}
+        
 
         <form method="POST">
             {% csrf_token %}

@@ -1,10 +1,10 @@
 from django.db import models
 from django.utils import timezone
-from core.models import GiaoVien, NamHoc, Khoi, MonHoc
+from core.models import NamHoc, Khoi, MonHoc
 from question_bank.models import NoiDungKienThuc, MachKienThuc
 
 class MaTran(models.Model):
-    NguoiTao = models.ForeignKey(GiaoVien, on_delete=models.CASCADE)
+    NguoiTao = models.ForeignKey('core.GiaoVien', on_delete=models.CASCADE)
     TenMaTran = models.CharField(max_length=255)
     MoTa = models.TextField(null=True, blank=True)
     NamHoc = models.ForeignKey(NamHoc, on_delete=models.CASCADE, null=True, blank=True)
@@ -24,7 +24,7 @@ class MaTran(models.Model):
     # Deadline sửa (BGH set khi yêu cầu chỉnh sửa)
     DeadlineSuaDe = models.DateField(null=True, blank=True, help_text="Hạn sửa đề thi (BGH set khi yêu cầu sửa lại)")
     # Người set deadline
-    NguoiSetDeadline = models.ForeignKey(GiaoVien, on_delete=models.SET_NULL, null=True, blank=True,
+    NguoiSetDeadline = models.ForeignKey('core.GiaoVien', on_delete=models.SET_NULL, null=True, blank=True,
                                           related_name='matran_deadline_set', help_text="BGH đã set deadline")
     NgaySetDeadline = models.DateTimeField(null=True, blank=True, help_text="Thời điểm BGH set deadline")
 
@@ -73,7 +73,7 @@ class CT_MaTran(models.Model):
 
 class LichSuPheDuyetMaTran(models.Model):
     MaTran = models.ForeignKey(MaTran, on_delete=models.CASCADE, related_name='lich_su')
-    NguoiPheDuyet = models.ForeignKey(GiaoVien, on_delete=models.CASCADE)
+    NguoiPheDuyet = models.ForeignKey('core.GiaoVien', on_delete=models.CASCADE)
     ThoiGian = models.DateTimeField(auto_now_add=True)
     TrangThai = models.CharField(max_length=50)
     GhiChu = models.TextField(null=True, blank=True)
