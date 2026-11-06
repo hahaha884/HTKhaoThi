@@ -145,9 +145,23 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Cấu hình API Key cho Groq (Tính năng AI)
-# Truy cập https://console.groq.com/keys để tạo key miễn phí.
-GROQ_API_KEY = os.getenv('GROQ_API_KEY', '')
+# Tải biến môi trường từ file .env (đặt ở thư mục gốc dự án)
+try:
+    from dotenv import load_dotenv
+    load_dotenv(BASE_DIR / '.env')
+except Exception:
+    pass
+
+GROQ_API_KEY = os.getenv('GROQ_API_KEY')
 GROQ_MODEL = os.getenv('GROQ_MODEL', 'openai/gpt-oss-120b')
+
+if not GROQ_API_KEY:
+    # Khi chưa cấu hình, đưa ra lỗi rõ ràng
+    from django.core.exceptions import ImproperlyConfigured
+    raise ImproperlyConfigured(
+        "GROQ_API_KEY chưa được thiết lập. Thêm biến môi trường "
+        "GROQ_API_KEY vào file .env hoặc hệ thống."
+    )
 
 # Allow iframes from the same origin (for popup modals)
 X_FRAME_OPTIONS = 'SAMEORIGIN'

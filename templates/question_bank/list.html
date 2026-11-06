@@ -175,7 +175,10 @@ window.addEventListener('DOMContentLoaded', function() {
     <div class="card-header bg-white d-flex justify-content-between align-items-center py-3 border-bottom-0">
         <h5 class="mb-0 fw-bold text-primary">Danh sách Câu hỏi</h5>
         
-        <div>
+        <div class="d-flex align-items-center gap-2">
+            <a href="{% url 'import_word_preview' %}" class="btn btn-outline-primary rounded-pill px-3 shadow-sm" title="Tải lên file Word/PDF đề thi để AI tự động bóc tách và phân loại câu hỏi">
+                <i class="fas fa-file-arrow-up me-2 text-info"></i>Tải lên file đề (AI)
+            </a>
             <div class="dropdown d-inline-block">
                 <button class="btn btn-accent rounded-pill px-4 dropdown-toggle" type="button" data-bs-toggle="dropdown">
                     <i class="fas fa-plus me-2"></i>Thêm câu hỏi
@@ -183,6 +186,8 @@ window.addEventListener('DOMContentLoaded', function() {
                 <ul class="dropdown-menu dropdown-menu-end shadow">
                     <li><a class="dropdown-item py-2" href="{% url 'question_create' %}"><i class="fas fa-list-ul me-2 text-primary"></i>Câu hỏi đơn</a></li>
                     <li><a class="dropdown-item py-2" href="{% url 'group_create' %}"><i class="fas fa-layer-group me-2 text-success"></i>Nhóm câu hỏi</a></li>
+                    <li><hr class="dropdown-divider my-1"></li>
+                    <li><a class="dropdown-item py-2 fw-semibold text-primary" href="{% url 'import_word_preview' %}"><i class="fas fa-robot me-2 text-info"></i>Tải lên file đề (AI tự phân loại)</a></li>
                 </ul>
             </div>
         </div>

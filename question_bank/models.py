@@ -41,6 +41,8 @@ class CauHoi(models.Model):
     NoiDungCauHoi = models.TextField()
     HinhAnh = models.ImageField(upload_to='questions/', null=True, blank=True)
     DapAnMau = models.TextField(null=True, blank=True)
+    # New field for deadline
+    Deadline = models.DateTimeField(null=True, blank=True)
     class Meta:
         db_table = 'CAU_HOI'
 

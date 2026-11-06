@@ -8,3 +8,5 @@ media/
 *.pot
 *.pyg
 .DS_Store
+.env
+patch_*.py

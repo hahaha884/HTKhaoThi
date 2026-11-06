@@ -713,13 +713,54 @@ def group_delete(request, pk):
 @login_required
 @khao_thi_required
 def import_word_preview(request):
-    # Pre-fetch classification data needed for template context in all code paths
+    khois = Khoi.objects.all().order_by('id')
+    mons = MonHoc.objects.all().order_by('id')
     khois_list = list(Khoi.objects.values('id', 'TenKhoi'))
     mons_list = list(MonHoc.objects.values('id', 'TenMon'))
-    machs_list = list(MachKienThuc.objects.values('id', 'TenMach', 'MonHoc_id'))
+    machs_list = list(MachKienThuc.objects.values('id', 'TenMach', 'MonHoc_id', 'Khoi_id'))
     noidungs_list = list(NoiDungKienThuc.objects.values('id', 'TenNoidung', 'MachKienThuc_id'))
 
+    selected_khoi_id = request.POST.get('khoi_id') or request.GET.get('khoi')
+    selected_mon_id = request.POST.get('mon_id') or request.GET.get('mon')
+    selected_mach_id = request.POST.get('mach_id') or request.GET.get('mach')
+
+    context_base = {
+        'parsed_groups': '[]',
+        'khois': khois,
+        'mons': mons,
+        'khois_data': json.dumps(khois_list),
+        'mons_data': json.dumps(mons_list),
+        'machs_data': json.dumps(machs_list),
+        'noidungs_data': json.dumps(noidungs_list),
+        'selected_khoi_id': int(selected_khoi_id) if selected_khoi_id and str(selected_khoi_id).isdigit() else None,
+        'selected_mon_id': int(selected_mon_id) if selected_mon_id and str(selected_mon_id).isdigit() else None,
+        'selected_mach_id': int(selected_mach_id) if selected_mach_id and str(selected_mach_id).isdigit() else None,
+    }
+
     if request.method == 'POST' and request.FILES.get('word_file'):
+        if not selected_khoi_id or not selected_mon_id:
+            messages.error(request, 'Vui lòng chọn Khối và Môn học trước khi tải lên đề thi.')
+            return render(request, 'question_bank/import_word.html', context_base)
+
+        khoi_obj = Khoi.objects.filter(id=selected_khoi_id).first()
+        mon_obj = MonHoc.objects.filter(id=selected_mon_id).first()
+        if not khoi_obj or not mon_obj:
+            messages.error(request, 'Khối hoặc Môn học không tồn tại.')
+            return render(request, 'question_bank/import_word.html', context_base)
+
+        khoi_name = khoi_obj.TenKhoi
+        mon_name = mon_obj.TenMon
+
+        target_machs_qs = MachKienThuc.objects.filter(Khoi_id=selected_khoi_id, MonHoc_id=selected_mon_id)
+        if not target_machs_qs.exists():
+            target_machs_qs = MachKienThuc.objects.filter(MonHoc_id=selected_mon_id)
+
+        target_machs_list = list(target_machs_qs.values('id', 'TenMach'))
+        target_noidungs_qs = NoiDungKienThuc.objects.filter(MachKienThuc__in=target_machs_qs)
+        target_noidungs_list = list(target_noidungs_qs.values('id', 'TenNoidung', 'MachKienThuc_id'))
+
+        selected_mach_obj = target_machs_qs.filter(id=selected_mach_id).first() if selected_mach_id else None
+
         word_file = request.FILES['word_file']
         try:
             file_name = word_file.name.lower()
@@ -772,94 +813,101 @@ def import_word_preview(request):
             api_key = getattr(settings, 'GROQ_API_KEY', '')
             if not api_key:
                 messages.error(request, 'Cần cấu hình GROQ_API_KEY trong settings để sử dụng tính năng trích xuất thông minh.')
-                return render(request, 'question_bank/import_word.html', {
-                    'parsed_groups': '[]',
-                    'khois_data': json.dumps(khois_list),
-                    'mons_data': json.dumps(mons_list),
-                    'machs_data': json.dumps(machs_list),
-                    'noidungs_data': json.dumps(noidungs_list)
-                })
+                return render(request, 'question_bank/import_word.html', context_base)
                 
             groq_client = Groq(api_key=api_key)
             
             prompt = f"""
-            Bạn là một hệ thống trích xuất và phân loại câu hỏi thông minh từ đề thi.
-            Dưới đây là toàn bộ nội dung HTML của đề thi (bao gồm cả đề bài và đáp án/hướng dẫn chấm nếu có):
-            
-            --- BẮT ĐẦU ĐỀ THI ---
-            {raw_text}
-            --- KẾT THÚC ĐỀ THI ---
-            
-            Nhiệm vụ 1: Bóc tách cấu trúc đề thi, đáp án và xác định chính xác DẠNG CÂU HỎI.
-            Các dạng câu hỏi được hỗ trợ (chọn 1 cho trường "question_type"):
-            - "MCQ": Trắc nghiệm 1 lựa chọn đúng.
-            - "MSQ": Trắc nghiệm nhiều lựa chọn đúng.
-            - "TF": Trắc nghiệm Đúng/Sai (Gồm nhiều mệnh đề, yêu cầu đánh giá từng mệnh đề là Đúng hay Sai).
-            - "Matching": Câu hỏi ghép nối (Nối các mục ở 2 cột với nhau).
-            - "FIB": Câu hỏi điền khuyết (Điền từ vào chỗ trống).
-            - "Order": Sắp xếp thứ tự (Sắp xếp danh sách các mục theo thứ tự đúng).
-            - "EssayShort": Tự luận ngắn (Ví dụ: đặt câu, viết 1 đoạn văn ngắn, tính toán tự luận).
-            - "EssayLong": Tự luận dài (Ví dụ: Tập làm văn, viết bài văn).
-            Nếu là dạng tự luận, phần giải thích/đáp án/barem điểm phải được gán vào trường "explanation".
-            
-            LƯU Ý CỰC KỲ QUAN TRỌNG VỀ ĐỊNH DẠNG:
-            1. BẠN PHẢI LOẠI BỎ CÁC THẺ HTML TRANG TRÍ (như <br>, <strong>, <p>, <span>...) ra khỏi nội dung câu hỏi và đáp án, CHỈ GIỮ LẠI PLAIN TEXT. 
-               TUY NHIÊN, nếu câu hỏi hoặc đáp án có chứa hình ảnh (các tag <img src="IMAGE_X"> hoặc <img id="IMAGE_X">), bạn BẮT BUỘC phải giữ nguyên thẻ `<img src="IMAGE_X">` ở vị trí tương ứng trong văn bản `content` của câu hỏi hoặc `text` / `statement` / `left` / `right` của đáp án để không làm mất vị trí ảnh.
-            2. NẾU CÂU HỎI CÓ CÁC LỰA CHỌN ĐÁP ÁN (ví dụ A, B, C, D), BẠN BẮT BUỘC PHẢI TÁCH CHÚNG RA KHỎI NỘI DUNG CÂU HỎI VÀ ĐƯA VÀO MẢNG `answers`. KHÔNG ĐƯỢC GỘP LỰA CHỌN ĐÁP ÁN VÀO TRONG TRƯỜNG `content` CỦA CÂU HỎI.
-            3. PHẢI PHÂN LOẠI ĐÚNG DẠNG CÂU HỎI. Nếu câu hỏi có 4 phương án A,B,C,D thì đó là MCQ, không phải tự luận!
-            
-            LƯU Ý VỀ HÌNH ẢNH: Trong văn bản HTML có các thẻ `<img src="IMAGE_X" id="IMAGE_X">`. 
-            - Nếu câu hỏi có chứa hình ảnh, hãy đặt giá trị `IMAGE_X` vào trường `image` của câu hỏi. Nếu không có, để null.
-            - Nếu đáp án/phương án có hình ảnh, hãy đặt giá trị `IMAGE_X` vào trường `image` (hoặc `left_image`, `right_image` tùy dạng) của phương án đó. Nếu không, để null.
-            
-            Nhiệm vụ 2: Kiểm duyệt và Giải đề tự động
-            - Kiểm duyệt: Phân tích nội dung đề thi. Nếu phát hiện kiến thức VƯỢT QUÁ chương trình Tiểu học (Ví dụ: Toán cấp 2, 3, Đại học, môn học lạ), hãy gán "is_out_of_scope": true và ghi rõ cảnh báo vào "scope_warning" (VD: "Đề thi này chứa kiến thức Đại số cấp 2"). Nếu bình thường, để false và null.
-            - Giải đề: Đóng vai trò là Giáo viên, nếu đề thi KHÔNG CÓ SẴN ĐÁP ÁN ở cuối hoặc không ghi rõ đáp án đúng, bạn phải TỰ ĐỘNG GIẢI các câu hỏi và điền đáp án đúng vào cấu trúc. ĐỒNG THỜI, gán cờ "is_ai_solved": true cho các câu hỏi mà bạn phải tự giải. Nếu đề đã có sẵn đáp án, gán false.
-            
-            Nhiệm vụ 3: Phân loại từng câu hỏi dựa vào danh sách sau (trả về ID tương ứng, nếu không rõ thì null):
-            - Khối: {khois_list}
-            - Môn học: {mons_list}
-            - Mạch kiến thức: {machs_list}
-            - Nội dung kiến thức: {noidungs_list}
-            
-            Yêu cầu bắt buộc: Trả về kết quả dưới định dạng OBJECT JSON gồm các trường:
-            - "is_out_of_scope": boolean
-            - "scope_warning": string hoặc null
-            - "groups": Mảng chứa các nhóm câu hỏi. (Nếu câu hỏi không thuộc đoạn văn nào, hãy để group_content = null).
-            
-            Cấu trúc mảng `answers` sẽ khác nhau tùy thuộc vào `question_type`:
-            - MCQ/MSQ: `answers`: [{{"text": "A. ...", "image": "IMAGE_X"}}], `correct`: 0 (với MCQ) hoặc [0, 2] (với MSQ). Đảm bảo phải có mảng `answers` riêng biệt.
-            - TF: `answers`: [{{"statement": "Mệnh đề 1", "image": "IMAGE_X", "correct_label": "Đúng"}}]. (correct_label chỉ nhận giá trị "Đúng" hoặc "Sai").
-            - Matching: `answers`: [{{"left": "Từ 1", "left_image": "IMAGE_X", "right": "Nghĩa 1", "right_image": "IMAGE_Y"}}].
-            - FIB: `answers`: ["Đáp án 1", "Đáp án 2"]. (Điền khuyết không hỗ trợ ảnh đáp án)
-            - Order: `answers`: ["Mục 1", "Mục 2", "Mục 3"]. (Danh sách các mục theo thứ tự đúng)
-            - EssayShort/EssayLong: `answers`: [].
-            
-            Ví dụ định dạng trả về:
-            {{
-              "is_out_of_scope": false,
-              "scope_warning": null,
-              "groups": [
-                {{
-                  "group_content": "VỀ LẠI GÒ CÔNG...",
-                  "questions": [
-                    {{
-                      "question_type": "MCQ",
-                      "content": "Câu 1: Địa danh được tả là gì? <img src=\\"IMAGE_1\\">",
-                      "image": "IMAGE_1",
-                      "answers": [{{"text": "A. Đà Lạt", "image": null}}, {{"text": "B. Gò Công", "image": null}}],
-                      "correct": 1,
-                      "explanation": "Chi tiết trong bài...",
-                      "is_ai_solved": true,
-                      "khoi_id": 4, "mon_id": 2, "mach_id": 10, "noidung_id": 25,
-                      "khoi_name": "Khối 4", "mon_name": "Tiếng Việt", "mach_name": "Đọc hiểu", "noidung_name": ""
-                    }}
-                  ]
-                }}
-              ]
-            }}
-            Chỉ trả về chuỗi JSON (bắt đầu bằng {{ và kết thúc bằng }}), không kèm giải thích.
-            """
+Bạn là một chuyên gia giáo dục tiểu học và hệ thống trích xuất, phân loại đề thi thông minh.
+Thông tin cấu hình đề thi:
+- Khối lớp: {khoi_name} (ID: {selected_khoi_id})
+- Môn học: {mon_name} (ID: {selected_mon_id})
+{f"- Mạch kiến thức được chỉ định sẵn: {selected_mach_obj.TenMach} (ID: {selected_mach_obj.id})" if selected_mach_obj else "- Mạch kiến thức: Hãy TỰ ĐỘNG PHÂN LOẠI từng câu hỏi vào Mạch kiến thức phù hợp nhất trong danh sách bên dưới."}
+
+DANH SÁCH MẠCH KIẾN THỨC CỦA {mon_name.upper()} - {khoi_name.upper()}:
+{json.dumps(target_machs_list, ensure_ascii=False, indent=2)}
+
+DANH SÁCH NỘI DUNG KIẾN THỨC TƯƠNG ỨNG (NẾU CÓ):
+{json.dumps(target_noidungs_list, ensure_ascii=False, indent=2)}
+
+Dưới đây là toàn bộ nội dung HTML của đề thi:
+--- BẮT ĐẦU ĐỀ THI ---
+{raw_text}
+--- KẾT THÚC ĐỀ THI ---
+
+Nhiệm vụ 1: Bóc tách cấu trúc đề thi, câu hỏi, các phương án đáp án, đáp án đúng và xác định chính xác DẠNG CÂU HỎI.
+Các dạng câu hỏi được hỗ trợ (chọn 1 cho trường "question_type"):
+- "MCQ": Trắc nghiệm 1 lựa chọn đúng.
+- "MSQ": Trắc nghiệm nhiều lựa chọn đúng.
+- "TF": Trắc nghiệm Đúng/Sai (Gồm nhiều mệnh đề, yêu cầu đánh giá từng mệnh đề là Đúng hay Sai).
+- "Matching": Câu hỏi ghép nối (Nối các mục ở 2 cột với nhau).
+- "FIB": Câu hỏi điền khuyết (Điền từ vào chỗ trống).
+- "Order": Sắp xếp thứ tự (Sắp xếp danh sách các mục theo thứ tự đúng).
+- "EssayShort": Tự luận ngắn (Ví dụ: đặt câu, viết 1 đoạn văn ngắn, tính toán tự luận).
+- "EssayLong": Tự luận dài (Ví dụ: Tập làm văn, viết bài văn).
+Nếu là dạng tự luận, phần giải thích/đáp án/barem điểm phải được gán vào trường "explanation".
+
+LƯU Ý CỰC KỲ QUAN TRỌNG VỀ ĐỊNH DẠNG:
+1. BẠN PHẢI LOẠI BỎ CÁC THẺ HTML TRANG TRÍ (như <br>, <strong>, <p>, <span>...) ra khỏi nội dung câu hỏi và đáp án, CHỈ GIỮ LẠI PLAIN TEXT. 
+   TUY NHIÊN, nếu câu hỏi hoặc đáp án có chứa hình ảnh (các tag <img src="IMAGE_X"> hoặc <img id="IMAGE_X">), bạn BẮT BUỘC phải giữ nguyên thẻ `<img src="IMAGE_X">` ở vị trí tương ứng trong văn bản `content` của câu hỏi hoặc `text` / `statement` / `left` / `right` của đáp án để không làm mất vị trí ảnh.
+2. NẾU CÂU HỎI CÓ CÁC LỰA CHỌN ĐÁP ÁN (ví dụ A, B, C, D), BẠN BẮT BUỘC PHẢI TÁCH CHÚNG RA KHỎI NỘI DUNG CÂU HỎI VÀ ĐƯA VÀO MẢNG `answers`. KHÔNG ĐƯỢC GỘP LỰA CHỌN ĐÁP ÁN VÀO TRONG TRƯỜNG `content` CỦA CÂU HỎI.
+3. PHẢI PHÂN LOẠI ĐÚNG DẠNG CÂU HỎI. Nếu câu hỏi có 4 phương án A,B,C,D thì đó là MCQ, không phải tự luận!
+
+LƯU Ý VỀ HÌNH ẢNH: Trong văn bản HTML có các thẻ `<img src="IMAGE_X" id="IMAGE_X">`. 
+- Nếu câu hỏi có chứa hình ảnh, hãy đặt giá trị `IMAGE_X` vào trường `image` của câu hỏi. Nếu không có, để null.
+- Nếu đáp án/phương án có hình ảnh, hãy đặt giá trị `IMAGE_X` vào trường `image` (hoặc `left_image`, `right_image` tùy dạng) của phương án đó. Nếu không, để null.
+
+Nhiệm vụ 2: TỰ ĐỘNG PHÂN LOẠI MẠCH KIẾN THỨC VÀ NỘI DUNG KIẾN THỨC:
+- Với mỗi câu hỏi, bạn PHẢI phân tích nội dung câu hỏi và TỰ ĐỘNG PHÂN LOẠI vào một trong các Mạch kiến thức trong danh sách trên:
+  + Gán "mach_id": ID của Mạch kiến thức phù hợp trong danh sách.
+  + Gán "mach_name": Tên của Mạch kiến thức tương ứng.
+- Nếu câu hỏi phù hợp với một Nội dung kiến thức cụ thể trong danh sách, hãy gán "noidung_id" là ID tương ứng và "noidung_name". Nếu không tìm thấy nội dung phù hợp, để null.
+- Mọi câu hỏi đều có: "khoi_id": {selected_khoi_id}, "khoi_name": "{khoi_name}", "mon_id": {selected_mon_id}, "mon_name": "{mon_name}".
+- Ước lượng mức độ nhận thức / độ khó ("muc_do"): "Mức 1" (Nhận biết), "Mức 2" (Thông hiểu), hoặc "Mức 3" (Vận dụng).
+
+Nhiệm vụ 3: Kiểm duyệt và Giải đề tự động
+- Kiểm duyệt: Phân tích nội dung đề thi. Nếu phát hiện kiến thức VƯỢT QUÁ chương trình Tiểu học {khoi_name} môn {mon_name}, hãy gán "is_out_of_scope": true và ghi rõ cảnh báo vào "scope_warning". Nếu bình thường, để false và null.
+- Giải đề: Đóng vai trò là Giáo viên, nếu đề thi KHÔNG CÓ SẴN ĐÁP ÁN ở cuối hoặc không ghi rõ đáp án đúng, bạn phải TỰ ĐỘNG GIẢI các câu hỏi và điền đáp án đúng vào cấu trúc. ĐỒNG THỜI, gán cờ "is_ai_solved": true cho các câu hỏi mà bạn phải tự giải. Nếu đề đã có sẵn đáp án, gán false.
+
+Yêu cầu bắt buộc: Trả về kết quả dưới định dạng OBJECT JSON gồm các trường:
+- "is_out_of_scope": boolean
+- "scope_warning": string hoặc null
+- "groups": Mảng chứa các nhóm câu hỏi. (Nếu câu hỏi không thuộc đoạn văn/ngữ cảnh nào, hãy để group_content = null).
+
+Cấu trúc mảng `answers` sẽ khác nhau tùy thuộc vào `question_type`:
+- MCQ/MSQ: `answers`: [{{"text": "A. ...", "image": "IMAGE_X"}}], `correct`: 0 (với MCQ) hoặc [0, 2] (với MSQ).
+- TF: `answers`: [{{"statement": "Mệnh đề 1", "image": "IMAGE_X", "correct_label": "Đúng"}}]. (correct_label chỉ nhận giá trị "Đúng" hoặc "Sai").
+- Matching: `answers`: [{{"left": "Từ 1", "left_image": "IMAGE_X", "right": "Nghĩa 1", "right_image": "IMAGE_Y"}}].
+- FIB: `answers`: ["Đáp án 1", "Đáp án 2"].
+- Order: `answers`: ["Mục 1", "Mục 2", "Mục 3"].
+- EssayShort/EssayLong: `answers`: [].
+
+Ví dụ định dạng trả về:
+{{
+  "is_out_of_scope": false,
+  "scope_warning": null,
+  "groups": [
+    {{
+      "group_content": null,
+      "questions": [
+        {{
+          "question_type": "MCQ",
+          "content": "Câu 1: Số liền sau của số 39 là số nào? <img src=\"IMAGE_1\">",
+          "image": "IMAGE_1",
+          "answers": [{{"text": "A. 38", "image": null}}, {{"text": "B. 40", "image": null}}, {{"text": "C. 41", "image": null}}],
+          "correct": 1,
+          "explanation": "Số liền sau của 39 là 39 + 1 = 40.",
+          "is_ai_solved": true,
+          "muc_do": "Mức 1",
+          "khoi_id": {selected_khoi_id}, "mon_id": {selected_mon_id}, "mach_id": {target_machs_list[0]['id'] if target_machs_list else 'null'}, "noidung_id": null,
+          "khoi_name": "{khoi_name}", "mon_name": "{mon_name}", "mach_name": "{target_machs_list[0]['TenMach'] if target_machs_list else ''}", "noidung_name": ""
+        }}
+      ]
+    }}
+  ]
+}}
+Chỉ trả về chuỗi JSON (bắt đầu bằng {{ và kết thúc bằng }}), không kèm giải thích.
+"""
             
             # Xây dựng nội dung message cho Groq
             user_content = [{'type': 'text', 'text': prompt}]
@@ -900,13 +948,46 @@ def import_word_preview(request):
                 
             parsed_data = extract_json_from_ai(res_text)
             
-            # Thêm kiểm tra trùng lặp cho mỗi câu hỏi trong parsed_data
+            # Chuẩn hóa dữ liệu phân loại & kiểm tra trùng lặp
             if isinstance(parsed_data, dict) and 'groups' in parsed_data:
+                target_mach_map = {m['id']: m['TenMach'] for m in target_machs_list}
+                target_nd_map = {n['id']: n['TenNoidung'] for n in target_noidungs_list}
+
                 for group in parsed_data['groups']:
                     for q in group.get('questions', []):
+                        q['khoi_id'] = int(selected_khoi_id)
+                        q['khoi_name'] = khoi_name
+                        q['mon_id'] = int(selected_mon_id)
+                        q['mon_name'] = mon_name
+
+                        if selected_mach_obj:
+                            q['mach_id'] = selected_mach_obj.id
+                            q['mach_name'] = selected_mach_obj.TenMach
+                        elif q.get('mach_id') not in target_mach_map:
+                            matched_id = None
+                            for mid, mname in target_mach_map.items():
+                                if mname.lower() in str(q.get('mach_name', '')).lower() or str(q.get('mach_name', '')).lower() in mname.lower():
+                                    matched_id = mid
+                                    break
+                            if matched_id:
+                                q['mach_id'] = matched_id
+                                q['mach_name'] = target_mach_map[matched_id]
+                            elif target_machs_list:
+                                q['mach_id'] = target_machs_list[0]['id']
+                                q['mach_name'] = target_machs_list[0]['TenMach']
+                            else:
+                                q['mach_id'] = None
+                        else:
+                            q['mach_name'] = target_mach_map.get(q.get('mach_id'), '')
+
+                        if q.get('noidung_id') not in target_nd_map:
+                            q['noidung_id'] = None
+                        else:
+                            q['noidung_name'] = target_nd_map.get(q.get('noidung_id'), '')
+
                         q['is_duplicate'] = CauHoi.objects.filter(
-                            Khoi_id=q.get('khoi_id'),
-                            MonHoc_id=q.get('mon_id'),
+                            Khoi_id=q['khoi_id'],
+                            MonHoc_id=q['mon_id'],
                             NoiDungCauHoi__iexact=q.get('content', '').strip()
                         ).exists()
             
@@ -918,7 +999,6 @@ def import_word_preview(request):
                             if v in images_dict:
                                 obj[k] = images_dict[v]
                             else:
-                                # Thay thế placeholder IMAGE_X trong chuỗi HTML/Sub-string
                                 new_v = v
                                 for img_id, img_base64 in images_dict.items():
                                     if img_id in new_v:
@@ -932,24 +1012,15 @@ def import_word_preview(request):
             
             replace_image_codes(parsed_data)
             
-            return render(request, 'question_bank/import_word.html', {
-                'parsed_groups': json.dumps(parsed_data),
-                'khois_data': json.dumps(khois_list),
-                'mons_data': json.dumps(mons_list),
-                'machs_data': json.dumps(machs_list),
-                'noidungs_data': json.dumps(noidungs_list)
-            })
+            context_result = dict(context_base)
+            context_result['parsed_groups'] = json.dumps(parsed_data)
+            return render(request, 'question_bank/import_word.html', context_result)
             
         except Exception as e:
             messages.error(request, f'Lỗi đọc file hoặc AI: {str(e)}')
             
-    return render(request, 'question_bank/import_word.html', {
-        'parsed_groups': '[]',
-        'khois_data': json.dumps(khois_list),
-        'mons_data': json.dumps(mons_list),
-        'machs_data': json.dumps(machs_list),
-        'noidungs_data': json.dumps(noidungs_list)
-    })
+    return render(request, 'question_bank/import_word.html', context_base)
+
 
 @csrf_exempt
 @login_required
@@ -1314,6 +1385,12 @@ def save_imported_questions(request):
             
             count = 0
             duplicate_count = 0
+
+            def safe_int_id(val):
+                try:
+                    return int(val) if val not in [None, '', 'null'] else None
+                except (ValueError, TypeError):
+                    return None
             
             def process_and_save_inline_images(html_text):
                 if not html_text:
@@ -1345,15 +1422,19 @@ def save_imported_questions(request):
                     if group_content and group_content.strip():
                         # Lấy tạm khối môn từ câu hỏi đầu tiên của nhóm nếu có
                         first_q = group.get('questions', [{}])[0]
-                        khoi_id = first_q.get('khoi_id')
-                        mon_id = first_q.get('mon_id')
+                        g_khoi_id = safe_int_id(first_q.get('khoi_id'))
+                        g_mon_id = safe_int_id(first_q.get('mon_id'))
+                        g_mach_id = safe_int_id(first_q.get('mach_id'))
+                        g_noidung_id = safe_int_id(first_q.get('noidung_id'))
                         
-                        # Sửa đổi từ DoanVan thành NoiDungChung để khớp model NhomCauHoi
                         nhom_obj = NhomCauHoi.objects.create(
-                            Khoi_id=khoi_id,
-                            MonHoc_id=mon_id,
+                            Khoi_id=g_khoi_id,
+                            MonHoc_id=g_mon_id,
+                            MachKienThuc_id=g_mach_id,
+                            NoiDungKienThuc_id=g_noidung_id,
                             TenNhom="Nhóm trích xuất từ Word",
-                            NoiDungChung=group_content.strip()
+                            NoiDungChung=group_content.strip(),
+                            NguoiTao=getattr(request.user, 'giaovien', None)
                         )
                         
                     for q_data in group.get('questions', []):
@@ -1392,10 +1473,10 @@ def save_imported_questions(request):
                         q_img_file = get_image_file(q_data.get('image'))
                         
                         q = CauHoi.objects.create(
-                            Khoi_id=khoi_id,
-                            MonHoc_id=mon_id,
-                            MachKienThuc_id=q_data.get('mach_id'),
-                            NoiDungKienThuc_id=q_data.get('noidung_id'),
+                            Khoi_id=safe_int_id(khoi_id),
+                            MonHoc_id=safe_int_id(mon_id),
+                            MachKienThuc_id=safe_int_id(q_data.get('mach_id')),
+                            NoiDungKienThuc_id=safe_int_id(q_data.get('noidung_id')),
                             NhomCauHoi=nhom_obj,
                             HinhThuc='Trắc nghiệm' if is_trac_nghiem else 'Tự luận',
                             DangCauHoi=q_type,
