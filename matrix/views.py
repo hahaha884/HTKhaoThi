@@ -496,6 +496,15 @@ def matrix_detail(request, pk):
     if request.user.is_superuser:
         is_tcm = True
 
+    from core.models import GiaoVien as GV_Model
+    gv_list_for_deadline = GV_Model.objects.exclude(
+        TrangThai='Dừng hoạt động'
+    ).exclude(
+        ChucVu__in=['Hiệu trưởng', 'Phó hiệu trưởng', 'Nhân viên văn thư']
+    ).order_by('ChucVu', 'HoTen')
+
+    deadlines_gv = matran.deadline_gv.select_related('GiaoVien', 'NguoiSet').all()
+
     context = {
         'matran': matran,
         'chi_tiet': chi_tiet,
@@ -504,6 +513,8 @@ def matrix_detail(request, pk):
         'is_tcm': is_tcm,
         'lich_su': lich_su,
         'muc_stats': muc_stats,
+        'gv_list_for_deadline': gv_list_for_deadline,
+        'deadlines_gv': deadlines_gv,
         'today': date.today(),
     }
     return render(request, 'matrix/detail.html', context)
@@ -688,9 +699,9 @@ def matrix_set_deadline(request, pk):
 @khao_thi_required
 def matrix_set_deadline_gv(request, pk):
     """
-    TCM set/cập nhật deadline làm đề cho từng giáo viên,
+    TCM set deadline làm đề cho TẤT CẢ hoặc NHIỀU giáo viên cùng 1 lần,
     sau khi ma trận đã được BGH duyệt.
-    POST params: gv_id, deadline_date (YYYY-MM-DD), ghi_chu
+    Hỗ trợ chọn toàn bộ nhân sự 1 lần và set deadline 1 lần.
     """
     matran = get_object_or_404(MaTran, pk=pk)
     gv = getattr(request.user, 'giaovien', None)
@@ -705,12 +716,13 @@ def matrix_set_deadline_gv(request, pk):
         return redirect('matrix_detail', pk=pk)
 
     if request.method == 'POST':
-        gv_id = request.POST.get('gv_id')
+        gv_ids = request.POST.getlist('gv_ids')
+        select_all = request.POST.get('select_all') in ['1', 'true', 'on']
         deadline_date_str = request.POST.get('deadline_date', '').strip()
         ghi_chu = request.POST.get('ghi_chu', '').strip()
 
-        if not gv_id or not deadline_date_str:
-            messages.error(request, 'Vui lòng chọn giáo viên và nhập ngày deadline.')
+        if not deadline_date_str:
+            messages.error(request, 'Vui lòng chọn ngày hạn chót (deadline).')
             return redirect('matrix_detail', pk=pk)
 
         try:
@@ -719,21 +731,58 @@ def matrix_set_deadline_gv(request, pk):
             messages.error(request, 'Định dạng ngày không hợp lệ.')
             return redirect('matrix_detail', pk=pk)
 
-        from core.models import GiaoVien as GV_Model
-        target_gv = get_object_or_404(GV_Model, pk=gv_id)
+        if deadline_date < date.today():
+            messages.error(request, 'Hạn chót không được ở trong quá khứ.')
+            return redirect('matrix_detail', pk=pk)
 
-        obj, created = DeadlineGiaoVien.objects.update_or_create(
-            MaTran=matran,
-            GiaoVien=target_gv,
-            defaults={
-                'NguoiSet': gv,
-                'Deadline': deadline_date,
-                'GhiChu': ghi_chu,
-            }
+        from core.models import GiaoVien as GV_Model
+        available_gvs = GV_Model.objects.exclude(
+            TrangThai='Dừng hoạt động'
+        ).exclude(
+            ChucVu__in=['Hiệu trưởng', 'Phó hiệu trưởng', 'Nhân viên văn thư']
         )
 
-        action_label = 'Đặt' if created else 'Cập nhật'
-        messages.success(request, f'{action_label} deadline cho {target_gv.HoTen}: {deadline_date.strftime("%d/%m/%Y")}.')
+        if select_all or 'all' in gv_ids:
+            targets = list(available_gvs)
+        else:
+            single_gv_id = request.POST.get('gv_id')
+            if single_gv_id and single_gv_id not in gv_ids:
+                gv_ids.append(single_gv_id)
+
+            if not gv_ids:
+                messages.error(request, 'Vui lòng chọn ít nhất một nhân sự hoặc bấm Chọn tất cả.')
+                return redirect('matrix_detail', pk=pk)
+
+            targets = list(available_gvs.filter(id__in=gv_ids))
+
+        if not targets:
+            messages.error(request, 'Không tìm thấy nhân sự phù hợp để giao deadline.')
+            return redirect('matrix_detail', pk=pk)
+
+        count = 0
+        for target_gv in targets:
+            DeadlineGiaoVien.objects.update_or_create(
+                MaTran=matran,
+                GiaoVien=target_gv,
+                defaults={
+                    'NguoiSet': gv,
+                    'Deadline': deadline_date,
+                    'GhiChu': ghi_chu,
+                }
+            )
+            count += 1
+
+        # Tự động đồng bộ thông báo để chuông của giáo viên nhận được tin ngay
+        try:
+            from core.notification_service import sync_system_notifications
+            sync_system_notifications()
+        except Exception:
+            pass
+
+        messages.success(
+            request, 
+            f'Đã thiết lập deadline ({deadline_date.strftime("%d/%m/%Y")}) thành công cho {count} nhân sự trong tổ chuyên môn!'
+        )
 
     return redirect('matrix_detail', pk=pk)
 

@@ -3,7 +3,7 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth.models import User
 from core.models import NamHoc, Khoi, MonHoc, GiaoVien
-from matrix.models import MaTran
+from matrix.models import MaTran, DeadlineGiaoVien
 
 class MatrixDeadlineTestCase(TestCase):
     def setUp(self):
@@ -148,8 +148,8 @@ class MatrixDeadlineTestCase(TestCase):
         self.assertEqual(self.matran.deadline_status, 'ok')
         self.assertEqual(self.matran.days_remaining, 5)
 
-    def test_detail_view_shows_bgh_deadline_and_no_gv_deadline_table(self):
-        """Màn hình chi tiết ma trận chỉ hiển thị hạn nộp/sửa của BGH, không hiển thị item deadline cho giáo viên."""
+    def test_detail_view_shows_bgh_deadline_and_tcm_assignment_modal(self):
+        """Màn hình chi tiết ma trận hiển thị hạn BGH và nút/modal giao deadline nhân sự cho TCM."""
         self.matran.TrangThai = 'Đã duyệt'
         self.matran.DeadlineNopDe = date.today() + timedelta(days=5)
         self.matran.save()
@@ -161,6 +161,59 @@ class MatrixDeadlineTestCase(TestCase):
 
         # Có hiển thị hạn nộp đề thi cho TCM
         self.assertContains(response, 'Hạn nộp đề thi (Tổ chuyên môn)')
-        # KHÔNG hiển thị item/bảng giao deadline cho giáo viên
-        self.assertNotContains(response, 'Deadline làm đề cho Giáo viên (Tổ chuyên môn phân công)')
-        self.assertNotContains(response, 'assignGvDeadlineModal')
+        # Có hiển thị modal và nút giao deadline cho nhân sự
+        self.assertContains(response, 'assignAllGvDeadlineModal')
+        self.assertContains(response, 'Phân công Deadline làm đề cho Nhân sự')
+
+    def test_tcm_set_deadline_for_all_teachers_at_once(self):
+        """TCM chọn tất cả nhân sự 1 lần và set deadline 1 lần duy nhất."""
+        self.matran.TrangThai = 'Đã duyệt'
+        self.matran.DeadlineNopDe = date.today() + timedelta(days=7)
+        self.matran.save()
+
+        # Thêm thêm 1 giáo viên nữa
+        user_gv2 = User.objects.create_user(username='giaovien2', password='password123')
+        gv_bm2 = GiaoVien.objects.create(
+            user=user_gv2,
+            HoTen='Giáo viên Hoàng Thị E',
+            ChucVu='Giáo viên chủ nhiệm',
+            SDT='0902000004'
+        )
+
+        self.client.login(username='totruong', password='password123')
+        dl_date = date.today() + timedelta(days=4)
+
+        # Gửi request với select_all='1'
+        response = self.client.post(reverse('matrix_set_deadline_gv', args=[self.matran.pk]), {
+            'select_all': '1',
+            'deadline_date': dl_date.isoformat(),
+            'ghi_chu': 'Tất cả giáo viên trong tổ nộp 2 đề trước ngày quy định'
+        })
+        self.assertEqual(response.status_code, 302)
+
+        # Cả 2 giáo viên (gv_bm và gv_bm2) đều có deadline
+        dls = DeadlineGiaoVien.objects.filter(MaTran=self.matran)
+        self.assertEqual(dls.count(), 3) # gv_tcm, gv_bm, gv_bm2
+        for dl in dls:
+            self.assertEqual(dl.Deadline, dl_date)
+            self.assertEqual(dl.NguoiSet, self.gv_tcm)
+
+    def test_tcm_set_deadline_for_multiple_selected_teachers(self):
+        """TCM chọn danh sách nhiều giáo viên và set deadline cùng 1 lúc."""
+        self.matran.TrangThai = 'Đã duyệt'
+        self.matran.save()
+
+        self.client.login(username='totruong', password='password123')
+        dl_date = date.today() + timedelta(days=5)
+
+        response = self.client.post(reverse('matrix_set_deadline_gv', args=[self.matran.pk]), {
+            'gv_ids': [self.gv_bm.id],
+            'deadline_date': dl_date.isoformat(),
+            'ghi_chu': 'Phân công riêng'
+        })
+        self.assertEqual(response.status_code, 302)
+
+        dl = DeadlineGiaoVien.objects.filter(MaTran=self.matran, GiaoVien=self.gv_bm).first()
+        self.assertIsNotNone(dl)
+        self.assertEqual(dl.Deadline, dl_date)
+        self.assertEqual(dl.GhiChu, 'Phân công riêng')

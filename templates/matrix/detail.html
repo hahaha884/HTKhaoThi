@@ -228,6 +228,88 @@
         </div>
         {% endif %}
 
+        {% if matran.TrangThai == 'Đã duyệt' %}
+        <!-- BẢNG PHÂN CÔNG DEADLINE CHO NHÂN SỰ (TỔ CHUYÊN MÔN) -->
+        <div class="card border-0 shadow-sm mt-4 mb-3 border">
+            <div class="card-header bg-white py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div>
+                    <h6 class="fw-bold text-dark mb-0">
+                        <i class="fas fa-users-cog text-primary me-2"></i>Phân công Deadline làm đề cho Nhân sự
+                    </h6>
+                    <small class="text-muted">Tổ chuyên môn chọn toàn bộ nhân sự 1 lần và đặt hạn chót cùng lúc</small>
+                </div>
+                {% if is_tcm %}
+                <button type="button" class="btn btn-sm btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#assignAllGvDeadlineModal">
+                    <i class="fas fa-calendar-plus me-1"></i> Giao Deadline cho Nhân sự
+                </button>
+                {% endif %}
+            </div>
+            <div class="card-body p-0">
+                {% if deadlines_gv %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light small text-muted text-uppercase">
+                            <tr>
+                                <th>Giáo viên</th>
+                                <th>Chức vụ</th>
+                                <th>Hạn chót (Deadline)</th>
+                                <th>Trạng thái</th>
+                                <th>Ghi chú</th>
+                                <th>Người giao</th>
+                                {% if is_tcm %}
+                                <th class="text-end pe-3">Thao tác</th>
+                                {% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for dl in deadlines_gv %}
+                            <tr>
+                                <td class="fw-semibold text-dark">
+                                    <i class="fas fa-user-circle text-primary me-1"></i>{{ dl.GiaoVien.HoTen }}
+                                </td>
+                                <td class="small text-muted">{{ dl.GiaoVien.ChucVu }}</td>
+                                <td>
+                                    <span class="fw-bold font-monospace">{{ dl.Deadline|date:"d/m/Y" }}</span>
+                                </td>
+                                <td>
+                                    {% if dl.deadline_status == 'expired' %}
+                                        <span class="badge bg-danger"><i class="fas fa-exclamation-circle me-1"></i>Quá hạn</span>
+                                    {% elif dl.deadline_status == 'urgent' %}
+                                        <span class="badge bg-warning text-dark"><i class="fas fa-clock me-1"></i>Sắp đến hạn ({{ dl.days_remaining }} ngày)</span>
+                                    {% else %}
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="fas fa-check me-1"></i>Còn hạn ({{ dl.days_remaining }} ngày)</span>
+                                    {% endif %}
+                                </td>
+                                <td class="small text-muted">{{ dl.GhiChu|default:"-" }}</td>
+                                <td class="small text-muted">{{ dl.NguoiSet.HoTen }}</td>
+                                {% if is_tcm %}
+                                <td class="text-end pe-3">
+                                    <form method="POST" action="{% url 'matrix_delete_deadline_gv' matran.pk dl.pk %}" class="d-inline" onsubmit="return confirm('Bạn có chắc muốn xóa phân công deadline của {{ dl.GiaoVien.HoTen }}?');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" title="Xóa phân công">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4 text-muted">
+                    <i class="fas fa-user-clock fa-2x mb-2 text-secondary opacity-50"></i>
+                    <p class="mb-1 fw-semibold text-secondary">Chưa phân công deadline làm đề cho nhân sự nào</p>
+                    {% if is_tcm %}
+                    <small class="text-primary">Bấm nút <strong>"Giao Deadline cho Nhân sự"</strong> để chọn tất cả hoặc nhiều nhân sự và đặt hạn chót cùng 1 lần.</small>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
         <!-- THANH CÔNG CỤ / NÚT HÀNH ĐỘNG -->
         <div class="d-flex flex-wrap justify-content-between align-items-center mt-5 pt-3 border-top gap-2">
             <div>
@@ -242,6 +324,11 @@
             </div>
             
             <div class="d-flex gap-2">
+                {% if is_tcm and matran.TrangThai == 'Đã duyệt' %}
+                <button type="button" class="btn btn-primary px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#assignAllGvDeadlineModal">
+                    <i class="fas fa-users-cog me-1"></i> Giao Deadline Nhân sự
+                </button>
+                {% endif %}
                 {% if matran.TrangThai == 'Nháp' or matran.TrangThai == 'Từ chối' %}
                     {% if is_owner or request.user.is_superuser %}
                     <a href="{% url 'matrix_update' matran.pk %}" class="btn btn-warning px-3 text-dark">
@@ -452,6 +539,116 @@
     </div>
 </div>
 
+<!-- MODAL GIAO DEADLINE CHO TẤT CẢ / NHIỀU NHÂN SỰ (TCM) -->
+<div class="modal fade" id="assignAllGvDeadlineModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg">
+            <form method="POST" action="{% url 'matrix_set_deadline_gv' matran.pk %}" id="batchDeadlineForm">
+                {% csrf_token %}
+                <div class="modal-header bg-primary text-white py-3">
+                    <h6 class="modal-title fw-bold">
+                        <i class="fas fa-users-cog me-2"></i>Giao Deadline làm đề cho Tổ chuyên môn
+                    </h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <!-- Alert Thông tin ma trận -->
+                    <div class="alert alert-primary bg-primary bg-opacity-10 border-primary border-opacity-25 py-2 px-3 small mb-3">
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                            <div>
+                                <i class="fas fa-info-circle text-primary me-1"></i> Ma trận: <strong>{{ matran.TenMaTran }}</strong> (Môn: {{ matran.MonHoc.TenMon }}, Khối: {{ matran.Khoi.TenKhoi }})
+                            </div>
+                            {% if matran.DeadlineNopDe %}
+                            <div class="text-danger fw-bold">
+                                <i class="fas fa-exclamation-triangle me-1"></i> Hạn chót BGH yêu cầu: {{ matran.DeadlineNopDe|date:"d/m/Y" }}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- KHUNG CHỌN NHÂN SỰ -->
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label class="form-label fw-bold mb-0">
+                                <i class="fas fa-user-check text-primary me-1"></i>Chọn nhân sự làm đề:
+                            </label>
+                            <div class="btn-group btn-group-sm">
+                                <button type="button" class="btn btn-outline-primary" id="btnCheckAll">
+                                    <i class="fas fa-check-square me-1"></i>Chọn tất cả
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" id="btnUncheckAll">
+                                    <i class="far fa-square me-1"></i>Bỏ chọn
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Khung cuộn danh sách giáo viên -->
+                        <div class="border rounded-3 p-2 bg-light" style="max-height: 220px; overflow-y: auto;">
+                            <!-- Checkbox Master Chọn Tất Cả -->
+                            <div class="form-check p-2 pb-2 mb-2 border-bottom bg-white rounded">
+                                <input class="form-check-input ms-1 me-2" type="checkbox" id="masterSelectAll" checked>
+                                <label class="form-check-label fw-bold text-primary cursor-pointer" for="masterSelectAll">
+                                    <i class="fas fa-users me-1"></i>CHỌN TẤT CẢ NHÂN SỰ ({{ gv_list_for_deadline|length }} giáo viên)
+                                </label>
+                            </div>
+
+                            {% for gv_item in gv_list_for_deadline %}
+                            <div class="form-check p-2 border-bottom border-light-subtle bg-white mb-1 rounded hover-shadow-sm">
+                                <input class="form-check-input gv-select-checkbox ms-1 me-2" type="checkbox" name="gv_ids" value="{{ gv_item.id }}" id="gv_{{ gv_item.id }}" checked>
+                                <label class="form-check-label d-flex justify-content-between align-items-center w-100 cursor-pointer pe-2" for="gv_{{ gv_item.id }}">
+                                    <div>
+                                        <span class="fw-semibold text-dark">{{ gv_item.HoTen }}</span>
+                                        <span class="badge bg-secondary-subtle text-secondary ms-2 small">{{ gv_item.ChucVu }}</span>
+                                    </div>
+                                    <small class="text-muted">{{ gv_item.SDT }}</small>
+                                </label>
+                            </div>
+                            {% empty %}
+                            <p class="text-muted text-center py-3 mb-0">Không có giáo viên nào khả dụng.</p>
+                            {% endfor %}
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-2 px-1">
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>Bạn có thể tích chọn toàn bộ hoặc tùy chọn những giáo viên cần giao.
+                            </small>
+                            <span class="badge bg-primary rounded-pill px-3 py-1" id="selectedCountBadge">
+                                Đã chọn {{ gv_list_for_deadline|length }} nhân sự
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- KHUNG ĐẶT DEADLINE (ÁP DỤNG 1 LẦN CHO TẤT CẢ) -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-12">
+                            <label class="form-label fw-bold text-dark">
+                                <i class="fas fa-calendar-alt text-primary me-1"></i>Hạn chót nộp đề (Deadline chung) <span class="text-danger">*</span>:
+                            </label>
+                            <input type="date" name="deadline_date" class="form-control" required min="{{ today|date:'Y-m-d' }}" {% if matran.DeadlineNopDe %}max="{{ matran.DeadlineNopDe|date:'Y-m-d' }}"{% endif %}>
+                            <small class="form-text text-muted">
+                                Hạn chót này sẽ được <strong>áp dụng 1 lần đồng loạt</strong> cho tất cả nhân sự đã được chọn ở trên.
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- GHI CHÚ / YÊU CẦU -->
+                    <div class="mb-2">
+                        <label class="form-label fw-bold small text-secondary">
+                            <i class="fas fa-comment-dots me-1"></i>Ghi chú / Yêu cầu làm đề chung:
+                        </label>
+                        <textarea name="ghi_chu" class="form-control" rows="2" placeholder="Ví dụ: Mỗi thầy cô ra 2 đề thi bám sát ma trận, nộp trước hạn để tổ tổng hợp..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-2 px-4">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">Đóng</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-semibold" id="btnSubmitBatchDeadline">
+                        <i class="fas fa-check-circle me-1"></i>Xác nhận Giao Deadline
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
     function triggerExport(baseUrl) {
         const format = document.querySelector('input[name="exportFormatRadio"]:checked')?.value || 'docx';
@@ -477,5 +674,64 @@
             help.textContent = "Hạn để Tổ chuyên môn nộp đề thi cho kỳ thi này.";
         }
     }
+
+    // Quản lý chọn tất cả nhân sự trong modal Deadline TCM
+    document.addEventListener('DOMContentLoaded', function() {
+        const masterSelect = document.getElementById('masterSelectAll');
+        const gvCheckboxes = document.querySelectorAll('.gv-select-checkbox');
+        const countBadge = document.getElementById('selectedCountBadge');
+        const btnCheckAll = document.getElementById('btnCheckAll');
+        const btnUncheckAll = document.getElementById('btnUncheckAll');
+        const btnSubmit = document.getElementById('btnSubmitBatchDeadline');
+
+        function updateCount() {
+            const checked = document.querySelectorAll('.gv-select-checkbox:checked').length;
+            const total = gvCheckboxes.length;
+            if (countBadge) {
+                countBadge.textContent = `Đã chọn ${checked} / ${total} nhân sự`;
+                if (checked === 0) {
+                    countBadge.className = 'badge bg-danger rounded-pill px-3 py-1';
+                } else {
+                    countBadge.className = 'badge bg-primary rounded-pill px-3 py-1';
+                }
+            }
+            if (masterSelect) {
+                masterSelect.checked = (checked === total && total > 0);
+                masterSelect.indeterminate = (checked > 0 && checked < total);
+            }
+            if (btnSubmit) {
+                btnSubmit.disabled = (checked === 0);
+            }
+        }
+
+        if (masterSelect) {
+            masterSelect.addEventListener('change', function() {
+                gvCheckboxes.forEach(cb => cb.checked = masterSelect.checked);
+                updateCount();
+            });
+        }
+
+        if (btnCheckAll) {
+            btnCheckAll.addEventListener('click', function() {
+                gvCheckboxes.forEach(cb => cb.checked = true);
+                if (masterSelect) masterSelect.checked = true;
+                updateCount();
+            });
+        }
+
+        if (btnUncheckAll) {
+            btnUncheckAll.addEventListener('click', function() {
+                gvCheckboxes.forEach(cb => cb.checked = false);
+                if (masterSelect) masterSelect.checked = false;
+                updateCount();
+            });
+        }
+
+        gvCheckboxes.forEach(cb => {
+            cb.addEventListener('change', updateCount);
+        });
+
+        updateCount();
+    });
 </script>
 {% endblock %}
