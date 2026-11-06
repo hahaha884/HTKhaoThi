@@ -44,10 +44,7 @@ def validate_matrix_data(header_data, details_data, action='submit', existing_ma
     ]
     missing_headers = [name for name, val in required_headers if not val]
     if missing_headers:
-        if action == 'draft':
-            errors.append("Vui lòng nhập đầy đủ các thông tin bắt buộc để lưu nháp.")
-        else:
-            errors.append("Vui lòng nhập đầy đủ các thông tin bắt buộc.")
+        errors.append("Vui lòng nhập đầy đủ các thông tin bắt buộc.")
             
     # 9b. Ma trận đã tồn tại
     if nam_hoc_id and hoc_ky and ky_thi and khoi_id and mon_hoc_id:
@@ -67,10 +64,11 @@ def validate_matrix_data(header_data, details_data, action='submit', existing_ma
 
     num_rows = len(details_data)
     
-    # Nếu là lưu nháp và không có dòng chi tiết nào -> cho phép nếu header hợp lệ
-    if action == 'draft' and num_rows == 0:
+    # Bắt buộc phải có ít nhất 1 dòng chi tiết (9a)
+    if num_rows == 0:
+        errors.append("Vui lòng thêm ít nhất một dòng chi tiết ma trận.")
         return {
-            'is_valid': len(errors) == 0,
+            'is_valid': False,
             'errors': errors,
             'row_errors': row_errors,
             'level_errors': level_errors,
@@ -83,9 +81,6 @@ def validate_matrix_data(header_data, details_data, action='submit', existing_ma
                            'Mức 3': {'cau': 0, 'diem': 0.0, 'tyle': 0.0, 'tyle_thucte': 0.0, 'diff': 0.0}}
             }
         }
-        
-    # Khi Nộp, bắt buộc phải có ít nhất 1 dòng chi tiết (9a)
-    if action == 'submit' and num_rows == 0:
         errors.append("Vui lòng thêm ít nhất một dòng chi tiết ma trận.")
         return {
             'is_valid': False,
@@ -124,10 +119,7 @@ def validate_matrix_data(header_data, details_data, action='submit', existing_ma
         diem_raw = row.get('Diem')
         tyle_raw = row.get('TyLe')
         
-        # Với action == 'draft', nếu dòng hoàn toàn trống thì có thể bỏ qua
-        if action == 'draft' and not any([mach_id, noidung_id, mucdo, loai, soluong_raw, causo_raw, diem_raw, tyle_raw]):
-            continue
-            
+
         # 9c: Thiếu thông tin bắt buộc trên dòng
         if not all([mach_id, noidung_id, mucdo, loai, soluong_raw is not None and str(soluong_raw) != '', causo_raw, diem_raw is not None and str(diem_raw) != '', tyle_raw is not None and str(tyle_raw) != '']):
             current_row_errs.append("Thiếu thông tin bắt buộc.")
@@ -221,25 +213,23 @@ def validate_matrix_data(header_data, details_data, action='submit', existing_ma
     if has_detail_errors:
         errors.append("Thông tin chi tiết ma trận không hợp lệ. Vui lòng kiểm tra các dòng bị đánh dấu đỏ.")
 
-    # Nếu action là Lưu nháp, ta không chặn các điều kiện tổng thể (9d, 9g, 9k)
-    # Nhưng nếu action là Submit (Nộp), kiểm tra toàn diện 9d, 9g, 9k:
-    if action == 'submit':
-        # 9g: Tổng tỷ lệ không hợp lệ (phải bằng 100%)
-        if abs(tong_tyle - 100.0) > 0.01:
-            errors.append(f"Tổng tỷ lệ của ma trận phải bằng 100% (Hiện tại: {round(tong_tyle, 1)}%).")
+    # Kiểm tra toàn diện 9d, 9g, 9k:
+    # 9g: Tổng tỷ lệ không hợp lệ (phải bằng 100%)
+    if abs(tong_tyle - 100.0) > 0.01:
+        errors.append(f"Tổng tỷ lệ của ma trận phải bằng 100% (Hiện tại: {round(tong_tyle, 1)}%).")
 
-        # 9d: Tổng số câu hoặc tổng điểm không hợp lệ (Tổng số câu > 0, Tổng điểm > 0)
-        if tong_diem <= 0:
-            errors.append("Tổng số câu hoặc tổng điểm của ma trận chưa đúng quy định (Tổng điểm phải lớn hơn 0).")
-        if tong_so_cau <= 0:
-            errors.append("Tổng số câu hoặc tổng điểm của ma trận chưa đúng quy định (Tổng số câu phải lớn hơn 0).")
+    # 9d: Tổng số câu hoặc tổng điểm không hợp lệ (Tổng số câu > 0, Tổng điểm > 0)
+    if tong_diem <= 0:
+        errors.append("Tổng số câu hoặc tổng điểm của ma trận chưa đúng quy định (Tổng điểm phải lớn hơn 0).")
+    if tong_so_cau <= 0:
+        errors.append("Tổng số câu hoặc tổng điểm của ma trận chưa đúng quy định (Tổng số câu phải lớn hơn 0).")
 
-        # Tỷ lệ theo mức độ: Tính theo tổng điểm và làm tròn hàng chục (không áp ngưỡng ±5%)
-        if tong_diem > 0:
-            for muc, data in muc_do_stats.items():
-                pct = (data['diem'] / tong_diem) * 100
-                data['tyle_thucte'] = round(pct, 1)
-                data['tyle_lamtron'] = int(round(pct / 10) * 10)
+    # Tỷ lệ theo mức độ: Tính theo tổng điểm và làm tròn hàng chục (không áp ngưỡng ±5%)
+    if tong_diem > 0:
+        for muc, data in muc_do_stats.items():
+            pct = (data['diem'] / tong_diem) * 100
+            data['tyle_thucte'] = round(pct, 1)
+            data['tyle_lamtron'] = int(round(pct / 10) * 10)
 
     # Cập nhật tỷ lệ thực tế và làm tròn hàng chục cho calc_summary (dù draft hay submit)
     if tong_diem > 0:

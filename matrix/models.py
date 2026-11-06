@@ -49,7 +49,7 @@ class MaTran(models.Model):
         dl = self.deadline_hien_tai
         if not dl:
             return None
-        today = timezone.now().date()
+        today = timezone.localdate()
         delta = (dl - today).days
         if delta < 0:
             return 'expired'
@@ -63,7 +63,7 @@ class MaTran(models.Model):
         dl = self.deadline_hien_tai
         if not dl:
             return None
-        today = timezone.now().date()
+        today = timezone.localdate()
         return (dl - today).days
 
 
@@ -116,7 +116,7 @@ class DeadlineGiaoVien(models.Model):
         - 'urgent' : còn < 2 ngày
         - 'ok'     : còn >= 2 ngày
         """
-        today = timezone.now().date()
+        today = timezone.localdate()
         delta = (self.Deadline - today).days
         if delta < 0:
             return 'expired'
@@ -126,5 +126,5 @@ class DeadlineGiaoVien(models.Model):
 
     @property
     def days_remaining(self):
-        today = timezone.now().date()
+        today = timezone.localdate()
         return (self.Deadline - today).days

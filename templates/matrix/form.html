@@ -347,9 +347,6 @@
                     <i class="fas fa-times me-1"></i> Hủy
                 </button>
                 <div class="d-flex gap-2">
-                    <button type="submit" name="action" value="draft" class="btn btn-secondary px-4" onclick="setDraftAction()">
-                        <i class="fas fa-save me-1"></i> Lưu (Lưu nháp)
-                    </button>
                     <button type="submit" name="action" value="submit" id="btnSubmitMatrix" class="btn btn-primary px-4 shadow-sm" onclick="setSubmitAction()">
                         <i class="fas fa-paper-plane me-1"></i> Nộp (Gửi duyệt)
                     </button>
@@ -842,12 +839,6 @@
         });
 
         reCalculateAll();
-    }
-
-    // Khi chọn Lưu nháp
-    function setDraftAction() {
-        const detailInputs = document.querySelectorAll('#detailsTable select, #detailsTable input');
-        detailInputs.forEach(el => el.removeAttribute('required'));
     }
 
     // Khi chọn Nộp

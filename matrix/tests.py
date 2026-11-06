@@ -446,37 +446,11 @@ class MatrixViewsIntegrationTestCase(TestCase):
         self.mach = MachKienThuc.objects.create(MonHoc=self.monhoc, Khoi=self.khoi, TenMach='Đọc hiểu')
         self.noidung = NoiDungKienThuc.objects.create(MachKienThuc=self.mach, TenNoidung='Văn bản tự sự')
 
-    def test_uc_9_1_create_draft_and_submit(self):
+    def test_uc_9_1_create_and_submit(self):
+        """UC 9.1: Tạo ma trận đề thi và nộp phê duyệt trực tiếp (Chờ duyệt)."""
         self.client.login(username='totruong_view', password='password123')
 
-        # 1. Lưu nháp
-        post_draft = {
-            'action': 'draft',
-            'TenMaTran': 'Ma trận TV 4 Nháp',
-            'NamHoc': self.namhoc.pk,
-            'HocKy': 'Học kỳ 1',
-            'KyThi': 'Giữa kỳ',
-            'Khoi': self.khoi.pk,
-            'MonHoc': self.monhoc.pk,
-            'MoTa': 'Bản nháp',
-            'MachKienThuc[]': [str(self.mach.pk)],
-            'NoiDung[]': [str(self.noidung.pk)],
-            'MucDo[]': ['Mức 1'],
-            'LoaiCauHoi[]': ['Trắc nghiệm'],
-            'SoLuongCau[]': ['1'],
-            'CauSo[]': ['1'],
-            'Diem[]': ['1'],
-            'TyLe[]': ['10'],
-        }
-        res_draft = self.client.post('/ma-tran/them/', post_draft)
-        self.assertEqual(res_draft.status_code, 302)
-        mt_draft = MaTran.objects.get(TenMaTran='Ma trận TV 4 Nháp')
-        self.assertEqual(mt_draft.TrangThai, 'Nháp')
-
-        # 2. Xóa ma trận nháp vừa tạo để test submit
-        mt_draft.delete()
-
-        # 3. Nộp ma trận hoàn chỉnh (Chờ duyệt)
+        # Nộp ma trận hoàn chỉnh (Chờ duyệt)
         post_submit = {
             'action': 'submit',
             'TenMaTran': 'Ma trận TV 4 Gửi Duyệt',

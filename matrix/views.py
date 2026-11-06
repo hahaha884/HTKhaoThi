@@ -102,8 +102,7 @@ def matrix_list(request):
 @khao_thi_required
 def matrix_create(request):
     """
-    UC 9.1: Thêm ma trận đề thi
-    Hỗ trợ Lưu nháp (action='draft') và Nộp phê duyệt (action='submit').
+    UC 9.1: Thêm ma trận đề thi và nộp phê duyệt.
     """
     # Kiểm tra phân quyền: Chỉ Tổ chuyên môn (Tổ trưởng, Tổ phó) hoặc Superuser. BGH không được tạo ma trận.
     gv = getattr(request.user, 'giaovien', None)
@@ -121,7 +120,7 @@ def matrix_create(request):
     }
 
     if request.method == 'POST':
-        action = request.POST.get('action', 'submit')
+        action = 'submit'
 
         ten_matran = (request.POST.get('TenMaTran') or '').strip()
         nam_hoc_id = request.POST.get('NamHoc')
@@ -203,7 +202,7 @@ def matrix_create(request):
         tong_so_cau = calc.get('tong_so_cau', 0)
         tong_diem = calc.get('tong_diem', 0.0)
 
-        trang_thai = 'Chờ duyệt' if action == 'submit' else 'Nháp'
+        trang_thai = 'Chờ duyệt'
 
         try:
             with transaction.atomic():
@@ -239,11 +238,7 @@ def matrix_create(request):
                             TyLe=float(row['TyLe']) if row['TyLe'] else 0.0
                         )
 
-                if action == 'submit':
-                    messages.success(request, 'Thêm và gửi đi ma trận thành công.')
-                else:
-                    messages.success(request, 'Lưu nháp thành công.')
-
+                messages.success(request, 'Thêm và gửi đi ma trận thành công.')
                 return redirect('matrix_list')
 
         except IntegrityError:
@@ -293,7 +288,7 @@ def matrix_update(request, pk):
     }
 
     if request.method == 'POST':
-        action = request.POST.get('action', 'submit')
+        action = 'submit'
 
         new_ten = (request.POST.get('TenMaTran') or '').strip()
         new_nam = request.POST.get('NamHoc')
@@ -379,7 +374,7 @@ def matrix_update(request, pk):
         matran.MoTa = new_mota
         matran.TongSoCau = calc.get('tong_so_cau', 0)
         matran.TongSoDiem = calc.get('tong_diem', 0.0)
-        matran.TrangThai = 'Chờ duyệt' if action == 'submit' else 'Nháp'
+        matran.TrangThai = 'Chờ duyệt'
 
         try:
             with transaction.atomic():
@@ -400,11 +395,7 @@ def matrix_update(request, pk):
                             TyLe=float(row['TyLe']) if row['TyLe'] else 0.0
                         )
 
-                if action == 'submit':
-                    messages.success(request, 'Cập nhật và gửi đi ma trận thành công.')
-                else:
-                    messages.success(request, 'Lưu nháp thành công.')
-
+                messages.success(request, 'Cập nhật và gửi đi ma trận thành công.')
                 return redirect('matrix_list')
 
         except IntegrityError:
