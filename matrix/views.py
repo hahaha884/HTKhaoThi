@@ -461,6 +461,12 @@ def matrix_detail(request, pk):
         is_bgh = True
         is_owner = True
 
+    # Kiểm tra quyền xem chi tiết (Object-level permission)
+    if not request.user.is_superuser and not is_bgh and not is_owner:
+        if matran.TrangThai != 'Đã duyệt':
+            messages.error(request, 'Bạn không có quyền xem ma trận này khi chưa được phê duyệt.')
+            return redirect('matrix_list')
+
     # Thống kê mức độ nhận thức
     muc_stats = {
         'Mức 1': {'cau': 0, 'diem': 0.0, 'tyle': 0.0, 'thucte': 0.0},
