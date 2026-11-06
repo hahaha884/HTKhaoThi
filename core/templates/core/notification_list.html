@@ -1,0 +1,269 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block page_title %}Trung tâm Thông báo{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <!-- Header Card -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                <div>
+                    <h4 class="fw-bold text-dark mb-1">
+                        <i class="fas fa-bell text-primary me-2"></i>Trung tâm Thông báo
+                    </h4>
+                    <p class="text-muted mb-0">
+                        Theo dõi tất cả thông báo về ma trận, đề thi, lịch thi và hạn nộp của bạn
+                    </p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button id="pageMarkAllReadBtn" class="btn btn-outline-primary">
+                        <i class="fas fa-check-double me-1"></i>Đánh dấu tất cả đã đọc
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter & Search Toolbar -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-3">
+            <form method="GET" action="" class="row g-2 align-items-center">
+                <!-- Status Filter -->
+                <div class="col-auto">
+                    <div class="btn-group" role="group">
+                        <a href="?{% if filter_type %}loai={{ filter_type }}&{% endif %}{% if search_q %}q={{ search_q }}&{% endif %}" 
+                           class="btn btn-sm {% if not status_filter %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                            Tất cả
+                        </a>
+                        <a href="?trang_thai=unread{% if filter_type %}&loai={{ filter_type }}{% endif %}{% if search_q %}&q={{ search_q }}{% endif %}" 
+                           class="btn btn-sm {% if status_filter == 'unread' %}btn-primary{% else %}btn-outline-secondary{% endif %} position-relative">
+                            Chưa đọc
+                            {% if unread_total > 0 %}
+                            <span class="badge rounded-pill bg-danger ms-1">{{ unread_total }}</span>
+                            {% endif %}
+                        </a>
+                        <a href="?trang_thai=read{% if filter_type %}&loai={{ filter_type }}{% endif %}{% if search_q %}&q={{ search_q }}{% endif %}" 
+                           class="btn btn-sm {% if status_filter == 'read' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                            Đã đọc
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Type Filter -->
+                <div class="col-auto">
+                    <select name="loai" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <option value="">-- Mọi phân loại --</option>
+                        <option value="danger" {% if filter_type == 'danger' %}selected{% endif %}>🔴 Khẩn cấp / Quá hạn</option>
+                        <option value="warning" {% if filter_type == 'warning' %}selected{% endif %}>🟡 Cảnh báo / Sắp hết hạn</option>
+                        <option value="info" {% if filter_type == 'info' %}selected{% endif %}>🔵 Thông tin / Chờ duyệt</option>
+                        <option value="success" {% if filter_type == 'success' %}selected{% endif %}>🟢 Thành công</option>
+                    </select>
+                </div>
+
+                {% if status_filter %}
+                <input type="hidden" name="trang_thai" value="{{ status_filter }}">
+                {% endif %}
+
+                <!-- Search Input -->
+                <div class="col-md-4 ms-auto">
+                    <div class="input-group input-group-sm">
+                        <input type="text" name="q" value="{{ search_q }}" class="form-control" placeholder="Tìm kiếm nội dung thông báo...">
+                        <button class="btn btn-outline-primary" type="submit">
+                            <i class="fas fa-search"></i>
+                        </button>
+                        {% if search_q or filter_type or status_filter %}
+                        <a href="{% url 'notification_list' %}" class="btn btn-outline-secondary" title="Xóa bộ lọc">
+                            <i class="fas fa-times"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Notification Items List -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            {% if page_obj %}
+            <div class="list-group list-group-flush rounded-3">
+                {% for item in page_obj %}
+                <div class="list-group-item p-3 border-bottom transition-all notif-row-{{ item.id }} {% if not item.is_read %}bg-light-subtle border-start border-4 border-primary{% else %}border-start border-4 border-transparent{% endif %}"
+                     id="notif-item-{{ item.id }}">
+                    <div class="d-flex align-items-start gap-3">
+                        <!-- Icon Circle -->
+                        <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0 mt-1"
+                             style="width: 44px; height: 44px; 
+                             {% if item.loai == 'danger' %}background-color: #fee2e2; color: #dc2626;
+                             {% elif item.loai == 'warning' %}background-color: #fef3c7; color: #d97706;
+                             {% elif item.loai == 'success' %}background-color: #dcfce7; color: #16a34a;
+                             {% else %}background-color: #dbeafe; color: #2563eb;{% endif %}">
+                            <i class="{{ item.icon }} fs-5"></i>
+                        </div>
+
+                        <!-- Content -->
+                        <div class="flex-grow-1">
+                            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-1">
+                                <h6 class="mb-0 {% if not item.is_read %}fw-bold text-dark{% else %}text-secondary{% endif %}">
+                                    {{ item.tieu_de }}
+                                    {% if not item.is_read %}
+                                    <span class="badge bg-primary ms-2 fs-7 fw-normal unread-dot-{{ item.id }}">Mới</span>
+                                    {% endif %}
+                                </h6>
+                                <div class="text-muted small">
+                                    <i class="far fa-clock me-1"></i>{{ item.time_ago }}
+                                    <span class="text-muted-50 d-none d-md-inline">({{ item.ngay_tao }})</span>
+                                </div>
+                            </div>
+
+                            <p class="mb-2 text-secondary" style="font-size: 0.92rem; line-height: 1.5;">
+                                {{ item.noi_dung }}
+                            </p>
+
+                            <div class="d-flex align-items-center gap-2">
+                                {% if item.lien_ket and item.lien_ket != '#' %}
+                                <a href="{{ item.lien_ket }}" class="btn btn-sm btn-primary py-0 px-2 notif-action-link" data-id="{{ item.id }}" style="font-size: 0.8rem;">
+                                    <i class="fas fa-arrow-right me-1"></i>Xem chi tiết
+                                </a>
+                                {% endif %}
+
+                                {% if not item.is_read %}
+                                <button type="button" class="btn btn-sm btn-light border py-0 px-2 btn-mark-read" data-id="{{ item.id }}" style="font-size: 0.8rem;" title="Đánh dấu đã đọc">
+                                    <i class="fas fa-check text-success me-1"></i>Đánh dấu đã đọc
+                                </button>
+                                {% else %}
+                                <span class="badge bg-secondary-subtle text-secondary py-1 px-2" style="font-size: 0.75rem;">
+                                    <i class="fas fa-check-circle me-1 text-muted"></i>Đã đọc
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Pagination -->
+            <div class="p-3">
+                {% include 'pagination.html' %}
+            </div>
+
+            {% else %}
+            <!-- Empty State -->
+            <div class="text-center py-5">
+                <div class="bg-light rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 80px; height: 80px;">
+                    <i class="far fa-bell-slash fs-1 text-muted"></i>
+                </div>
+                <h5 class="fw-bold text-secondary mb-1">Không có thông báo nào</h5>
+                <p class="text-muted mb-0">
+                    {% if search_q or filter_type or status_filter %}
+                    Không tìm thấy thông báo phù hợp với bộ lọc hiện tại.
+                    {% else %}
+                    Tất cả các thông báo và cảnh báo hệ thống sẽ được hiển thị tại đây khi có phát sinh.
+                    {% endif %}
+                </p>
+                {% if search_q or filter_type or status_filter %}
+                <a href="{% url 'notification_list' %}" class="btn btn-outline-primary btn-sm mt-3">
+                    <i class="fas fa-redo me-1"></i>Đặt lại bộ lọc
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Đánh dấu 1 thông báo là đã đọc
+    document.querySelectorAll('.btn-mark-read').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const notifId = this.getAttribute('data-id');
+            markRead(notifId, this);
+        });
+    });
+
+    // Bấm link "Xem chi tiết" cũng tự đánh dấu đã đọc
+    document.querySelectorAll('.notif-action-link').forEach(link => {
+        link.addEventListener('click', function(e) {
+            const notifId = this.getAttribute('data-id');
+            if (notifId) {
+                navigator.sendBeacon(`/thong-bao/api/${notifId}/doc/`);
+            }
+        });
+    });
+
+    // Đánh dấu tất cả là đã đọc
+    const markAllBtn = document.getElementById('pageMarkAllReadBtn');
+    if (markAllBtn) {
+        markAllBtn.addEventListener('click', function() {
+            fetch('/thong-bao/api/doc-tat-ca/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                }
+            })
+            .catch(err => console.error(err));
+        });
+    }
+
+    function markRead(id, btnElement) {
+        fetch(`/thong-bao/api/${id}/doc/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                const row = document.getElementById(`notif-item-${id}`);
+                if (row) {
+                    row.classList.remove('bg-light-subtle', 'border-primary');
+                    row.classList.add('border-transparent');
+                }
+                const dot = document.querySelector(`.unread-dot-${id}`);
+                if (dot) dot.remove();
+
+                if (btnElement) {
+                    btnElement.outerHTML = '<span class="badge bg-secondary-subtle text-secondary py-1 px-2" style="font-size: 0.75rem;"><i class="fas fa-check-circle me-1 text-muted"></i>Đã đọc</span>';
+                }
+
+                // Cập nhật badge trên navbar nếu có
+                if (typeof updateNavBadge === 'function') {
+                    updateNavBadge(data.unread_count);
+                }
+            }
+        })
+        .catch(err => console.error(err));
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+});
+</script>
+{% endblock %}
+

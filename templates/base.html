@@ -65,6 +65,105 @@
             background-color: #4338ca;
             color: white;
         }
+
+        /* ===== NOTIFICATION BELL & DROPDOWN STYLES ===== */
+        .bell-btn {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            color: #475569;
+            position: relative;
+            transition: all 0.25s ease;
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .bell-btn:hover, .bell-btn:focus {
+            background: #eff6ff;
+            color: var(--primary-blue);
+            border-color: #bfdbfe;
+            box-shadow: 0 3px 10px rgba(37,99,235,0.18);
+            transform: translateY(-1px);
+        }
+        @keyframes bellShake {
+            0% { transform: rotate(0); }
+            15% { transform: rotate(14deg); }
+            30% { transform: rotate(-14deg); }
+            45% { transform: rotate(10deg); }
+            60% { transform: rotate(-10deg); }
+            75% { transform: rotate(4deg); }
+            100% { transform: rotate(0); }
+        }
+        .bell-ring {
+            animation: bellShake 1.8s cubic-bezier(.36,.07,.19,.97) infinite;
+            transform-origin: top center;
+            display: inline-block;
+        }
+        .notif-badge-pill {
+            position: absolute;
+            top: -3px;
+            right: -3px;
+            background-color: #ef4444;
+            color: white;
+            font-size: 0.65rem;
+            font-weight: 700;
+            border-radius: 9999px;
+            padding: 2px 6px;
+            min-width: 18px;
+            text-align: center;
+            border: 2px solid #ffffff;
+            box-shadow: 0 2px 5px rgba(239, 68, 68, 0.45);
+            line-height: 1.1;
+        }
+        .notification-dropdown-menu {
+            width: 390px;
+            max-width: 92vw;
+            border: none;
+            border-radius: 14px;
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.14);
+            overflow: hidden;
+            padding: 0;
+            z-index: 1060;
+        }
+        .notif-item {
+            padding: 12px 14px;
+            border-bottom: 1px solid #f1f5f9;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.15s ease;
+            position: relative;
+        }
+        .notif-item:hover {
+            background-color: #f8fafc;
+        }
+        .notif-item.unread {
+            background-color: #f0f7ff;
+            border-left: 3px solid var(--primary-blue);
+        }
+        .notif-item.unread:hover {
+            background-color: #e2effe;
+        }
+        .notif-avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 0.95rem;
+        }
+        .notif-avatar.danger { background: #fee2e2; color: #dc2626; }
+        .notif-avatar.warning { background: #fef3c7; color: #d97706; }
+        .notif-avatar.success { background: #dcfce7; color: #16a34a; }
+        .notif-avatar.info { background: #dbeafe; color: #2563eb; }
     </style>
 </head>
 <body>
@@ -109,6 +208,17 @@
                 <a class="nav-link" href="{% url 'class_list' %}"><i class="fas fa-chalkboard me-2"></i> Quản lý Lớp học</a>
             </li>
             {% endif %}
+
+            {% if request.user.is_authenticated %}
+            <li class="nav-item">
+                <a class="nav-link d-flex align-items-center justify-content-between" href="{% url 'notification_list' %}">
+                    <span><i class="fas fa-bell me-2"></i> Thông báo</span>
+                    <span class="badge bg-danger rounded-pill sidebar-notif-badge" {% if not unread_notifications_count %}style="display: none;"{% endif %}>
+                        {{ unread_notifications_count|default:"0" }}
+                    </span>
+                </a>
+            </li>
+            {% endif %}
         </ul>
         
         <!-- User Account Bottom -->
@@ -135,6 +245,101 @@
     <div class="main-content">
         <div class="topbar d-flex justify-content-between align-items-center">
             <h5 class="mb-0 text-secondary-emphasis">{% block page_title %}Tổng quan{% endblock %}</h5>
+
+            <div class="d-flex align-items-center gap-3">
+                <!-- KHỐI CHUÔNG THÔNG BÁO (NOTIFICATION BELL) -->
+                {% if request.user.is_authenticated %}
+                <div class="dropdown notification-dropdown">
+                    <button class="bell-btn" id="notifBellButton" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" title="Thông báo hệ thống">
+                        <i class="fas fa-bell {% if unread_notifications_count > 0 %}bell-ring text-primary{% endif %}" id="notifBellIcon"></i>
+                        <span class="notif-badge-pill" id="notifBadge" {% if not unread_notifications_count %}style="display: none;"{% endif %}>
+                            {{ unread_notifications_count|default:"0" }}
+                        </span>
+                    </button>
+                    
+                    <div class="dropdown-menu dropdown-menu-end notification-dropdown-menu mt-2" aria-labelledby="notifBellButton">
+                        <!-- Header -->
+                        <div class="p-3 bg-primary text-white d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-0 fw-bold"><i class="fas fa-bell me-2"></i>Thông báo</h6>
+                                <small class="text-white-50" id="notifHeaderSubtitle">
+                                    <span id="headerUnreadCount">{{ unread_notifications_count|default:"0" }}</span> thông báo chưa đọc
+                                </small>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-light text-primary py-1 px-2 fw-semibold" id="topbarMarkAllReadBtn" style="font-size: 0.75rem;" title="Đánh dấu tất cả đã đọc">
+                                <i class="fas fa-check-double me-1"></i>Đọc tất cả
+                            </button>
+                        </div>
+                        
+                        <!-- Tabs -->
+                        <div class="d-flex border-bottom bg-light px-3 py-2" style="font-size: 0.85rem;">
+                            <button type="button" class="btn btn-sm btn-link text-decoration-none fw-bold p-0 me-3 text-primary notif-tab" id="notifTabAll" data-tab="all">
+                                Tất cả (<span id="tabTotalCount">{{ total_notifications_count|default:"0" }}</span>)
+                            </button>
+                            <button type="button" class="btn btn-sm btn-link text-decoration-none text-secondary p-0 notif-tab" id="notifTabUnread" data-tab="unread">
+                                Chưa đọc (<span id="tabUnreadCount">{{ unread_notifications_count|default:"0" }}</span>)
+                            </button>
+                        </div>
+                        
+                        <!-- List Container -->
+                        <div class="notification-scroll-container" id="notifDropdownList" style="max-height: 360px; overflow-y: auto;">
+                            {% if nav_notifications %}
+                                {% for item in nav_notifications %}
+                                <div class="notif-item {% if not item.is_read %}unread{% endif %} notif-box-{{ item.id }}" 
+                                     data-id="{{ item.id }}" 
+                                     data-read="{% if item.is_read %}true{% else %}false{% endif %}">
+                                    <div class="notif-avatar {{ item.loai }}">
+                                        <i class="{{ item.icon }}"></i>
+                                    </div>
+                                    <div class="flex-grow-1" style="min-width: 0;">
+                                        <div class="d-flex justify-content-between align-items-start gap-1">
+                                            <a href="{{ item.lien_ket }}" class="fw-semibold text-dark text-truncate text-decoration-none d-block notif-click-link" data-id="{{ item.id }}" style="font-size: 0.88rem; max-width: 220px;" title="{{ item.tieu_de }}">
+                                                {{ item.tieu_de }}
+                                            </a>
+                                            <button type="button" class="btn btn-link text-muted p-0 ms-1 btn-quick-read" data-id="{{ item.id }}" title="Đánh dấu đã đọc" {% if item.is_read %}style="display:none;"{% endif %}>
+                                                <i class="far fa-circle text-primary" style="font-size: 0.7rem;"></i>
+                                            </button>
+                                        </div>
+                                        <p class="text-muted mb-1 text-truncate" style="font-size: 0.8rem;" title="{{ item.noi_dung }}">
+                                            {{ item.noi_dung }}
+                                        </p>
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <small class="text-muted" style="font-size: 0.72rem;">
+                                                <i class="far fa-clock me-1"></i>{{ item.time_ago }}
+                                            </small>
+                                            {% if item.lien_ket and item.lien_ket != '#' %}
+                                            <a href="{{ item.lien_ket }}" class="text-primary text-decoration-none fw-semibold notif-click-link" data-id="{{ item.id }}" style="font-size: 0.75rem;">
+                                                Chi tiết <i class="fas fa-chevron-right" style="font-size: 0.65rem;"></i>
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="text-center py-4 text-muted" id="notifEmptyPlaceholder">
+                                    <i class="far fa-bell-slash fs-3 mb-2 d-block text-secondary opacity-50"></i>
+                                    <small>Không có thông báo mới nào</small>
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Footer -->
+                        <div class="p-2 border-top text-center bg-light">
+                            <a href="{% url 'notification_list' %}" class="btn btn-sm btn-link text-primary text-decoration-none fw-semibold" style="font-size: 0.82rem;">
+                                <i class="fas fa-list-ul me-1"></i>Xem tất cả thông báo
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Date display -->
+                <div class="d-none d-md-flex align-items-center text-muted border-start ps-3" style="font-size: 0.85rem;">
+                    <i class="far fa-calendar-alt text-primary me-2"></i>
+                    <span id="currentDateDisplay"></span>
+                </div>
+            </div>
         </div>
         {% block content %}{% endblock %}
     </div>
@@ -217,6 +422,216 @@
             bsToast.show();
             toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
         };
+
+        // ===== NOTIFICATION BELL SYSTEM JAVASCRIPT =====
+        function getCsrfToken() {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, 10) === ('csrftoken=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(10));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        window.updateNavBadge = function(unreadCount, totalCount) {
+            const badge = document.getElementById('notifBadge');
+            const icon = document.getElementById('notifBellIcon');
+            const headerSubtitle = document.getElementById('headerUnreadCount');
+            const tabUnread = document.getElementById('tabUnreadCount');
+            const tabTotal = document.getElementById('tabTotalCount');
+            const sidebarBadge = document.querySelector('.sidebar-notif-badge');
+
+            const countNum = parseInt(unreadCount, 10) || 0;
+
+            if (headerSubtitle) headerSubtitle.textContent = countNum;
+            if (tabUnread) tabUnread.textContent = countNum;
+            if (tabTotal && totalCount !== undefined) tabTotal.textContent = totalCount;
+
+            if (badge) {
+                if (countNum > 0) {
+                    badge.textContent = countNum > 99 ? '99+' : countNum;
+                    badge.style.display = 'inline-block';
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
+
+            if (sidebarBadge) {
+                if (countNum > 0) {
+                    sidebarBadge.textContent = countNum > 99 ? '99+' : countNum;
+                    sidebarBadge.style.display = 'inline-block';
+                } else {
+                    sidebarBadge.style.display = 'none';
+                }
+            }
+
+            if (icon) {
+                if (countNum > 0) {
+                    icon.classList.add('bell-ring', 'text-primary');
+                } else {
+                    icon.classList.remove('bell-ring', 'text-primary');
+                }
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // 1. Hiển thị ngày hôm nay trên topbar
+            const dateEl = document.getElementById('currentDateDisplay');
+            if (dateEl) {
+                const now = new Date();
+                const days = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+                const dayName = days[now.getDay()];
+                const d = String(now.getDate()).padStart(2, '0');
+                const m = String(now.getMonth() + 1).padStart(2, '0');
+                const y = now.getFullYear();
+                dateEl.textContent = `${dayName}, ${d}/${m}/${y}`;
+            }
+
+            // 2. Chuyển Tab trong Dropdown (Tất cả / Chưa đọc)
+            const tabAll = document.getElementById('notifTabAll');
+            const tabUnread = document.getElementById('notifTabUnread');
+            const dropdownList = document.getElementById('notifDropdownList');
+
+            if (tabAll && tabUnread && dropdownList) {
+                tabAll.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    tabAll.classList.add('text-primary', 'fw-bold');
+                    tabAll.classList.remove('text-secondary');
+                    tabUnread.classList.remove('text-primary', 'fw-bold');
+                    tabUnread.classList.add('text-secondary');
+
+                    dropdownList.querySelectorAll('.notif-item').forEach(el => {
+                        el.style.display = 'flex';
+                    });
+                });
+
+                tabUnread.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    tabUnread.classList.add('text-primary', 'fw-bold');
+                    tabUnread.classList.remove('text-secondary');
+                    tabAll.classList.remove('text-primary', 'fw-bold');
+                    tabAll.classList.add('text-secondary');
+
+                    dropdownList.querySelectorAll('.notif-item').forEach(el => {
+                        if (el.getAttribute('data-read') === 'true') {
+                            el.style.display = 'none';
+                        } else {
+                            el.style.display = 'flex';
+                        }
+                    });
+                });
+            }
+
+            // 3. Đánh dấu đã đọc nhanh 1 item qua nút tròn
+            document.addEventListener('click', function(e) {
+                const btn = e.target.closest('.btn-quick-read');
+                if (btn) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const notifId = btn.getAttribute('data-id');
+                    if (notifId) {
+                        markNotifRead(notifId, btn);
+                    }
+                }
+            });
+
+            // 4. Bấm vào liên kết của thông báo -> tự động đánh dấu đã đọc
+            document.addEventListener('click', function(e) {
+                const link = e.target.closest('.notif-click-link');
+                if (link) {
+                    const notifId = link.getAttribute('data-id');
+                    if (notifId) {
+                        try {
+                            navigator.sendBeacon(`/thong-bao/api/${notifId}/doc/`);
+                        } catch(err) {
+                            fetch(`/thong-bao/api/${notifId}/doc/`, {
+                                method: 'POST',
+                                headers: { 'X-CSRFToken': getCsrfToken() }
+                            });
+                        }
+                    }
+                }
+            });
+
+            // 5. Nút "Đọc tất cả" trên topbar dropdown
+            const topbarMarkAllBtn = document.getElementById('topbarMarkAllReadBtn');
+            if (topbarMarkAllBtn) {
+                topbarMarkAllBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    fetch('/thong-bao/api/doc-tat-ca/', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': getCsrfToken(),
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Đánh dấu tất cả các item trên UI thành đã đọc
+                            document.querySelectorAll('.notif-item').forEach(item => {
+                                item.classList.remove('unread');
+                                item.setAttribute('data-read', 'true');
+                                const quickBtn = item.querySelector('.btn-quick-read');
+                                if (quickBtn) quickBtn.style.display = 'none';
+                            });
+                            window.updateNavBadge(0);
+                            window.showToast("Đã đánh dấu tất cả thông báo là đã đọc", "success");
+                        }
+                    })
+                    .catch(err => console.error("Lỗi khi đánh dấu đã đọc:", err));
+                });
+            }
+
+            function markNotifRead(id, btnElement) {
+                fetch(`/thong-bao/api/${id}/doc/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCsrfToken(),
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        const items = document.querySelectorAll(`.notif-box-${id}`);
+                        items.forEach(item => {
+                            item.classList.remove('unread');
+                            item.setAttribute('data-read', 'true');
+                            const qBtn = item.querySelector('.btn-quick-read');
+                            if (qBtn) qBtn.style.display = 'none';
+                        });
+                        window.updateNavBadge(data.unread_count);
+                    }
+                })
+                .catch(err => console.error(err));
+            }
+
+            // 6. Polling ngầm thông báo mới (mỗi 45 giây)
+            let lastUnreadCount = parseInt(document.getElementById('headerUnreadCount')?.textContent || '0', 10);
+            setInterval(function() {
+                if (!document.getElementById('notifBellButton')) return;
+                fetch('/thong-bao/api/')
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            if (data.unread_count > lastUnreadCount) {
+                                window.showToast(`Bạn có ${data.unread_count - lastUnreadCount} thông báo mới!`, "info");
+                            }
+                            lastUnreadCount = data.unread_count;
+                            window.updateNavBadge(data.unread_count, data.total_count);
+                        }
+                    })
+                    .catch(() => {});
+            }, 45000);
+        });
     </script>
 </body>
 </html>

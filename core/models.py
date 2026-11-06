@@ -123,3 +123,48 @@ class PhanCongGiangDay(models.Model):
     MaLop = models.ForeignKey(LopHoc, on_delete=models.CASCADE)
     class Meta:
         db_table = 'PHANCONG_GIANGDAY'
+
+
+class ThongBao(models.Model):
+    LOAI_CHOICES = [
+        ('info', 'Thông tin'),
+        ('warning', 'Cảnh báo'),
+        ('danger', 'Khẩn cấp'),
+        ('success', 'Thành công'),
+    ]
+
+    NguoiNhan = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='thong_bao_nhan')
+    VaiTro = models.CharField(max_length=50, blank=True, null=True, help_text="BGH, TCM, GIAO_VIEN, ALL")
+    TieuDe = models.CharField(max_length=255)
+    NoiDung = models.TextField()
+    Loai = models.CharField(max_length=20, choices=LOAI_CHOICES, default='info')
+    Icon = models.CharField(max_length=100, default='fas fa-bell')
+    LienKet = models.CharField(max_length=255, blank=True, null=True)
+    DaDoc = models.BooleanField(default=False)
+    NguoiDaDoc = models.ManyToManyField(User, blank=True, related_name='thong_bao_da_doc_set')
+    RefKey = models.CharField(max_length=150, blank=True, null=True, db_index=True)
+    NgayTao = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'THONG_BAO'
+        ordering = ['-NgayTao']
+
+    def __str__(self):
+        return self.TieuDe
+
+    def is_read_by(self, user):
+        if not user or not user.is_authenticated:
+            return False
+        if self.NguoiNhan_id == user.id:
+            return self.DaDoc
+        return self.NguoiDaDoc.filter(id=user.id).exists()
+
+    def mark_as_read(self, user):
+        if not user or not user.is_authenticated:
+            return
+        if self.NguoiNhan_id == user.id:
+            self.DaDoc = True
+            self.save(update_fields=['DaDoc'])
+        else:
+            self.NguoiDaDoc.add(user)
+
