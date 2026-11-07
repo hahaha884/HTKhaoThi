@@ -23,12 +23,6 @@ def matrix_list(request):
     UC 9.4: Tìm kiếm và lọc danh sách ma trận đề thi
     Hỗ trợ tìm theo từ khóa và các bộ lọc kết hợp (AND logic).
     """
-    # Tự động đồng bộ chức vụ nếu tài khoản test có tên Tổ trưởng
-    if hasattr(request.user, 'giaovien'):
-        if 'Tổ trưởng' in request.user.giaovien.HoTen and request.user.giaovien.ChucVu != 'Tổ trưởng chuyên môn':
-            request.user.giaovien.ChucVu = 'Tổ trưởng chuyên môn'
-            request.user.giaovien.save()
-
     matrans = MaTran.objects.all().select_related('NamHoc', 'Khoi', 'MonHoc', 'NguoiTao').order_by('-NgayCapNhat')
 
     # Phân quyền hiển thị theo chức vụ
@@ -460,6 +454,12 @@ def matrix_detail(request, pk):
     if request.user.is_superuser:
         is_bgh = True
         is_owner = True
+
+    # Kiểm tra quyền xem chi tiết (Object-level permission)
+    if not request.user.is_superuser and not is_bgh and not is_owner:
+        if matran.TrangThai != 'Đã duyệt':
+            messages.error(request, 'Bạn không có quyền xem ma trận này khi chưa được phê duyệt.')
+            return redirect('matrix_list')
 
     # Thống kê mức độ nhận thức
     muc_stats = {

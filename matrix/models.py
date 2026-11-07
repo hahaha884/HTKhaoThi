@@ -15,7 +15,7 @@ class MaTran(models.Model):
     
     TongSoCau = models.IntegerField(default=0)
     TongSoDiem = models.FloatField(default=0)
-    TrangThai = models.CharField(max_length=50, default='Nháp')
+    TrangThai = models.CharField(max_length=50, default='Chờ duyệt')
     NgayCapNhat = models.DateTimeField(auto_now=True, null=True)
 
     # ===== DEADLINE FIELDS (BGH set sau khi duyệt) =====

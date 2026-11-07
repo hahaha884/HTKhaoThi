@@ -16,17 +16,24 @@ import os
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Tải biến môi trường từ file .env (đặt ở thư mục gốc dự án)
+try:
+    from dotenv import load_dotenv
+    load_dotenv(BASE_DIR / '.env')
+except Exception:
+    pass
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-bt4my3r_wliltds*-5ice$0u(@n1jps8!-c%b=wkry@=$9yy_c'
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-bt4my3r_wliltds*-5ice$0u(@n1jps8!-c%b=wkry@=$9yy_c')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'True').lower() in ('true', '1')
 
-ALLOWED_HOSTS = ['*']
+_allowed = os.getenv('ALLOWED_HOSTS', '*')
+ALLOWED_HOSTS = [h.strip() for h in _allowed.split(',') if h.strip()]
 
 
 # Application definition
@@ -145,15 +152,16 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Cấu hình API Key cho Groq (Tính năng AI)
-# Tải biến môi trường từ file .env (đặt ở thư mục gốc dự án)
-try:
-    from dotenv import load_dotenv
-    load_dotenv(BASE_DIR / '.env')
-except Exception:
-    pass
+# Cấu hình bộ nhớ đệm Cache lưu bền vững trong Database (Chống Brute-force duy trì sau khi restart)
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+        'LOCATION': 'django_cache_table',
+    }
+}
 
-GROQ_API_KEY = os.getenv('GROQ_API_KEY') or ''.join(['gsk_', 'e3ASv09La3zNCHKHELYC', 'WGdyb3FYHdUtNJp1rfBeZkCWSXFntL1p'])
+# Cấu hình API Key cho Groq (Tính năng AI) từ biến môi trường
+GROQ_API_KEY = os.getenv('GROQ_API_KEY', '')
 GROQ_MODEL = os.getenv('GROQ_MODEL', 'openai/gpt-oss-120b')
 
 # Allow iframes from the same origin (for popup modals)
