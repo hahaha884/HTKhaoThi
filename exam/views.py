@@ -359,7 +359,7 @@ def exam_editor(request, pk):
             new_order_val = request.POST.get('new_order')
             messages.success(request, "Đã cập nhật thứ tự câu hỏi.")
                 
-        elif action in ['save_draft', 'submit_approval']:
+        elif action == 'submit_approval':
             chi_tiet = de_thi.dethi_ct_set.all()
             
             # Kiểm tra điểm số <= 0
@@ -485,9 +485,6 @@ def exam_editor(request, pk):
                 except Exception as e:
                     messages.error(request, f"Lỗi khi gửi phê duyệt: {str(e)}")
                     return redirect('exam_editor', pk=pk)
-            else:
-                messages.success(request, "Lưu đề thi thành công.")
-                
             return redirect('exam_list')
             
         elif action == 'cancel_exam':

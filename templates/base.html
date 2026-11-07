@@ -208,17 +208,6 @@
                 <a class="nav-link" href="{% url 'class_list' %}"><i class="fas fa-chalkboard me-2"></i> Quản lý Lớp học</a>
             </li>
             {% endif %}
-
-            {% if request.user.is_authenticated %}
-            <li class="nav-item">
-                <a class="nav-link d-flex align-items-center justify-content-between" href="{% url 'notification_list' %}">
-                    <span><i class="fas fa-bell me-2"></i> Thông báo</span>
-                    <span class="badge bg-danger rounded-pill sidebar-notif-badge" {% if not unread_notifications_count %}style="display: none;"{% endif %}>
-                        {{ unread_notifications_count|default:"0" }}
-                    </span>
-                </a>
-            </li>
-            {% endif %}
         </ul>
         
         <!-- User Account Bottom -->

@@ -54,12 +54,7 @@
                     <form method="POST" onsubmit="hasUnsavedChanges = false;" class="m-0 p-0">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="cancel_exam">
-                        <button type="submit" class="btn btn-sm btn-light border" onclick="return confirm('Bạn có chắc muốn hủy tạo đề thi này? Mọi thay đổi sẽ bị xóa.')"><i class="fas fa-times me-1"></i>Hủy</button>
-                    </form>
-                    <form method="POST" onsubmit="hasUnsavedChanges = false;" class="m-0 p-0">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="save_draft">
-                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save me-1"></i>Lưu đề</button>
+                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Bạn có chắc muốn hủy tạo đề thi này? Mọi thay đổi sẽ bị xóa.')"><i class="fas fa-times me-1"></i>Hủy tạo đề</button>
                     </form>
                     {% endif %}
                 </div>
@@ -439,14 +434,7 @@
 
 
                 {% if de_thi.TrangThai == 'Nháp' %}
-                    {# 1. Nút LƯU ĐỀ (Dành cho tất cả mọi người đang ở chế độ Nháp) #}
-                    <form method="POST" onsubmit="hasUnsavedChanges = false;" class="d-grid gap-2 mb-2">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="save_draft">
-                        <button type="submit" class="btn btn-outline-primary"><i class="fas fa-save me-2"></i>Lưu đề (Nháp)</button>
-                    </form>
-
-                    {# 2. Phân quyền hiển thị nút XUẤT BẢN / NỘP ĐỀ #}
+                    {# Phân quyền hiển thị nút XUẤT BẢN / NỘP ĐỀ #}
                     {% if request.user.giaovien.ChucVu == 'Hiệu trưởng' or request.user.giaovien.ChucVu == 'Phó hiệu trưởng' %}
                         {# BGH: Chỉ duyệt chính thức nếu đề tự tạo hoặc bản sao của BGH #}
                         {% if de_thi.NguoiTao == request.user.giaovien %}
@@ -577,25 +565,18 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header bg-light">
-                <h5 class="modal-title fw-bold text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Đề thi chưa được lưu</h5>
+                <h5 class="modal-title fw-bold text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Đề thi chưa được nộp</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body text-dark" style="font-size: 1.05rem;">
-                Bạn có những thay đổi chưa được lưu. Nếu bạn thoát bây giờ, dữ liệu có thể bị mất. Bạn muốn làm gì tiếp theo?
+                Bạn chưa hoàn thành nộp đề thi này. Nếu rời đi mà không hoàn tất nộp đề, đề thi đang tạo sẽ bị hủy. Bạn có muốn ở lại tiếp tục hoàn thiện không?
             </div>
             <div class="modal-footer bg-light">
-                
-
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Ở lại tiếp tục</button>
                 <form method="POST" class="m-0 p-0" onsubmit="hasUnsavedChanges = false;">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="cancel_exam">
-                    <button type="submit" class="btn btn-danger">Không lưu (Xóa đề)</button>
-                </form>
-                
-                <form method="POST" class="m-0 p-0" onsubmit="hasUnsavedChanges = false;">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="save_draft">
-                    <button type="submit" class="btn btn-primary">Lưu lại</button>
+                    <button type="submit" class="btn btn-danger">Hủy đề và rời đi</button>
                 </form>
             </div>
         </div>
