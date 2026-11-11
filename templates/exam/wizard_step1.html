@@ -57,19 +57,12 @@
                 <div class="col-md-12 mt-4">
                     <label class="form-label fw-bold mb-3">Hình thức tạo đề <span class="text-danger">*</span></label>
                     <div class="d-flex gap-4">
-                        <div class="form-check p-3 border rounded flex-fill bg-light" style="cursor:pointer;" onclick="document.getElementById('radio_auto').click()">
-                            <input class="form-check-input" type="radio" name="hinh_thuc" id="radio_auto" value="Tự động" required checked>
-                            <label class="form-check-label fw-bold text-primary" for="radio_auto" style="cursor:pointer;">
-                                Sinh tự động
-                            </label>
-                            <p class="small text-muted mb-0 mt-1">Hệ thống sẽ bốc ngẫu nhiên câu hỏi từ Ngân hàng dựa trên Ma trận.</p>
-                        </div>
-                        <div class="form-check p-3 border rounded flex-fill" style="cursor:pointer;" onclick="document.getElementById('radio_manual').click()">
-                            <input class="form-check-input" type="radio" name="hinh_thuc" id="radio_manual" value="Thủ công" required>
-                            <label class="form-check-label fw-bold" for="radio_manual" style="cursor:pointer;">
+                        <div class="form-check p-3 border rounded flex-fill bg-light" style="cursor:pointer;">
+                            <input class="form-check-input" type="radio" name="hinh_thuc" id="radio_manual" value="Thủ công" required checked>
+                            <label class="form-check-label fw-bold text-primary" for="radio_manual" style="cursor:pointer;">
                                 Lựa chọn thủ công
                             </label>
-                            <p class="small text-muted mb-0 mt-1">Hệ thống tạo khung vỏ đề, bạn tự chọn từng câu hỏi đưa vào.</p>
+                            <p class="small text-muted mb-0 mt-1">Hệ thống tạo khung vỏ đề theo ma trận đã duyệt, giáo viên chọn câu hỏi phù hợp đưa vào đề.</p>
                         </div>
                     </div>
                 </div>

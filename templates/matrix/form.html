@@ -273,7 +273,7 @@
                                 <td colspan="5" class="text-end text-primary pe-3">TỔNG CỘNG MA TRẬN:</td>
                                 <td class="text-center text-primary" id="sumSoCau">0</td>
                                 <td class="text-muted small text-center" id="sumCauSoNote">-</td>
-                                <td class="text-center" id="sumDiemCell"><span id="sumDiem">0</span>đ</td>
+                                <td class="text-center" id="sumDiemCell"><span id="sumDiem">0</span>/10đ</td>
                                 <td class="text-center" id="sumTyleCell"><span id="sumTyle">0</span>%</td>
                                 <td></td>
                             </tr>
@@ -347,7 +347,7 @@
                     <i class="fas fa-times me-1"></i> Hủy
                 </button>
                 <div class="d-flex gap-2">
-                    <button type="submit" name="action" value="submit" id="btnSubmitMatrix" class="btn btn-primary px-4 shadow-sm" onclick="setSubmitAction()">
+                    <button type="submit" name="action" value="submit" id="btnSubmitMatrix" class="btn btn-primary px-4 shadow-sm" onclick="return setSubmitAction(event)">
                         <i class="fas fa-paper-plane me-1"></i> Nộp (Gửi duyệt)
                     </button>
                 </div>
@@ -726,7 +726,7 @@
 
         // Đổi màu hiển thị tổng điểm và tỷ lệ
         const sumDiemCell = document.getElementById('sumDiemCell');
-        if (totalDiem > 0) {
+        if (Math.abs(totalDiem - 10.0) < 0.01) {
             sumDiemCell.className = 'text-center fw-bold text-success';
         } else {
             sumDiemCell.className = 'text-center fw-bold text-danger';
@@ -783,7 +783,10 @@
             badge.innerHTML = '<i class="fas fa-check me-1"></i> Tỷ lệ làm tròn hàng chục';
         }
 
-        if (totalDiem > 0 && Math.abs(totalTyle - 100.0) >= 0.01) {
+        if (totalDiem > 0 && Math.abs(totalDiem - 10.0) >= 0.01) {
+            alertBox.classList.remove('d-none');
+            alertMsg.textContent = `Tổng điểm hiện tại của ma trận là ${totalDiem}đ. Tổng điểm bắt buộc phải bằng đúng 10 điểm theo quy định.`;
+        } else if (totalDiem > 0 && Math.abs(totalTyle - 100.0) >= 0.01) {
             alertBox.classList.remove('d-none');
             alertMsg.textContent = `Tổng tỷ lệ khai báo của các dòng hiện tại là ${totalTyle}%. Bạn có thể nhấn nút "Tự động tính Tỷ lệ (%) tròn hàng chục" để hệ thống tự cân đối tròn hàng chục đạt 100%.`;
         } else {
@@ -842,13 +845,26 @@
     }
 
     // Khi chọn Nộp
-    function setSubmitAction() {
+    function setSubmitAction(e) {
         if (!checkGeneralInfoCompletion()) {
             alert('Vui lòng nhập đầy đủ các trường Thông tin chung của ma trận trước khi nộp.');
-            return;
+            if (e) e.preventDefault();
+            return false;
+        }
+        let totalDiem = 0.0;
+        document.querySelectorAll('#detailsBody tr.detail-row').forEach(row => {
+            const diemInput = row.querySelector('.input-diem');
+            if (diemInput) totalDiem += parseFloat(diemInput.value) || 0;
+        });
+        totalDiem = Math.round(totalDiem * 100) / 100;
+        if (Math.abs(totalDiem - 10.0) >= 0.01) {
+            alert(`Tổng điểm của ma trận phải bằng đúng 10 điểm (Hiện tại: ${totalDiem}đ). Vui lòng điều chỉnh lại điểm số các câu trước khi nộp.`);
+            if (e) e.preventDefault();
+            return false;
         }
         const detailInputs = document.querySelectorAll('#detailsTable select, #detailsTable input');
         detailInputs.forEach(el => el.setAttribute('required', 'required'));
+        return true;
     }
 
     // Xác nhận hủy (Exception Flow 8b / 8a)

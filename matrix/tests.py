@@ -96,7 +96,7 @@ class MatrixBusinessRulesTestCase(TestCase):
         self.assertIn(0, res['row_errors'])
 
     def test_9d_invalid_total_points(self):
-        """Rule 9d: Tổng điểm <= 0 không hợp lệ"""
+        """Rule 9d: Tổng điểm khác 10 không hợp lệ"""
         header = {
             'TenMaTran': 'Ma trận Toán 5',
             'NamHoc': self.namhoc.pk,
@@ -112,12 +112,12 @@ class MatrixBusinessRulesTestCase(TestCase):
             'LoaiCauHoi': 'Trắc nghiệm',
             'SoLuongCau': 1,
             'CauSo': '1',
-            'Diem': 0.0,
+            'Diem': 8.0,
             'TyLe': 100.0
         }]
         res = validate_matrix_data(header, details, action='submit')
         self.assertFalse(res['is_valid'])
-        self.assertTrue(any('Tổng số câu hoặc tổng điểm của ma trận chưa đúng quy định' in e for e in res['errors']))
+        self.assertTrue(any('Tổng điểm của ma trận phải bằng 10 điểm' in e for e in res['errors']))
 
     def test_9e_duplicate_detail_combination(self):
         """Rule 9e: Trùng dòng chi tiết ma trận (Mạch + Nội dung + Mức độ + Loại)"""
@@ -303,9 +303,9 @@ class MatrixBusinessRulesTestCase(TestCase):
             'Khoi': self.khoi.pk,
             'MonHoc': self.monhoc.pk
         }
-        # Tổng điểm = 8.0đ:
-        # C1 Mức 1: 2.5đ -> (2.5 / 8) * 100 = 31.25% -> làm tròn xuống 30%
-        # C2 Mức 2: 5.5đ -> (5.5 / 8) * 100 = 68.75% -> làm tròn lên 70%
+        # Tổng điểm = 10.0đ:
+        # C1 Mức 1: 3.1đ -> (3.1 / 10) * 100 = 31% -> làm tròn xuống 30%
+        # C2 Mức 2: 6.9đ -> (6.9 / 10) * 100 = 69% -> làm tròn lên 70%
         details = [
             {
                 'MachKienThuc': self.mach1.pk,
@@ -314,7 +314,7 @@ class MatrixBusinessRulesTestCase(TestCase):
                 'LoaiCauHoi': 'Trắc nghiệm',
                 'SoLuongCau': 1,
                 'CauSo': '1',
-                'Diem': 2.5,
+                'Diem': 3.1,
                 'TyLe': 30.0
             },
             {
@@ -324,13 +324,13 @@ class MatrixBusinessRulesTestCase(TestCase):
                 'LoaiCauHoi': 'Trắc nghiệm',
                 'SoLuongCau': 1,
                 'CauSo': '2',
-                'Diem': 5.5,
+                'Diem': 6.9,
                 'TyLe': 70.0
             }
         ]
         res = validate_matrix_data(header, details, action='submit')
         self.assertTrue(res['is_valid'])
-        self.assertEqual(res['calc_summary']['tong_diem'], 8.0)
+        self.assertEqual(res['calc_summary']['tong_diem'], 10.0)
         self.assertEqual(res['calc_summary']['muc_do']['Mức 1']['tyle_lamtron'], 30)
         self.assertEqual(res['calc_summary']['muc_do']['Mức 2']['tyle_lamtron'], 70)
 

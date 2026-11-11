@@ -218,9 +218,9 @@ def validate_matrix_data(header_data, details_data, action='submit', existing_ma
     if abs(tong_tyle - 100.0) > 0.01:
         errors.append(f"Tổng tỷ lệ của ma trận phải bằng 100% (Hiện tại: {round(tong_tyle, 1)}%).")
 
-    # 9d: Tổng số câu hoặc tổng điểm không hợp lệ (Tổng số câu > 0, Tổng điểm > 0)
-    if tong_diem <= 0:
-        errors.append("Tổng số câu hoặc tổng điểm của ma trận chưa đúng quy định (Tổng điểm phải lớn hơn 0).")
+    # 9d: Tổng điểm của ma trận bắt buộc phải bằng 10.0 điểm
+    if abs(tong_diem - 10.0) > 0.01:
+        errors.append(f"Tổng điểm của ma trận phải bằng 10 điểm (Hiện tại: {round(tong_diem, 2)}đ).")
     if tong_so_cau <= 0:
         errors.append("Tổng số câu hoặc tổng điểm của ma trận chưa đúng quy định (Tổng số câu phải lớn hơn 0).")
 
