@@ -35,6 +35,9 @@ DEBUG = os.getenv('DEBUG', 'True').lower() in ('true', '1')
 _allowed = os.getenv('ALLOWED_HOSTS', '*')
 ALLOWED_HOSTS = [h.strip() for h in _allowed.split(',') if h.strip()]
 
+_csrf_origins = os.getenv('CSRF_TRUSTED_ORIGINS', 'https://*.onrender.com')
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_origins.split(',') if o.strip()]
+
 
 # Application definition
 
